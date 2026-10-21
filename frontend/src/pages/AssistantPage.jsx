@@ -25,7 +25,10 @@ export default function AssistantPage({ me, go, enabled, llm }) {
   const abort = useRef(null);
 
   useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), [turns]);
+  useEffect(() => {
+    // ต้องไม่ return ค่า: Chrome รุ่นใหม่ให้ scrollIntoView คืน Promise ซึ่ง React จะเรียกเป็น cleanup แล้วพัง (destroy is not a function)
+    bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [turns]);
 
   const ask = async (question) => {
     if (!question.trim() || busy) return;
