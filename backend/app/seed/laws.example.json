@@ -1,0 +1,30 @@
+[
+  {
+    "id": "eli/th/act/2550/energy-industry",
+    "type": "พระราชบัญญัติ",
+    "title": "พระราชบัญญัติการประกอบกิจการพลังงาน พ.ศ. 2550",
+    "code": "พ.ร.บ. 2550",
+    "issuer": "รัฐสภา",
+    "category": "กิจการพลังงานทั่วไป",
+    "publishedDate": "2007-12-10",
+    "effectiveDate": "2007-12-11",
+    "provisions": [
+      {
+        "id": "eli/th/act/2550/energy-industry/sec-1",
+        "number": "มาตรา 1",
+        "part": "[ชื่อหมวด]",
+        "versions": [
+          {
+            "version": 1,
+            "validFrom": "2007-12-11",
+            "validTo": null,
+            "amendingInstrument": "ตัวบทตั้งต้น (ราชกิจจานุเบกษา เล่ม … ตอน … หน้า …)",
+            "summary": "[สาระสำคัญ 1 บรรทัด]",
+            "text": "[ข้อความตามที่ประกาศในราชกิจจานุเบกษา ตรวจทานโดยนิติกรแล้ว]",
+            "relations": []
+          }
+        ]
+      }
+    ]
+  }
+]
