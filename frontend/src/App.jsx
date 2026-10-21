@@ -5,6 +5,7 @@ import LawPage from './pages/LawPage.jsx';
 import AppealsPage from './pages/AppealsPage.jsx';
 import CasesPage from './pages/CasesPage.jsx';
 import AssistantPage from './pages/AssistantPage.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const CLEARANCE = {
   PUB: 'ข้อมูลเผยแพร่สาธารณะ',
@@ -172,10 +173,12 @@ export default function App() {
       )}
 
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
-        {me && route.page === 'law' && <LawPage key={k} {...pageProps} />}
-        {me && route.page === 'appeal' && <AppealsPage key={k} {...pageProps} />}
-        {me && route.page === 'court' && <CasesPage key={k} {...pageProps} />}
-        {me && route.page === 'assistant' && <AssistantPage key={k} {...pageProps} enabled={assistantOn} llm={llm} />}
+        <ErrorBoundary key={k}>
+          {me && route.page === 'law' && <LawPage key={k} {...pageProps} />}
+          {me && route.page === 'appeal' && <AppealsPage key={k} {...pageProps} />}
+          {me && route.page === 'court' && <CasesPage key={k} {...pageProps} />}
+          {me && route.page === 'assistant' && <AssistantPage key={k} {...pageProps} enabled={assistantOn} llm={llm} />}
+        </ErrorBoundary>
       </main>
 
       <footer className="text-center text-[11px] text-slate-500 py-4">

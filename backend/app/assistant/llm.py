@@ -25,8 +25,12 @@ def stream_chat(system: str, user: str) -> Iterator[str]:
             yield from _anthropic(system, user)
         else:
             raise ValueError(f"LLM_PROVIDER ไม่รู้จัก: {s.llm_provider}")
-    except (httpx.HTTPError, KeyError) as e:
-        raise LlmUnavailable(str(e)) from e
+    except httpx.HTTPStatusError as e:
+        body = e.response.read().decode(errors="replace")[:300] if e.response is not None else ""
+        raise LlmUnavailable(f"HTTP {e.response.status_code}: {body}") from e
+    except (httpx.HTTPError, KeyError, IndexError, ValueError) as e:
+        # ValueError ครอบ json.JSONDecodeError และ LLM_PROVIDER ที่สะกดผิด
+        raise LlmUnavailable(f"{type(e).__name__}: {e}") from e
 
 
 def _openai_compat(system: str, user: str) -> Iterator[str]:

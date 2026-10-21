@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends
@@ -10,6 +11,8 @@ from ..auth import User, current_user
 from ..config import get_settings
 from ..db import get_engine
 from .rag import answer
+
+log = logging.getLogger("erc.assistant")
 
 router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 
@@ -32,9 +35,14 @@ def create_answer(q: Question, user: User = Depends(current_user)):
 
     def events():
         # ใช้ connection ของตัวเอง เพราะ generator ทำงานต่อหลัง request handler คืนค่าแล้ว
-        with get_engine().begin() as conn:
-            for name, data in answer(conn, user, q.question, q.as_of):
-                yield f"event: {name}\ndata: {json.dumps(jsonable_encoder(data), ensure_ascii=False)}\n\n"
+        try:
+            with get_engine().begin() as conn:
+                for name, data in answer(conn, user, q.question, q.as_of):
+                    yield f"event: {name}\ndata: {json.dumps(jsonable_encoder(data), ensure_ascii=False)}\n\n"
+        except Exception as e:  # noqa: BLE001 — ส่ง error เป็น event แทนการตัด stream กลางทาง
+            log.exception("assistant stream failed")
+            err = {"code": "ASSISTANT_FAILED", "detail": f"{type(e).__name__}: {str(e)[:200]}"}
+            yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})

@@ -40,14 +40,15 @@ export default function AssistantPage({ me, go, enabled, llm }) {
         question,
         asOf,
         (name, data) => {
-          if (name === 'sources') patch((x) => ({ ...x, sources: data.sources }));
-          if (name === 'sentence') patch((x) => ({ ...x, sentences: [...x.sentences, data] }));
+          if (name === 'sources') patch((x) => ({ ...x, sources: Array.isArray(data?.sources) ? data.sources : [] }));
+          if (name === 'sentence' && data?.text)
+            patch((x) => ({ ...x, sentences: [...x.sentences, { text: String(data.text), citations: Array.isArray(data.citations) ? data.citations : [] }] }));
           if (name === 'done') patch((x) => ({ ...x, done: data }));
         },
         abort.current.signal
       );
     } catch (e) {
-      if (e.name !== 'AbortError') patch((x) => ({ ...x, error: e }));
+      if (e?.name !== 'AbortError') patch((x) => ({ ...x, error: { message: String(e?.message || e) } }));
     } finally {
       setBusy(false);
     }
@@ -173,7 +174,10 @@ export default function AssistantPage({ me, go, enabled, llm }) {
                   className="flex-1 px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
                 <button disabled={busy || !input.trim()} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50">
-                  {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'ค้นคว้าและสรุปคำตอบ'}
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className={`w-4 h-4 animate-spin ${busy ? '' : 'hidden'}`} />
+                    <span>ค้นคว้าและสรุปคำตอบ</span>
+                  </span>
                 </button>
               </form>
             </>
@@ -186,8 +190,9 @@ export default function AssistantPage({ me, go, enabled, llm }) {
 
 function Turn({ t, onOpen }) {
   const byKey = Object.fromEntries(t.sources.map((s) => [s.key, s]));
+  const kindOf = (s) => KIND[s?.kind] || KIND.provision;
   const status = t.done?.status;
-  const used = new Set(t.done?.used_sources || t.sentences.flatMap((s) => s.citations));
+  const used = new Set(Array.isArray(t.done?.used_sources) ? t.done.used_sources : t.sentences.flatMap((s) => s.citations));
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -200,7 +205,7 @@ function Turn({ t, onOpen }) {
       <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-xs p-5 space-y-4">
         {t.error && (
           <div className="flex items-center gap-2 text-xs text-rose-800">
-            <AlertTriangle className="w-4 h-4" /> {t.error.message}
+            <AlertTriangle className="w-4 h-4 shrink-0" /> <span>{t.error.message}</span>
           </div>
         )}
         {!t.done && !t.error && t.sentences.length === 0 && (
@@ -233,7 +238,7 @@ function Turn({ t, onOpen }) {
                 {s.text}{' '}
                 {s.citations.map((k) => {
                   const src = byKey[k];
-                  const meta = KIND[src?.kind] || KIND.provision;
+                  const meta = kindOf(src);
                   return (
                     <button
                       key={k}
@@ -257,7 +262,7 @@ function Turn({ t, onOpen }) {
               {t.sources
                 .filter((s) => used.has(s.key))
                 .map((s) => {
-                  const meta = KIND[s.kind];
+                  const meta = kindOf(s);
                   const Icon = meta.icon;
                   return (
                     <button
