@@ -1,0 +1,45 @@
+# POC: ฐานข้อมูล + API + หน้าเว็บ (โหมดพัฒนา)
+#   docker compose up -d --build
+#   docker compose exec api python -m app.seed.seed      ← โหลดข้อมูลสาธิตครั้งแรก
+#   เปิด http://localhost:5173
+#
+# LLM/Embedding บน GPU ของตัวเอง: รัน Ollama บนเครื่อง host แล้วตั้งค่าใน .env (ดู .env.example)
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: erc
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/erc
+      CORS_ORIGINS: http://localhost:5173
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes: [./backend/app:/app/app]
+
+  web:
+    image: node:22-alpine
+    working_dir: /web
+    environment:
+      API_URL: http://api:8000
+    command: sh -c "npm install && npm run dev"
+    ports: ["5173:5173"]
+    volumes: [./frontend:/web, webmodules:/web/node_modules]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  webmodules:
