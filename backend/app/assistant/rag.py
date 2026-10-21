@@ -2,6 +2,7 @@
 
 ลำดับ: kill switch → ค้นแบบกรองสิทธิ์ → เกณฑ์หลักฐาน → prompt → LLM → ตรวจ citation ทีละประโยค → audit
 """
+import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -16,6 +17,8 @@ from ..config import get_settings
 from ..search.hybrid import Hit, hybrid_search
 from .llm import LlmUnavailable, stream_chat
 from .validator import check_sentence, split_sentences
+
+log = logging.getLogger("erc.assistant")
 
 DISCLAIMER = ("คำตอบนี้เป็นข้อมูลประกอบการค้นคว้าจากฐานข้อมูลของสำนักงาน กกพ. ไม่ใช่ความเห็นทางกฎหมาย "
               "โปรดตรวจสอบกับตัวบทและสำนวนต้นฉบับทุกครั้ง")
@@ -140,7 +143,8 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
                 yield "sentence", {"text": c.text, "citations": c.citations}
             else:
                 dropped += 1
-    except LlmUnavailable:
+    except LlmUnavailable as e:
+        log.warning("LLM unavailable (%s %s): %s", s.llm_provider, s.llm_base_url, e)
         status = "MODEL_UNAVAILABLE"
     if status == "ANSWERED" and passed == 0:
         status = "NO_EVIDENCE"

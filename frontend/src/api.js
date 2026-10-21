@@ -54,20 +54,36 @@ export async function askAssistant(question, asOf, onEvent, signal) {
     signal
   });
   if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  if (!res.body) throw new Error('เบราว์เซอร์ไม่รองรับการรับคำตอบแบบ streaming');
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
+  let gotDone = false;
+  const emit = (block) => {
+    const name = /^event: ?(.*)$/m.exec(block)?.[1]?.trim();
+    const raw = /^data: ?(.*)$/m.exec(block)?.[1];
+    if (!name || raw == null) return;
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return; // ข้าม event ที่ไม่ใช่ JSON (เช่น proxy แทรก keep-alive)
+    }
+    if (name === 'done') gotDone = true;
+    if (name === 'error') throw new Error(data?.detail || 'เกิดข้อผิดพลาดระหว่างสร้างคำตอบ');
+    onEvent(name, data);
+  };
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
-    buf += decoder.decode(value, { stream: true });
+    buf += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
     let idx;
     while ((idx = buf.indexOf('\n\n')) >= 0) {
       const block = buf.slice(0, idx);
       buf = buf.slice(idx + 2);
-      const name = /^event: (.*)$/m.exec(block)?.[1];
-      const data = /^data: (.*)$/m.exec(block)?.[1];
-      if (name && data) onEvent(name, JSON.parse(data));
+      emit(block);
     }
   }
+  if (buf.trim()) emit(buf);
+  if (!gotDone) throw new Error('การเชื่อมต่อกับเซิร์ฟเวอร์ขาดก่อนได้คำตอบครบ (ดู docker compose logs api)');
 }
