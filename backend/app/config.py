@@ -33,6 +33,14 @@ class Settings:
         # หรือ cosine ของ embedding (ค่า default เหมาะกับ bge-m3; hash embedding แทบไม่ผ่านเกณฑ์ cosine)
         self.rag_min_coverage = float(os.getenv("RAG_MIN_COVERAGE", "0.5"))
         self.rag_min_cosine = float(os.getenv("RAG_MIN_COSINE", "0.6"))
+        # Reranker: none | tei | cohere (cross-encoder เช่น BAAI/bge-reranker-v2-m3) | legal (ทดลอง)
+        self.rerank_provider = os.getenv("RERANK_PROVIDER", "none")
+        self.rerank_base_url = os.getenv("RERANK_BASE_URL", "http://reranker:80")
+        self.rerank_model = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
+        self.rerank_api_key = os.getenv("RERANK_API_KEY", "")
+        self.rerank_candidates = int(os.getenv("RERANK_CANDIDATES", "30"))
+        self.rerank_model_weight = float(os.getenv("RERANK_MODEL_WEIGHT", "0.8"))
+        self.rerank_timeout_s = float(os.getenv("RERANK_TIMEOUT_S", "15"))
         self.assistant_enabled = os.getenv("ASSISTANT_ENABLED", "true").lower() == "true"
 
         self.cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
