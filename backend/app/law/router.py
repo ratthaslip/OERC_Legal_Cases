@@ -15,6 +15,48 @@ STATUS_TH = {"IN_FORCE": "ใช้บังคับ", "REPEALED": "ยกเ�
 
 router = APIRouter(prefix="/api/v1/laws", tags=["laws"])
 
+# ทะเบียนกฎหมายลำดับรองของ กกพ. ระบุบทอาศัยอำนาจเป็นเลขมาตราของ พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550
+PARENT_ACT = "eli/th/act/2550/energy-industry"
+_SEC = re.compile(rf"^{re.escape(PARENT_ACT)}/sec-(\d+)$")
+
+
+def _parent_section(eli: str) -> int | None:
+    m = _SEC.match(eli)
+    return int(m.group(1)) if m else None
+
+
+def _subordinate_counts(conn: Connection) -> dict[int, int]:
+    return {r["sec"]: r["n"] for r in rows(conn, """
+        SELECT s AS sec, count(*) AS n FROM law_register, unnest(authority_secs) s
+        WHERE status <> 'GROUP' GROUP BY s""")}
+
+
+def subordinate_of(conn: Connection, sec: int) -> list[dict]:
+    """กฎหมายลำดับรองที่ออกโดยอาศัยอำนาจตามมาตรา sec (จากทะเบียน) พร้อมลิงก์ตัวบทเต็มถ้าโหลดแล้ว"""
+    return rows(conn, """
+        SELECT r.register_id, r.reg_no, r.doc_type, r.title_th, r.authority_text, r.effective_text, r.effective_date,
+               r.status, r.status_assumed, r.instrument_eli, g.title_th AS group_title,
+               (SELECT p.eli_id FROM provision p JOIN legal_instrument i USING (instrument_id)
+                 WHERE i.eli_id = r.instrument_eli ORDER BY p.sort_order LIMIT 1) AS first_provision_eli
+        FROM law_register r
+        LEFT JOIN law_register g ON g.group_no = r.group_no AND g.status = 'GROUP'
+        WHERE :sec = ANY(r.authority_secs) AND r.status <> 'GROUP'
+        ORDER BY (r.status = 'REPEALED'), r.effective_date DESC NULLS LAST, r.sheet_row""", sec=sec)
+
+
+def parent_authority(conn: Connection, instrument_eli: str) -> dict | None:
+    """บทอาศัยอำนาจของตราสารลำดับรอง (จากทะเบียน) → ลิงก์ไปมาตราของ พ.ร.บ.แม่บท"""
+    r = one(conn, """SELECT register_id, reg_no, authority_text, authority_secs FROM law_register
+                     WHERE instrument_eli = :e AND status <> 'GROUP' ORDER BY sheet_row LIMIT 1""", e=instrument_eli)
+    if not r:
+        return None
+    secs = r["authority_secs"] or []
+    loaded = {x["eli_id"] for x in rows(conn, "SELECT eli_id FROM provision WHERE eli_id = ANY(:e)",
+                                        e=[f"{PARENT_ACT}/sec-{n}" for n in secs])}
+    return {"register_id": r["register_id"], "reg_no": r["reg_no"], "authority_text": r["authority_text"],
+            "sections": [{"no": n, "eli": f"{PARENT_ACT}/sec-{n}" if f"{PARENT_ACT}/sec-{n}" in loaded else None}
+                         for n in secs]}
+
 
 @router.get("/instruments")
 def list_instruments(category: str | None = None, conn: Connection = Depends(get_conn)):
@@ -32,11 +74,17 @@ def list_instruments(category: str | None = None, conn: Connection = Depends(get
                  ORDER BY x.valid_from DESC LIMIT 1) AS latest_summary
         FROM provision p LEFT JOIN provision_version pv USING (provision_id)
         GROUP BY p.provision_id ORDER BY p.instrument_id, p.sort_order""")
+    counts = _subordinate_counts(conn)
     by_inst: dict[int, list] = {}
     for p in provs:
+        sec = _parent_section(p["eli_id"])
+        p["subordinate_count"] = counts.get(sec, 0) if sec is not None else 0
         by_inst.setdefault(p.pop("instrument_id"), []).append(p)
     for i in insts:
         i["provisions"] = by_inst.get(i["instrument_id"], [])
+        i["subordinate_total"] = one(conn, """SELECT count(*) AS n FROM law_register
+                                              WHERE cardinality(authority_secs) > 0 AND status <> 'GROUP'""")["n"] \
+            if i["eli_id"] == PARENT_ACT else 0
     categories = [r["category"] for r in rows(conn, "SELECT DISTINCT category FROM legal_instrument ORDER BY 1")]
     return {"items": insts, "categories": categories}
 
@@ -103,10 +151,14 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
     else:
         hidden = len(cites)  # ผู้ใช้ภายนอกไม่เห็นงานอุทธรณ์/คดี
 
+    sec = _parent_section(eli_id)
+    subordinate = subordinate_of(conn, sec) if sec is not None else []
+
     audit.record(conn, user, "law.view", eli_id, detail={"as_of": as_of.isoformat(), "version": resolved})
     return {
         "provision": prov, "as_of": as_of, "resolved_version_no": resolved, "problem": problem,
         "versions": versions, "citations": visible, "citations_hidden": hidden,
+        "subordinate": subordinate, "parent_authority": parent_authority(conn, prov["instrument_eli"]),
     }
 
 
