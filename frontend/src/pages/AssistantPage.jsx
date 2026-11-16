@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, BookOpen, Calendar, Gavel, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
+import { AlertTriangle, BookOpen, FileText, Calendar, Gavel, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
 import { askAssistant } from '../api.js';
 import { Card, thDate, todayIso } from '../components/ui.jsx';
 
 const PRESETS = [
-  'เปรียบเทียบแนววินิจฉัยชั้นอุทธรณ์และคำพิพากษาศาลปกครองสูงสุด เรื่องการยื่นอุทธรณ์ตามมาตรา 75',
+  'เปรียบเทียบแนววินิจฉัยชั้นอุทธรณ์และคำพิพากษาศาลปกครองสูงสุด เรื่องการยื่นอุทธรณ์ตามมาตรา 121',
   'หลักเกณฑ์การสั่งปรับทางปกครองตามมาตรา 128 กรณีท่อส่งก๊าซธรรมชาติ',
   'การประเมินความสามารถรองรับของสายป้อน (Feeder Capacity) ตามข้อ 12 มีแนววินิจฉัยอย่างไร',
   'หลักเกณฑ์การอุดหนุนภาษีคาร์บอนสำหรับโรงไฟฟ้าพลังงานนิวเคลียร์ขนาดเล็ก (SMR)'
@@ -12,6 +12,7 @@ const PRESETS = [
 
 const KIND = {
   provision: { label: 'ตัวบท', icon: BookOpen, chip: 'bg-amber-100 text-amber-900 border-amber-300' },
+  register: { label: 'ทะเบียนกฎหมาย', icon: FileText, chip: 'bg-emerald-50 text-emerald-900 border-emerald-200' },
   appeal: { label: 'งานอุทธรณ์', icon: Timer, chip: 'bg-orange-50 text-orange-900 border-orange-200' },
   court_case: { label: 'งานคดี', icon: Gavel, chip: 'bg-indigo-50 text-indigo-900 border-indigo-200' }
 };
@@ -59,6 +60,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
 
   const openSource = (s) => {
     if (s.kind === 'provision') go('law', { eli: s.eli_id, asOf: s.valid_from > asOf ? s.valid_from : asOf });
+    else if (s.kind === 'register') go('law', { tab: 'register', reg: s.ref_id });
     else if (s.kind === 'appeal') go('appeal', { id: s.ref_id });
     else go('court', { id: s.ref_id });
   };
@@ -173,7 +175,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="พิมพ์คำถามข้อกฎหมาย แนวคำวินิจฉัยอุทธรณ์ หรือคำพิพากษา (เช่น มาตรา 75, อธ. 14/2562)"
+                  placeholder="พิมพ์คำถามข้อกฎหมาย แนวคำวินิจฉัยอุทธรณ์ หรือคำพิพากษา (เช่น มาตรา 121, อธ. 14/2562)"
                   className="flex-1 px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
                 <button disabled={busy || !input.trim()} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50">

@@ -17,6 +17,7 @@ def client():
     os.environ["DATABASE_URL"] = TEST_DB
     os.environ["LLM_PROVIDER"] = "extractive"
     os.environ["EMBED_PROVIDER"] = "hash"
+    os.environ["REGISTER_XLSX"] = "/nonexistent.xlsx"  # ไม่ดึงทะเบียนจริงเข้ามาในเทสต์
     from app.config import get_settings
     get_settings.cache_clear()
     from fastapi.testclient import TestClient
@@ -42,9 +43,13 @@ def sse(text):
 
 
 def test_point_in_time_by_date(client):
-    url = "/api/v1/laws/provisions/eli/th/act/2550/sec-75"
+    url = "/api/v1/laws/provisions/eli/th/act/2550/energy-industry/sec-121"
     assert client.get(url, params={"as_of": "2019-05-15"}).json()["resolved_version_no"] == 1
-    assert client.get(url, params={"as_of": "2024-03-14"}).json()["resolved_version_no"] == 2
+    # มาตรา 141 แก้ไขโดย พ.ร.บ. แก้ไขเพิ่มเติม ... พ.ศ. 2560 (มีผล 12 ก.พ. 2560)
+    url141 = "/api/v1/laws/provisions/eli/th/act/2550/energy-industry/sec-141"
+    assert client.get(url141, params={"as_of": "2017-02-11"}).json()["resolved_version_no"] == 1
+    assert client.get(url141, params={"as_of": "2017-02-12"}).json()["resolved_version_no"] == 2
+    assert client.get(url, params={"as_of": "2024-03-14"}).json()["resolved_version_no"] == 1
     assert client.get(url, params={"as_of": "2000-01-01"}).json()["problem"] == "NOT_YET_IN_FORCE"
 
 
@@ -185,7 +190,7 @@ def test_staff_outside_legal_cannot_change_workflow(client):
 
 
 def test_assistant_cites_every_sentence(client):
-    r = client.post("/api/v1/assistant/answers", json={"question": "ยื่นอุทธรณ์ตามมาตรา 75 ภายในกี่วัน"},
+    r = client.post("/api/v1/assistant/answers", json={"question": "ยื่นอุทธรณ์ตามมาตรา 121 ภายในกี่วัน"},
                     headers=h("lgl1"))
     events = sse(r.text)
     sentences = [d for n, d in events if n == "sentence"]
@@ -221,13 +226,13 @@ def test_llm_output_is_validated_sentence_by_sentence(client, monkeypatch):
     from app.assistant import rag
     from app.config import get_settings
 
-    answer = ("ต้องยื่นอุทธรณ์ภายในสามสิบวันตามมาตรา 75 [S1]\n"
+    answer = ("ต้องยื่นอุทธรณ์ภายในสามสิบวันตามมาตรา 121 [S1]\n"
               "ประโยคที่ไม่มีการอ้างอิง\n"
               "ตามมาตรา 999 ต้องยื่นภายในเจ็ดวัน [S1]\n")
     monkeypatch.setattr(get_settings(), "llm_provider", "openai_compat")
     monkeypatch.setattr(rag, "stream_chat", lambda system, user: iter([answer[i:i + 5] for i in range(0, len(answer), 5)]))
-    r = client.post("/api/v1/assistant/answers", json={"question": "ยื่นอุทธรณ์ตามมาตรา 75 ภายในกี่วัน"}, headers=h("lgl1"))
+    r = client.post("/api/v1/assistant/answers", json={"question": "ยื่นอุทธรณ์ตามมาตรา 121 ภายในกี่วัน"}, headers=h("lgl1"))
     events = sse(r.text)
     sentences = [d["text"] for n, d in events if n == "sentence"]
-    assert sentences == ["ต้องยื่นอุทธรณ์ภายในสามสิบวันตามมาตรา 75"]
+    assert sentences == ["ต้องยื่นอุทธรณ์ภายในสามสิบวันตามมาตรา 121"]
     assert events[-1][1]["dropped_sentences"] == 2

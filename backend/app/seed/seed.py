@@ -10,6 +10,7 @@
 ใช้งาน: python -m app.seed.seed   (ล้างฐานแล้วสร้างใหม่ทั้งหมด)
 """
 import json
+import os
 import random
 import re
 from datetime import date, timedelta
@@ -62,10 +63,10 @@ def load_laws(conn: Connection, instruments: list[dict]) -> dict[str, list[Versi
         iid = conn.execute(text("""
             INSERT INTO legal_instrument (eli_id, instrument_type, title_th, short_title, issuer, category,
                                           promulgated_date, effective_date, is_demo)
-            VALUES (:eli, :t, :title, :short, :issuer, :cat, :pub, :eff, TRUE) RETURNING instrument_id"""), {
+            VALUES (:eli, :t, :title, :short, :issuer, :cat, :pub, :eff, :demo) RETURNING instrument_id"""), {
             "eli": inst["id"], "t": inst["type"], "title": inst["title"], "short": inst["code"],
             "issuer": inst["issuer"], "cat": inst["category"], "pub": parse_iso(inst["publishedDate"]),
-            "eff": parse_iso(inst["effectiveDate"])}).scalar()
+            "eff": parse_iso(inst["effectiveDate"]), "demo": inst.get("isDemo", True)}).scalar()
         for order, p in enumerate(inst["provisions"]):
             pid = conn.execute(text("""
                 INSERT INTO provision (instrument_id, eli_id, provision_no, part_heading, sort_order)
@@ -79,7 +80,7 @@ def load_laws(conn: Connection, instruments: list[dict]) -> dict[str, list[Versi
                                                    amended_by, summary)
                     VALUES (:p, :n, :body, :vf, :vt, 'approved', :am, :sum) RETURNING version_id"""),
                     {"p": pid, "n": v["version"], "body": v["text"], "vf": vf, "vt": vt,
-                     "am": v["amendingInstrument"], "sum": v["summary"]}).scalar()
+                     "am": v["amendingInstrument"], "sum": v.get("summary")}).scalar()
                 for rel in v.get("relations", []):
                     conn.execute(text("""INSERT INTO legal_relation (version_id, relation_type, target_text)
                                          VALUES (:v, :t, :x)"""), {"v": vid, "t": rel["type"], "x": rel["target"]})
@@ -189,36 +190,37 @@ def load_prototype_cases(conn: Connection, data: dict, appeal_ids: dict[str, int
 
 
 # ---------------------------------------------------------------- generated (สมมติ)
-SEC47, SEC75, SEC128 = "eli/th/act/2550/sec-47", "eli/th/act/2550/sec-75", "eli/th/act/2550/sec-128"
+ACT = "eli/th/act/2550/energy-industry"  # ตัวบทจริง (seed/laws/act-2550-energy-industry.json)
+SEC47, SEC121, SEC128 = f"{ACT}/sec-47", f"{ACT}/sec-121", f"{ACT}/sec-128"
 CL12 = "eli/th/reg/2565/clause-12"
-LABEL = {SEC47: "มาตรา 47", SEC75: "มาตรา 75", SEC128: "มาตรา 128", CL12: "ข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565"}
+LABEL = {SEC47: "มาตรา 47", SEC121: "มาตรา 121", SEC128: "มาตรา 128", CL12: "ข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565"}
 
 TEMPLATES = [
-    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[SEC75, CL12, SEC47],
+    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[SEC121, CL12, SEC47],
          subject="อุทธรณ์คำสั่งไม่รับคำขอขายไฟฟ้าโครงการ{tech}แบบ VSPP เนื่องจากจุดเชื่อมโยงเต็มศักยภาพ",
-         summary="ผู้อุทธรณ์โต้แย้งผลการประเมินความสามารถรองรับของสายป้อน (Feeder Capacity) ณ จุดเชื่อมโยงที่เสนอ ตามข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565 และยื่นอุทธรณ์ภายใน 30 วันตามมาตรา 75",
+         summary="ผู้อุทธรณ์โต้แย้งผลการประเมินความสามารถรองรับของสายป้อน (Feeder Capacity) ณ จุดเชื่อมโยงที่เสนอ ตามข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565 และยื่นอุทธรณ์ภายใน 30 วันตามมาตรา 121",
          tech=["พลังงานแสงอาทิตย์บนหลังคา", "ชีวมวล", "ก๊าซชีวภาพ", "พลังงานแสงอาทิตย์ลอยน้ำ"]),
-    dict(sector="กิจการไฟฟ้า", party=("ผู้รับใบอนุญาตผลิตไฟฟ้า", "EL-SPP"), cites=[SEC128, SEC47, SEC75],
+    dict(sector="กิจการไฟฟ้า", party=("ผู้รับใบอนุญาตผลิตไฟฟ้า", "EL-SPP"), cites=[SEC128, SEC47, SEC121],
          subject="อุทธรณ์คำสั่งปรับทางปกครองกรณีไม่ส่งรายงานคุณภาพไฟฟ้าตามเงื่อนไขท้ายใบอนุญาต{tech}",
          summary="ผู้อุทธรณ์โต้แย้งคำสั่งปรับทางปกครองตามมาตรา 128 กรณีไม่ส่งรายงานผลการตรวจวัดคุณภาพไฟฟ้าตามเงื่อนไขท้ายใบอนุญาตที่กำหนดตามมาตรา 47 โดยอ้างว่าระบบตรวจวัดขัดข้องจากเหตุนอกเหนือการควบคุม",
          tech=["", " โรงไฟฟ้าระบบความร้อนร่วม", " โรงไฟฟ้าชีวมวล"]),
-    dict(sector="กิจการก๊าซธรรมชาติ", party=("ผู้รับใบอนุญาตจำหน่ายก๊าซธรรมชาติ", "NG-DST"), cites=[SEC128, SEC75],
+    dict(sector="กิจการก๊าซธรรมชาติ", party=("ผู้รับใบอนุญาตจำหน่ายก๊าซธรรมชาติ", "NG-DST"), cites=[SEC128, SEC121],
          subject="อุทธรณ์คำสั่งให้แก้ไขระบบตรวจวัดปริมาณก๊าซธรรมชาติ ณ สถานี{tech}",
-         summary="ผู้อุทธรณ์โต้แย้งคำสั่งให้แก้ไขปรับปรุงระบบตรวจวัดปริมาณก๊าซภายในระยะเวลาที่กำหนดตามมาตรา 128 โดยขอขยายระยะเวลาเนื่องจากต้องนำเข้าอุปกรณ์จากต่างประเทศ และใช้สิทธิอุทธรณ์ตามมาตรา 75",
+         summary="ผู้อุทธรณ์โต้แย้งคำสั่งให้แก้ไขปรับปรุงระบบตรวจวัดปริมาณก๊าซภายในระยะเวลาที่กำหนดตามมาตรา 128 โดยขอขยายระยะเวลาเนื่องจากต้องนำเข้าอุปกรณ์จากต่างประเทศ และใช้สิทธิอุทธรณ์ตามมาตรา 121",
          tech=["จ่ายก๊าซนิคมอุตสาหกรรม", "ควบคุมความดัน", "รับก๊าซปลายทาง"]),
-    dict(sector="กิจการระบบโครงข่ายพลังงาน", party=("ผู้รับใบอนุญาตระบบโครงข่ายไฟฟ้า", "GRID"), cites=[SEC47, SEC75],
+    dict(sector="กิจการระบบโครงข่ายพลังงาน", party=("ผู้รับใบอนุญาตระบบโครงข่ายไฟฟ้า", "GRID"), cites=[SEC47, SEC121],
          subject="อุทธรณ์คำสั่งกำหนดเงื่อนไขท้ายใบอนุญาตด้านความมั่นคงของระบบโครงข่าย{tech}",
-         summary="ผู้อุทธรณ์โต้แย้งเงื่อนไขท้ายใบอนุญาตที่กำหนดตามมาตรา 47 ให้ต้องรักษาระดับแรงดันและสำรองกำลังผลิตเพื่อความมั่นคงของระบบโครงข่าย โดยอ้างว่าเป็นภาระเกินสมควร และยื่นอุทธรณ์ตามมาตรา 75",
+         summary="ผู้อุทธรณ์โต้แย้งเงื่อนไขท้ายใบอนุญาตที่กำหนดตามมาตรา 47 ให้ต้องรักษาระดับแรงดันและสำรองกำลังผลิตเพื่อความมั่นคงของระบบโครงข่าย โดยอ้างว่าเป็นภาระเกินสมควร และยื่นอุทธรณ์ตามมาตรา 121",
          tech=["ไฟฟ้า", "ในเขตพื้นที่ภาคตะวันออก", "ระบบจำหน่ายในพื้นที่ห่างไกล"]),
-    dict(sector="กิจการก๊าซธรรมชาติ", party=("ผู้รับใบอนุญาตขนส่งก๊าซธรรมชาติ", "NG-TRN"), cites=[SEC128, SEC75, SEC47],
+    dict(sector="กิจการก๊าซธรรมชาติ", party=("ผู้รับใบอนุญาตขนส่งก๊าซธรรมชาติ", "NG-TRN"), cites=[SEC128, SEC121, SEC47],
          subject="อุทธรณ์คำสั่งพักใช้ใบอนุญาตขนส่งก๊าซธรรมชาติทางท่อ{tech}",
          summary="ผู้อุทธรณ์โต้แย้งคำสั่งพักใช้ใบอนุญาตตามมาตรา 128 กรณีไม่ปฏิบัติตามหลักเกณฑ์ด้านความปลอดภัยของระบบท่อ และขอให้พิจารณามาตรการแก้ไขแทนการพักใช้ใบอนุญาต",
          tech=["", " ช่วงสถานีควบคุมความดันย่อย"]),
-    dict(sector="กิจการไฟฟ้า", party=("ผู้รับใบอนุญาตผลิตไฟฟ้า", "EL-SPP"), cites=[SEC75, SEC47],
+    dict(sector="กิจการไฟฟ้า", party=("ผู้รับใบอนุญาตผลิตไฟฟ้า", "EL-SPP"), cites=[SEC121, SEC47],
          subject="อุทธรณ์คำสั่งไม่อนุญาตให้ขยายกำหนดวันเริ่มต้นซื้อขายไฟฟ้าเชิงพาณิชย์ (SCOD) โครงการ{tech}",
-         summary="ผู้อุทธรณ์ขอให้ทบทวนคำสั่งไม่ขยายกำหนด SCOD โดยอ้างเหตุสุดวิสัยด้านการก่อสร้างระบบเชื่อมต่อ ประเด็นสำคัญคือการยื่นอุทธรณ์ภายในระยะเวลาตามมาตรา 75 ฉบับที่ใช้บังคับ ณ วันเกิดเหตุ",
+         summary="ผู้อุทธรณ์ขอให้ทบทวนคำสั่งไม่ขยายกำหนด SCOD โดยอ้างเหตุสุดวิสัยด้านการก่อสร้างระบบเชื่อมต่อ ประเด็นสำคัญคือการยื่นอุทธรณ์ภายในระยะเวลาตามมาตรา 121 ที่ใช้บังคับ ณ วันเกิดเหตุ",
          tech=["โรงไฟฟ้าชีวมวล", "โรงไฟฟ้าพลังงานลม", "โรงไฟฟ้าขยะชุมชน"]),
-    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[CL12, SEC75],
+    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[CL12, SEC121],
          subject="อุทธรณ์คำสั่งถือว่าสละสิทธิเนื่องจากวางหลักประกันการยื่นขอผลิตไฟฟ้าไม่ครบถ้วน{tech}",
          summary="ผู้อุทธรณ์โต้แย้งคำสั่งที่ถือว่าสละสิทธิในการพิจารณาคัดเลือก เนื่องจากวางหลักประกันตามอัตราเมกะวัตต์ไม่ครบภายในเวลาที่กำหนดตามข้อ 12 ของระเบียบ กกพ. พ.ศ. 2565",
          tech=["", " (โครงการพลังงานแสงอาทิตย์ร่วมกับระบบกักเก็บพลังงาน)"]),
@@ -402,7 +404,8 @@ def run(conn: Connection, today: date | None = None) -> dict:
                      {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
                       "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
     data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
-    windows = load_laws(conn, data["instruments"])
+    real = [i for f in sorted((HERE / "laws").glob("*.json")) for i in json.loads(f.read_text(encoding="utf-8"))]
+    windows = load_laws(conn, real + data["instruments"])
     proto_ids = load_prototype(conn, data, windows, today, rng)
     generated, extra = generate(conn, windows, today, rng)
     load_prototype_cases(conn, data, proto_ids, extra)
@@ -411,7 +414,13 @@ def run(conn: Connection, today: date | None = None) -> dict:
     n_case = reindex_cases(conn)
     counts = {t: conn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
               for t in ("provision_version", "appeal", "court_case", "citation_link")}
-    return {**counts, "law_chunks": n_law, "case_chunks": n_case}
+    # ทะเบียนกฎหมายลำดับรองจริง (ถ้ามีไฟล์) — seed ล้างตารางทุกครั้ง จึงต้องนำเข้าซ้ำที่นี่
+    reg_path = Path(os.environ.get("REGISTER_XLSX", "/data/register.xlsx"))
+    n_reg = 0
+    if reg_path.is_file():
+        from .import_register import load_register
+        n_reg = load_register(conn, str(reg_path))["rows"]
+    return {**counts, "law_chunks": n_law, "case_chunks": n_case, "register_rows": n_reg}
 
 
 if __name__ == "__main__":

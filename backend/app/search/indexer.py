@@ -42,6 +42,21 @@ def reindex_laws(conn: Connection) -> int:
     return len(chunks)
 
 
+def reindex_register(conn: Connection) -> int:
+    """ทะเบียนกฎหมายลำดับรอง: 1 ระเบียน = 1 chunk (สาธารณะ — เฉพาะชื่อ ประเภท บทอาศัยอำนาจ วันใช้บังคับ สถานะ)"""
+    from ..law.register import chunk_text
+
+    conn.execute(text("DELETE FROM search_chunk WHERE kind = 'register'"))
+    chunks = []
+    for r in rows(conn, "SELECT * FROM law_register ORDER BY register_id"):
+        title, body = chunk_text(r)
+        chunks.append({"kind": "register", "ref_id": r["register_id"], "eli_id": r["instrument_eli"],
+                       "valid_from": r["effective_date"], "classification": "public", "title": title,
+                       "chunk_text": body})
+    _insert(conn, chunks)
+    return len(chunks)
+
+
 def _case_chunks(kind: str, ref_id: int, title: str, body: str, docs: list[dict], cls: str, owners: list[str],
                  sector: str) -> list[dict]:
     base = {"kind": kind, "ref_id": ref_id, "classification": cls, "owners": owners, "energy_sector": sector}

@@ -3,3 +3,7 @@ dist/
 __pycache__/
 .pytest_cache/
 .env
+# ข้อมูลจริงของสำนักงาน กกพ. — ห้าม commit
+data/
+*.xlsx
+*.xls

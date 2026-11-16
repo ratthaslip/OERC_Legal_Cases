@@ -49,7 +49,7 @@ export default function CasesPage({ me, go, route, switchUser }) {
             <Label>ค้นหาสำนวนคดี (เลขคดีดำ, เลขคดีแดง, ประเด็นพิพาท, มาตราที่อ้างอิง)</Label>
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input value={filters.q} onChange={set('q')} placeholder="เช่น อ. 1120/2566, พ. 89/2565, มาตรา 75, ขยายเวลา SCOD..." className={`${inputCls} pl-10`} />
+              <input value={filters.q} onChange={set('q')} placeholder="เช่น อ. 1120/2566, พ. 89/2565, มาตรา 121, ขยายเวลา SCOD..." className={`${inputCls} pl-10`} />
             </div>
           </div>
           <div className="md:col-span-3">

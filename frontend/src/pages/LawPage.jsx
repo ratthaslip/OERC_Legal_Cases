@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
+import RegisterPanel from './law/RegisterPanel.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
 
-const DEFAULT_ELI = 'eli/th/act/2550/sec-75';
+const DEFAULT_ELI = 'eli/th/act/2550/energy-industry/sec-121';
 
-export default function LawPage({ me, go, notify, route }) {
+function ProvisionView({ me, go, notify, route }) {
   const [instruments, setInstruments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState('');
@@ -75,7 +76,7 @@ export default function LawPage({ me, go, notify, route }) {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="เช่น มาตรา 75, อุทธรณ์คำสั่ง, ใบอนุญาตผลิตไฟฟ้า, จุดเชื่อมโยง..."
+                placeholder="เช่น มาตรา 121, อุทธรณ์คำสั่ง, ใบอนุญาตผลิตไฟฟ้า, จุดเชื่อมโยง..."
                 className={`${inputCls} pl-10`}
               />
             </div>
@@ -251,7 +252,7 @@ export default function LawPage({ me, go, notify, route }) {
                 {!compare ? (
                   active && (
                     <div className="mt-5">
-                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-900 text-sm sm:text-base leading-relaxed">
+                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-900 text-sm sm:text-base leading-relaxed whitespace-pre-line">
                         <span className="font-bold text-slate-950 mr-2">{detail.provision.provision_no}</span>
                         {active.body_text}
                       </div>
@@ -286,7 +287,7 @@ export default function LawPage({ me, go, notify, route }) {
                           )}
                         </div>
                         <p className="text-[11px] text-slate-500 mb-2.5">{v.amended_by}</p>
-                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed bg-white p-3 rounded-lg border border-slate-200/80">{v.body_text}</p>
+                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed bg-white p-3 rounded-lg border border-slate-200/80 whitespace-pre-line">{v.body_text}</p>
                         <button onClick={() => setAsOf(v.valid_from)} className="mt-2 text-[11px] font-semibold text-amber-700 hover:underline">
                           ดูตัวบทและบรรทัดฐานของรุ่นนี้
                         </button>
@@ -393,6 +394,42 @@ function CiteColumn({ title, icon, items, unit, empty, tag, btn, btnLabel, onOpe
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+
+/** โมดูลสืบค้นกฎหมาย: ตัวบทรายมาตรา (point-in-time) + ทะเบียนคุมกฎหมายลำดับรอง */
+export default function LawPage(props) {
+  const { route } = props;
+  const [tab, setTab] = useState(route.tab || (route.reg ? 'register' : 'provision'));
+  const [count, setCount] = useState(null);
+  useEffect(() => {
+    if (route.tab || route.reg) setTab(route.tab || 'register');
+  }, [route.nonce]);
+  useEffect(() => {
+    api.register({ limit: 1 }).then((r) => setCount(r.facets?.meta?.total || 0)).catch(() => setCount(0));
+  }, []);
+  const tabs = [
+    ['provision', 'ตัวบทรายมาตรา (ตรวจย้อนหลังตามวันที่)'],
+    ['register', `ทะเบียนกฎหมายลำดับรอง${count ? ` (${count})` : ''}`]
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-slate-200">
+        {tabs.map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px ${
+              tab === k ? 'border-amber-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'provision' ? <ProvisionView {...props} /> : <RegisterPanel me={props.me} initialId={route.reg} go={props.go} />}
     </div>
   );
 }

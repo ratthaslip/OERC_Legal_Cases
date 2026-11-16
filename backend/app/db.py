@@ -29,7 +29,7 @@ def init_schema(conn: Connection) -> None:
 
 def reset_schema(conn: Connection) -> None:
     conn.execute(text(
-        "DROP TABLE IF EXISTS audit_event, search_chunk, citation_link, case_document, court_proceeding, "
+        "DROP TABLE IF EXISTS audit_event, search_chunk, law_register, citation_link, case_document, court_proceeding, "
         "court_case_owner, court_case, appeal_request, appeal_milestone, appeal_step, appeal_owner, appeal, holiday, workflow_step_def, legal_relation, "
         "provision_version, provision, legal_instrument CASCADE"
     ))
