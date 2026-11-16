@@ -73,7 +73,9 @@ def test_read_workbook(workbook):
     assert a.attachments == {"pdf": 1, "word": 2}
     assert not hasattr(a, "lawyer")  # ไม่นำเข้าชื่อนิติกร
     assert "ชื่อบุคคล" not in repr(a)
-    assert b.status == "UNKNOWN" and "ไม่ระบุสถานะปัจจุบัน" in b.issues
+    # ทะเบียนไม่ระบุสถานะ → ถือว่าใช้บังคับไว้ก่อน แต่ทำเครื่องหมายว่าสันนิษฐาน
+    assert b.status == "IN_FORCE" and b.status_assumed and any("ถือว่าใช้บังคับ" in i for i in b.issues)
+    assert a.status == "IN_FORCE" and not a.status_assumed
     # 1.1 ที่ตามหลัง 1.9 = Excel แปลง "1.10" เป็นตัวเลข
     assert c.reg_no == "1.10" and any("Excel" in i for i in c.issues)
     assert c.status == "REPEALED"

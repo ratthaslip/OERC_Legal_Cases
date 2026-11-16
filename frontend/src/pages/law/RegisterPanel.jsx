@@ -15,7 +15,17 @@ const ATTACH = {
 };
 const PAGE = 50;
 
-export function StatusPill({ status }) {
+export function StatusPill({ status, assumed }) {
+  if (status === 'IN_FORCE' && assumed) {
+    return (
+      <span
+        title="ทะเบียนไม่ระบุสถานะ ระบบถือว่าใช้บังคับไว้ก่อน — รอฝ่ายกฎหมายยืนยัน"
+        className="inline-flex px-2 py-0.5 rounded border border-dashed text-[10px] font-semibold whitespace-nowrap bg-white text-emerald-700 border-emerald-300"
+      >
+        ใช้บังคับ*
+      </span>
+    );
+  }
   const s = REG_STATUS[status] || REG_STATUS.UNKNOWN;
   return <span className={`inline-flex px-2 py-0.5 rounded border text-[10px] font-semibold whitespace-nowrap ${s.cls}`}>{s.label}</span>;
 }
@@ -82,6 +92,7 @@ export default function RegisterPanel({ me, initialId, go }) {
                 }`}
               >
                 {(REG_STATUS[s.key] || REG_STATUS.UNKNOWN).label} {s.n}
+                {s.assumed > 0 && <span className="font-normal opacity-70"> (* สันนิษฐาน {s.assumed})</span>}
               </button>
             ))}
           </div>
@@ -165,7 +176,7 @@ export default function RegisterPanel({ me, initialId, go }) {
                     <span className="flex-1 min-w-0">
                       <span className="block text-xs font-medium text-slate-800 leading-snug">{r.title_th}</span>
                       <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
-                        <StatusPill status={r.status} />
+                        <StatusPill status={r.status} assumed={r.status_assumed} />
                         <span>{r.doc_type}</span>
                         {r.authority_secs?.length > 0 && <span>· ม.{r.authority_secs.join(', ')}</span>}
                         {r.effective_date && <span>· ใช้บังคับ {thDate(r.effective_date)}</span>}
@@ -233,7 +244,7 @@ function RegisterDetail({ id, internal, go, onSelect, onClose }) {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
             <span className="font-mono">ลำดับ {r.reg_no}</span>
-            <StatusPill status={r.status} />
+            <StatusPill status={r.status} assumed={r.status_assumed} />
           </div>
           <div className="text-sm font-bold text-slate-900 leading-snug">{r.title_th}</div>
           {d.group_title && <div className="text-[11px] text-slate-500">กลุ่ม: {d.group_title}</div>}
@@ -263,7 +274,9 @@ function RegisterDetail({ id, internal, go, onSelect, onClose }) {
           ) : null}
         </Row>
         <Row k="วันใช้บังคับ">{r.effective_date ? thDate(r.effective_date) : r.effective_text}</Row>
-        <Row k="สถานะในทะเบียน">{r.status_text || (r.status === 'UNKNOWN' ? 'ไม่ระบุ' : null)}</Row>
+        <Row k="สถานะในทะเบียน">
+          {r.status_text || (r.status_assumed ? 'ไม่ระบุ — ระบบถือว่าใช้บังคับไว้ก่อน (รอฝ่ายกฎหมายยืนยัน)' : r.status === 'UNKNOWN' ? 'ไม่ระบุ' : null)}
+        </Row>
         {internal && (
           <>
             <Row k="ฝ่ายงานผู้รับผิดชอบ">{r.owner_unit}</Row>
@@ -313,7 +326,7 @@ function RegisterDetail({ id, internal, go, onSelect, onClose }) {
                   <span className="flex-1 text-[11px] text-slate-700 leading-snug">
                     {x.title_th}
                     <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500">
-                      <StatusPill status={x.status} />
+                      <StatusPill status={x.status} assumed={x.status_assumed} />
                       {x.effective_date && thDate(x.effective_date)}
                     </span>
                   </span>

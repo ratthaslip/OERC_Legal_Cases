@@ -7,9 +7,14 @@
 from __future__ import annotations
 
 import re
+import os
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+
+# ทะเบียนไม่ระบุสถานะ → ถือว่า "ใช้บังคับ" ไว้ก่อน (ตัดสินใจของผู้ดูแลโครงการ 16 พ.ย. 2569) และทำเครื่องหมายว่าสันนิษฐาน
+# ตั้ง REGISTER_ASSUME_IN_FORCE=0 เพื่อกลับไปแสดงเป็น "ไม่ระบุ"
+ASSUME_IN_FORCE = os.environ.get("REGISTER_ASSUME_IN_FORCE", "1") != "0"
 
 THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 MONTHS = {m: i + 1 for i, m in enumerate(
@@ -106,6 +111,7 @@ class RegisterRow:
     review_text: str | None
     status: str
     status_text: str | None
+    status_assumed: bool
     note: str | None
     hearing_text: str | None
     attachments: dict = field(default_factory=dict)
@@ -194,8 +200,13 @@ def read_workbook(path: str | Path) -> tuple[list[RegisterRow], str]:
         status = normalize_status(status_text, note)
         if heading:
             status = "GROUP"
+        assumed = False
         if status == "UNKNOWN" and doc_type:
-            issues.append("ไม่ระบุสถานะปัจจุบัน")
+            if ASSUME_IN_FORCE:
+                status, assumed = "IN_FORCE", True
+                issues.append("ไม่ระบุสถานะปัจจุบัน (ระบบถือว่าใช้บังคับไว้ก่อน)")
+            else:
+                issues.append("ไม่ระบุสถานะปัจจุบัน")
         if GARBLED.search(title):
             issues.append("ชื่อกฎหมายอาจคัดลอกจาก PDF ไม่สมบูรณ์ (สระ/วรรณยุกต์/เลขปีหาย)")
         if "\n" in str(raw_title or ""):
@@ -214,7 +225,7 @@ def read_workbook(path: str | Path) -> tuple[list[RegisterRow], str]:
             sheet_row=r, reg_no=reg_no, group_no=reg_no.split(".")[0] if reg_no else "-",
             doc_type=doc_type, title_th=title, authority_text=auth, authority_secs=secs,
             owner_unit=clean(get(r, "unit")), effective_text=eff_text, effective_date=eff,
-            review_text=clean(get(r, "review")), status=status, status_text=status_text, note=note,
+            review_text=clean(get(r, "review")), status=status, status_text=status_text, status_assumed=assumed, note=note,
             hearing_text=hear, attachments=stats.get((reg_no, title), {}), issues=issues,
         ))
     return out, sheet_title
@@ -223,6 +234,8 @@ def read_workbook(path: str | Path) -> tuple[list[RegisterRow], str]:
 def chunk_text(r: dict) -> tuple[str, str]:
     """ข้อความที่ใช้ index สำหรับค้นหา/ผู้ช่วย AI (เฉพาะข้อมูลที่เปิดเผยได้)"""
     status = {"IN_FORCE": "ใช้บังคับ", "REPEALED": "ยกเลิกแล้ว"}.get(r["status"], "ไม่ระบุสถานะในทะเบียน")
+    if r.get("status_assumed"):
+        status = "ใช้บังคับ (ทะเบียนไม่ระบุสถานะ ระบบสันนิษฐานว่ายังใช้บังคับ — ควรตรวจสอบ)"
     secs = ", ".join(f"มาตรา {s}" for s in r["authority_secs"]) or "-"
     body = (f"{r['title_th']}\nประเภท: {r['doc_type'] or '-'}\n"
             f"ออกโดยอาศัยอำนาจตาม พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550 {secs}"

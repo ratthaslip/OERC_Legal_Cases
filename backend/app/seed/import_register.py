@@ -29,10 +29,10 @@ def load_register(conn: Connection, path: str) -> dict:
     for r in items:
         conn.execute(text("""
             INSERT INTO law_register (sheet_row, reg_no, group_no, doc_type, title_th, authority_text, authority_secs,
-                owner_unit, effective_text, effective_date, review_text, status, status_text, note, hearing_text,
+                owner_unit, effective_text, effective_date, review_text, status, status_text, status_assumed, note, hearing_text,
                 attachments, issues, source_file)
             VALUES (:sheet_row, :reg_no, :group_no, :doc_type, :title_th, :authority_text, :authority_secs,
-                :owner_unit, :effective_text, :effective_date, :review_text, :status, :status_text, :note,
+                :owner_unit, :effective_text, :effective_date, :review_text, :status, :status_text, :status_assumed, :note,
                 :hearing_text, CAST(:attachments AS jsonb), :issues, :source_file)"""),
             {**r.__dict__, "attachments": json.dumps(r.attachments), "source_file": Path(path).name})
     link_instruments(conn)
@@ -60,6 +60,13 @@ def link_instruments(conn: Connection) -> int:
             continue
         eli, inst_eff = hit
         conn.execute(text("UPDATE law_register SET instrument_eli = :e WHERE register_id = :i"), {"e": eli, "i": rid})
+        # ตัวบทที่นำเข้าแล้วสิ้นผลทุกข้อ (ถูกยกเลิก) → แก้สถานะที่สันนิษฐานไว้
+        alive = conn.execute(text("""SELECT count(*) FROM provision_version pv JOIN provision p USING (provision_id)
+                                     JOIN legal_instrument i USING (instrument_id)
+                                     WHERE i.eli_id = :e AND pv.valid_to IS NULL"""), {"e": eli}).scalar()
+        if alive == 0:
+            conn.execute(text("""UPDATE law_register SET status = 'REPEALED', status_assumed = FALSE
+                                 WHERE register_id = :i AND status_assumed"""), {"i": rid})
         if inst_eff and eff != inst_eff:  # ตัวบทคือแหล่งความจริง: แจ้งให้แก้ทะเบียน
             th = f"{inst_eff.day}/{inst_eff.month}/{inst_eff.year + 543}"
             conn.execute(text("UPDATE law_register SET issues = array_append(issues, :m) WHERE register_id = :i"),
@@ -72,7 +79,8 @@ def summarize(items) -> str:
     st = collections.Counter(r.status for r in items)
     iss = collections.Counter(i.split(" (")[0].split(" —")[0] for r in items for i in r.issues)
     lines = [f"ระเบียน {len(items)} แถว · เรื่องหลัก {len({r.group_no for r in items})} กลุ่ม",
-             f"สถานะ: ใช้บังคับ {st['IN_FORCE']} · ยกเลิก {st['REPEALED']} · ไม่ระบุ {st['UNKNOWN']}",
+             f"สถานะ: ใช้บังคับ {st['IN_FORCE']} (ในจำนวนนี้สันนิษฐาน {sum(1 for r in items if r.status_assumed)})"
+             f" · ยกเลิก {st['REPEALED']} · ไม่ระบุ {st['UNKNOWN']}",
              f"แถวที่มีประเด็นต้องตรวจ {sum(1 for r in items if r.issues)}"]
     lines += [f"  - {k}: {v}" for k, v in iss.most_common()]
     return "\n".join(lines)

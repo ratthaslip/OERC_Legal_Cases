@@ -112,7 +112,7 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
 
 # ---------- ทะเบียนคุมกฎหมายลำดับรอง ----------
 _PUBLIC_COLS = ("register_id, reg_no, group_no, doc_type, title_th, authority_text, authority_secs, effective_text, "
-                "effective_date, status, instrument_eli")
+                "effective_date, status, status_assumed, instrument_eli")
 _INTERNAL_COLS = ", owner_unit, review_text, status_text, note, hearing_text, attachments, issues, sheet_row, source_file, imported_at"
 
 
@@ -167,8 +167,8 @@ def _register_facets(conn: Connection, internal: bool) -> dict:
     f = {
         "doc_types": rows(conn, """SELECT doc_type AS key, count(*) AS n FROM law_register
                                    WHERE status <> 'GROUP' AND doc_type IS NOT NULL GROUP BY 1 ORDER BY 2 DESC"""),
-        "statuses": rows(conn, """SELECT status AS key, count(*) AS n FROM law_register
-                                  WHERE status <> 'GROUP' GROUP BY 1 ORDER BY 2 DESC"""),
+        "statuses": rows(conn, """SELECT status AS key, count(*) AS n, count(*) FILTER (WHERE status_assumed) AS assumed
+                                  FROM law_register WHERE status <> 'GROUP' GROUP BY 1 ORDER BY 2 DESC"""),
         "sections": rows(conn, """SELECT s AS key, count(*) AS n FROM law_register, unnest(authority_secs) s
                                   GROUP BY 1 ORDER BY 2 DESC, 1"""),
         "meta": one(conn, """SELECT count(*) FILTER (WHERE status <> 'GROUP') AS total,
@@ -192,7 +192,7 @@ def get_register(register_id: int, user: User = Depends(current_user), conn: Con
     if not item or item["status"] == "GROUP":
         raise HTTPException(404, detail={"code": "NOT_FOUND", "detail": "ไม่พบระเบียนนี้"})
     # ระเบียนในกลุ่มเดียวกัน (ฉบับแก้ไข/ฉบับที่ออกตามกัน) เรียงตามแถวในทะเบียน
-    related = rows(conn, f"""SELECT register_id, reg_no, doc_type, title_th, effective_text, effective_date, status
+    related = rows(conn, f"""SELECT register_id, reg_no, doc_type, title_th, effective_text, effective_date, status, status_assumed
                              FROM law_register WHERE group_no = :g AND register_id <> :i AND status <> 'GROUP'
                              ORDER BY sheet_row""", g=item["group_no"], i=register_id)
     heading = one(conn, "SELECT title_th FROM law_register WHERE group_no = :g AND status = 'GROUP' LIMIT 1",

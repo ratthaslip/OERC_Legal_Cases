@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS law_register (
     effective_date  DATE,                              -- แปลงจาก effective_text (NULL ถ้าแปลงไม่ได้)
     review_text     TEXT,                              -- รอบการประเมินผลสัมฤทธิ์
     status          VARCHAR(12) NOT NULL DEFAULT 'UNKNOWN', -- IN_FORCE | REPEALED | UNKNOWN | GROUP (แถวหัวกลุ่ม)
+    status_assumed  BOOLEAN NOT NULL DEFAULT FALSE,    -- TRUE = ทะเบียนไม่ระบุ ระบบถือว่าใช้บังคับไว้ก่อน
     status_text     TEXT,
     note            TEXT,
     hearing_text    TEXT,                              -- รับฟังหลักการ / รับฟังร่าง
