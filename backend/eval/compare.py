@@ -6,17 +6,25 @@ import json
 import sys
 
 
-def ok(r):
-    return r["status_ok"] and r.get("cited_hit", True) and r["forbidden_ok"]
+from eval.run_eval import passed as ok
 
 
 def main(a_path, b_path):
     a, b = (json.load(open(p, encoding="utf-8")) for p in (a_path, b_path))
     ra, rb = ({r["id"]: r for r in x["rows"]} for x in (a, b))
-    better = [k for k in ra if not ok(ra[k]) and ok(rb[k])]
-    worse = [k for k in ra if ok(ra[k]) and not ok(rb[k])]
-    for k in ("status_ok_%", "source_hit@5_%", "cited_hit_%", "citation_rate_%"):
-        print(f"{k:<18} {a['summary'][k]!s:<14} → {b['summary'][k]}")
+    better = [k for k in rb if k in ra and not ok(ra[k]) and ok(rb[k])]
+    worse = [k for k in rb if k in ra and ok(ra[k]) and not ok(rb[k])]
+    for k in ("passed", "status_ok_%", "source_hit@5_%", "cited_hit_%", "answer_ok_%", "citation_rate_%"):
+        print(f"{k:<18} {a['summary'].get(k)!s:<14} → {b['summary'].get(k)}")
+    cats = {}
+    for k, r in rb.items():
+        c = cats.setdefault(r.get("category", "?"), [0, 0, 0])
+        c[0] += 1
+        c[1] += ok(ra[k]) if k in ra else 0
+        c[2] += ok(r)
+    print("รายหมวด (ผ่าน ก่อน → หลัง):")
+    for c, (n, x, y) in cats.items():
+        print(f"  {c:<28} {x}/{n} → {y}/{n}")
     print(f"ดีขึ้น {len(better)} ข้อ: {', '.join(better) or '-'}")
     print(f"แย่ลง {len(worse)} ข้อ: {', '.join(worse) or '-'}")
     print(f"ยังไม่ผ่าน: {', '.join(k for k in rb if not ok(rb[k])) or '-'}")

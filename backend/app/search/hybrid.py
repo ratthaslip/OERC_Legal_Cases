@@ -40,6 +40,7 @@ class Hit:
     coverage: float = 0.0   # สัดส่วนคำสำคัญของคำค้น (ถ่วงด้วย IDF) ที่พบใน chunk
     rrf: float = 0.0
     exact_ref: bool = False
+    via: str | None = None  # มาจากการขยายตามเส้นความสัมพันธ์ (search/graph.py)
 
 
 @dataclass

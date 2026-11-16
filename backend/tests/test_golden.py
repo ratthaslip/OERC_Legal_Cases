@@ -7,11 +7,11 @@ from eval.build_golden import build, check
 GOLDEN = Path(__file__).parents[1] / "eval" / "golden_set.json"
 
 
-def test_golden_set_has_60_unique_items():
+def test_golden_set_unique_items():
     items = build()
-    assert len(items) == 60
-    assert len({i["id"] for i in items}) == 60
-    assert len({i["question"] for i in items}) == 60
+    assert len(items) == 78
+    assert len({i["id"] for i in items}) == len(items)
+    assert len({i["question"] for i in items}) == len(items)
 
 
 def test_golden_evidence_matches_law_text():
@@ -25,4 +25,4 @@ def test_golden_json_is_up_to_date():
 def test_answered_items_have_sources():
     for i in build():
         if i["expected_status"] == "ANSWERED":
-            assert i["expected_sources"] or i["expected_title_contains"], i["id"]
+            assert i["expected_sources"] or i["expected_title_contains"] or i["must_include"], i["id"]

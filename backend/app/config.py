@@ -41,6 +41,9 @@ class Settings:
         self.rerank_candidates = int(os.getenv("RERANK_CANDIDATES", "30"))
         self.rerank_model_weight = float(os.getenv("RERANK_MODEL_WEIGHT", "0.8"))
         self.rerank_timeout_s = float(os.getenv("RERANK_TIMEOUT_S", "15"))
+        # ระดับ 1–2 ของการใช้ความสัมพันธ์ระหว่างกฎหมาย (ปิดได้เพื่อเทียบผล)
+        self.rag_graph_expand = os.getenv("RAG_GRAPH_EXPAND", "true").lower() == "true"
+        self.rag_structured = os.getenv("RAG_STRUCTURED", "true").lower() == "true"
         self.assistant_enabled = os.getenv("ASSISTANT_ENABLED", "true").lower() == "true"
 
         self.cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

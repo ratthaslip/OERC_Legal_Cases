@@ -71,16 +71,24 @@ def score(item: dict, events: list[tuple[str, dict]]) -> dict:
     r["status_ok"] = status == want if want != "ANY" else status != "ERROR"
     if exp:
         r["source_hit@5"] = bool(exp & set(top5))
-        r["cited_hit"] = bool(exp & cited_eli)
+        r["cited_hit"] = exp <= cited_eli if item.get("require_all") else bool(exp & cited_eli)
     if item.get("expected_title_contains"):
         t = item["expected_title_contains"]
         r["source_hit@5"] = any(t in (s.get("title") or "") for s in sources[:5])
         r["cited_hit"] = any(t in (s.get("title") or "") for s in sources if s["key"] in cited)
+    if item.get("must_include"):
+        from app.search.thai import normalize
+        full = normalize(" ".join(s["text"] for s in sentences))
+        r["answer_ok"] = all(normalize(m) in full for m in item["must_include"])
     r["citation_rate"] = (sum(1 for s in sentences if s["citations"]) / len(sentences)) if sentences else None
     forb = set(item["must_not_cite"])
     kinds = set(item["must_not_kinds"])
     r["forbidden_ok"] = not (forb & {s.get("eli_id") for s in sources}) and not any(s.get("kind") in kinds for s in sources)
     return r
+
+
+def passed(r: dict) -> bool:
+    return bool(r["status_ok"] and r.get("cited_hit", True) and r["forbidden_ok"] and r.get("answer_ok", True))
 
 
 def summarize(rows: list[dict]) -> dict:
@@ -90,6 +98,8 @@ def summarize(rows: list[dict]) -> dict:
     cr = [r["citation_rate"] for r in rows if r["citation_rate"] is not None]
     return {"n": len(rows), "status_ok_%": rate("status_ok"), "source_hit@5_%": rate("source_hit@5"),
             "cited_hit_%": rate("cited_hit"), "forbidden_ok_%": rate("forbidden_ok"),
+            "answer_ok_%": rate("answer_ok"),
+            "passed": f"{sum(passed(r) for r in rows)}/{len(rows)}",
             "citation_rate_%": round(100 * sum(cr) / len(cr), 1) if cr else None}
 
 
@@ -114,7 +124,7 @@ def main():
         res["latency_s"] = round(time.time() - t0, 2)
         res["category"] = it["category"]
         rows.append(res)
-        flag = "✓" if res["status_ok"] and res.get("cited_hit", True) and res["forbidden_ok"] else "✗"
+        flag = "✓" if passed(res) else "✗"
         print(f"{flag} {it['id']} {res['status']:<12} hit@5={res.get('source_hit@5', '-')!s:<5} "
               f"cited={res.get('cited_hit', '-')!s:<5} {it['question'][:60]}")
     summ = summarize(rows)

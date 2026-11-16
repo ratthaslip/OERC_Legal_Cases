@@ -13,6 +13,7 @@ const PRESETS = [
 const KIND = {
   provision: { label: 'ตัวบท', icon: BookOpen, chip: 'bg-amber-100 text-amber-900 border-amber-300' },
   register: { label: 'ทะเบียนกฎหมาย', icon: FileText, chip: 'bg-emerald-50 text-emerald-900 border-emerald-200' },
+  register_list: { label: 'รายการจากทะเบียน', icon: FileText, chip: 'bg-emerald-50 text-emerald-900 border-emerald-200' },
   appeal: { label: 'งานอุทธรณ์', icon: Timer, chip: 'bg-orange-50 text-orange-900 border-orange-200' },
   court_case: { label: 'งานคดี', icon: Gavel, chip: 'bg-indigo-50 text-indigo-900 border-indigo-200' }
 };
@@ -61,6 +62,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
   const openSource = (s) => {
     if (s.kind === 'provision') go('law', { eli: s.eli_id, asOf: s.valid_from > asOf ? s.valid_from : asOf });
     else if (s.kind === 'register') go('law', { tab: 'register', reg: s.ref_id });
+    else if (s.kind === 'register_list') go('law', { eli: s.eli_id, asOf });
     else if (s.kind === 'appeal') go('appeal', { id: s.ref_id });
     else go('court', { id: s.ref_id });
   };
@@ -286,6 +288,9 @@ function Turn({ t, onOpen }) {
                             มีผล {thDate(s.valid_from)} – {s.valid_to ? thDate(s.valid_to) : 'ปัจจุบัน'}
                           </span>
                         )}
+                        {s.via && (
+                          <span className="block text-[10px] font-semibold text-indigo-700">↳ เชื่อมโยง: {s.via}</span>
+                        )}
                         <span className="block text-[11px] text-slate-500 line-clamp-2">{s.snippet}</span>
                       </span>
                     </button>
@@ -297,6 +302,17 @@ function Turn({ t, onOpen }) {
 
         {t.done && (
           <div className="space-y-1.5">
+            {t.done.route && (
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-800">
+                <FileText className="w-3.5 h-3.5" />
+                <span>
+                  ตอบจากข้อมูลโครงสร้างโดยตรง (
+                  {{ subordinate: 'ทะเบียนกฎหมายลำดับรอง', parent: 'บทอาศัยอำนาจ', amendments: 'ประวัติการแก้ไข', definition: 'บทนิยาม' }[t.done.route] ||
+                    t.done.route}
+                  ) — นับและแสดงครบตามข้อมูลในระบบ ไม่ผ่านการค้นหาความคล้าย
+                </span>
+              </div>
+            )}
             {t.done.restricted_omitted > 0 && (
               <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
                 <Lock className="w-3.5 h-3.5 text-slate-400" />
