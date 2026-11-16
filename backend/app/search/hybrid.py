@@ -15,7 +15,7 @@ from sqlalchemy.engine import Connection
 from .. import authz
 from ..auth import User
 from .embeddings import embed
-from .thai import content_terms, normalize_ref_no, to_query
+from .thai import content_terms, expand_query, normalize_ref_no, to_query
 
 RRF_K = 60
 OMIT_MIN_COVERAGE = 0.35
@@ -55,13 +55,14 @@ def _base_where(user: User, kinds: list[str], as_of: date | None, sector: str | 
         where.append("(kind <> 'provision' OR (valid_from <= :as_of AND (valid_to IS NULL OR :as_of <= valid_to)))")
         params["as_of"] = as_of
     if sector:
-        where.append("(kind = 'provision' OR energy_sector = :sector)")
+        where.append("(kind IN ('provision', 'register') OR energy_sector = :sector)")
         params["sector"] = sector
     return " AND ".join(where), params
 
 
 def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of: date | None = None,
                   limit: int = 20, sector: str | None = None) -> SearchResult:
+    q = expand_query(q)
     tsq = to_query(q)
     where, params = _base_where(user, kinds, as_of, sector)
     cols = ("chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification")
@@ -133,7 +134,7 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
     # 6) นับเรื่องที่ตรงคำค้นแต่อยู่นอกสิทธิ์ (บอกแค่จำนวน ไม่บอกรายละเอียด)
     #    ใช้เกณฑ์ความครอบคลุมเดียวกับผลที่แสดง เพื่อไม่นับเรื่องที่ตรงแค่คำทั่วไป
     omitted = 0
-    case_kinds = [k for k in kinds if k != "provision"]
+    case_kinds = [k for k in kinds if k not in ("provision", "register")]
     if q_terms and case_kinds and user.role != "PUB":
         perm_sql, perm_params = authz.search_filter_sql(user)
         hidden = conn.execute(text(f"""

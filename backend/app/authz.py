@@ -40,11 +40,11 @@ def can_register(user: User) -> bool:
 def search_filter_sql(user: User) -> tuple[str, dict]:
     """filter ที่ใส่ใน query ก่อนจัดอันดับ (ไม่กรองหลังได้ผล) — คืน (SQL fragment, params)"""
     if user.role not in INTERNAL_ROLES:
-        return "(kind = 'provision')", {}
+        return "(kind IN ('provision', 'register'))", {}
     if user.role == "DIR":
         return "(TRUE)", {}
     return (
-        "(kind = 'provision' OR classification = 'internal' OR :uid = ANY(owners))",
+        "(kind IN ('provision', 'register') OR classification = 'internal' OR :uid = ANY(owners))",
         {"uid": user.user_id},
     )
 

@@ -86,7 +86,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans">
       <div className="bg-amber-100 text-amber-900 text-[11px] text-center py-1.5 px-4 border-b border-amber-200">
-        POC — ตัวบท เลขสำนวน และคู่กรณีทั้งหมดเป็นข้อมูลสาธิต ไม่ใช่ข้อมูลจริงของสำนักงาน กกพ.
+        POC — ตัวบทรายมาตรา เลขสำนวน และคู่กรณีเป็นข้อมูลสาธิต · ทะเบียนกฎหมายลำดับรองนำเข้าจากทะเบียนของสำนักงาน (ยังไม่มีตัวบทเต็ม)
       </div>
       <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">

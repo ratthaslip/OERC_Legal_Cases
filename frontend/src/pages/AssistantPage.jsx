@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, BookOpen, Calendar, Gavel, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
+import { AlertTriangle, BookOpen, FileText, Calendar, Gavel, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
 import { askAssistant } from '../api.js';
 import { Card, thDate, todayIso } from '../components/ui.jsx';
 
@@ -12,6 +12,7 @@ const PRESETS = [
 
 const KIND = {
   provision: { label: 'ตัวบท', icon: BookOpen, chip: 'bg-amber-100 text-amber-900 border-amber-300' },
+  register: { label: 'ทะเบียนกฎหมาย', icon: FileText, chip: 'bg-emerald-50 text-emerald-900 border-emerald-200' },
   appeal: { label: 'งานอุทธรณ์', icon: Timer, chip: 'bg-orange-50 text-orange-900 border-orange-200' },
   court_case: { label: 'งานคดี', icon: Gavel, chip: 'bg-indigo-50 text-indigo-900 border-indigo-200' }
 };
@@ -59,6 +60,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
 
   const openSource = (s) => {
     if (s.kind === 'provision') go('law', { eli: s.eli_id, asOf: s.valid_from > asOf ? s.valid_from : asOf });
+    else if (s.kind === 'register') go('law', { tab: 'register', reg: s.ref_id });
     else if (s.kind === 'appeal') go('appeal', { id: s.ref_id });
     else go('court', { id: s.ref_id });
   };

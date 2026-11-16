@@ -52,6 +52,34 @@ CREATE TABLE IF NOT EXISTS legal_relation (
     target_eli_id VARCHAR(200)
 );
 
+
+-- ทะเบียนคุมกฎหมายลำดับรองที่ออกโดยอาศัยอำนาจ พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550
+-- นำเข้าจาก Excel ของฝ่ายกฎหมาย (seed/import_register.py) — 1 แถว Excel = 1 ระเบียน, ยังไม่มีตัวบท
+CREATE TABLE IF NOT EXISTS law_register (
+    register_id     SERIAL PRIMARY KEY,
+    sheet_row       INT NOT NULL UNIQUE,               -- แถวใน Excel (ใช้ย้อนกลับไปแก้ที่ต้นฉบับ)
+    reg_no          VARCHAR(20) NOT NULL,              -- "ลำดับ" ตามทะเบียน เช่น 1.7.1 (อาจซ้ำ = ฉบับแก้ไข/ฉบับที่เกี่ยวข้อง)
+    group_no        VARCHAR(10) NOT NULL,              -- เลขหลักแรก ใช้จัดกลุ่มเรื่องเดียวกัน
+    doc_type        VARCHAR(60),
+    title_th        TEXT NOT NULL,
+    authority_text  TEXT,                              -- บทอาศัยอำนาจตามที่บันทึก เช่น "11 (1) (4)"
+    authority_secs  INT[] NOT NULL DEFAULT '{}',       -- เลขมาตราของ พ.ร.บ. 2550 ที่แยกได้
+    owner_unit      VARCHAR(60),                       -- ฝ่ายงานผู้รับผิดชอบ
+    effective_text  TEXT,
+    effective_date  DATE,                              -- แปลงจาก effective_text (NULL ถ้าแปลงไม่ได้)
+    review_text     TEXT,                              -- รอบการประเมินผลสัมฤทธิ์
+    status          VARCHAR(12) NOT NULL DEFAULT 'UNKNOWN', -- IN_FORCE | REPEALED | UNKNOWN | GROUP (แถวหัวกลุ่ม)
+    status_text     TEXT,
+    note            TEXT,
+    hearing_text    TEXT,                              -- รับฟังหลักการ / รับฟังร่าง
+    attachments     JSONB NOT NULL DEFAULT '{}',       -- จำนวนเอกสารจากแผ่น "สถิติ"
+    issues          TEXT[] NOT NULL DEFAULT '{}',      -- ปัญหาคุณภาพข้อมูลที่ตรวจพบตอนนำเข้า
+    instrument_eli  VARCHAR(200),                      -- ผูกกับตัวบทเต็มเมื่อนำเข้าแล้ว
+    source_file     TEXT,
+    imported_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS law_register_group ON law_register (group_no);
+
 -- ---------- appeals ----------
 -- ขั้นตอนตามคู่มือปฏิบัติงาน WI-EFL-04 (ข้อ 5 และตารางกำหนดระยะเวลาข้อ 6) — แก้ที่ตารางนี้ได้โดยไม่ต้องแก้โค้ด
 CREATE TABLE IF NOT EXISTS workflow_step_def (
@@ -215,7 +243,7 @@ CREATE INDEX IF NOT EXISTS citation_by_eli ON citation_link (cited_eli_id);
 -- ---------- search (POC: Postgres FTS + embedding เก็บเป็น real[]) ----------
 CREATE TABLE IF NOT EXISTS search_chunk (
     chunk_id       SERIAL PRIMARY KEY,
-    kind           VARCHAR(12) NOT NULL,      -- provision | appeal | court_case
+    kind           VARCHAR(12) NOT NULL,      -- provision | register | appeal | court_case
     ref_id         INT NOT NULL,              -- version_id | appeal_id | case_id
     eli_id         VARCHAR(200),
     version_no     INT,

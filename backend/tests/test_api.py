@@ -17,6 +17,7 @@ def client():
     os.environ["DATABASE_URL"] = TEST_DB
     os.environ["LLM_PROVIDER"] = "extractive"
     os.environ["EMBED_PROVIDER"] = "hash"
+    os.environ["REGISTER_XLSX"] = "/nonexistent.xlsx"  # ไม่ดึงทะเบียนจริงเข้ามาในเทสต์
     from app.config import get_settings
     get_settings.cache_clear()
     from fastapi.testclient import TestClient

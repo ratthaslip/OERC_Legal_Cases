@@ -1,6 +1,7 @@
 # POC: ฐานข้อมูล + API + หน้าเว็บ (โหมดพัฒนา)
 #   docker compose up -d --build
 #   docker compose exec api python -m app.seed.seed      ← โหลดข้อมูลสาธิตครั้งแรก
+#   (ถ้ามี ./data/register.xlsx จะนำเข้าทะเบียนกฎหมายลำดับรองให้ด้วย)
 #   เปิด http://localhost:5173
 #
 # LLM/Embedding บน GPU ของตัวเอง: รัน Ollama บนเครื่อง host แล้วตั้งค่าใน .env (ดู .env.example)
@@ -28,7 +29,9 @@ services:
       db: { condition: service_healthy }
     extra_hosts: ["host.docker.internal:host-gateway"]
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes: [./backend/app:/app/app]
+    volumes:
+      - ./backend/app:/app/app
+      - ./data:/data:ro        # ข้อมูลจริงของสำนักงาน (ไม่อยู่ใน git) เช่น register.xlsx
 
   web:
     image: node:22-alpine

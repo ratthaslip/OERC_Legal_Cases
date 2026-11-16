@@ -10,6 +10,7 @@
 ใช้งาน: python -m app.seed.seed   (ล้างฐานแล้วสร้างใหม่ทั้งหมด)
 """
 import json
+import os
 import random
 import re
 from datetime import date, timedelta
@@ -411,7 +412,13 @@ def run(conn: Connection, today: date | None = None) -> dict:
     n_case = reindex_cases(conn)
     counts = {t: conn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
               for t in ("provision_version", "appeal", "court_case", "citation_link")}
-    return {**counts, "law_chunks": n_law, "case_chunks": n_case}
+    # ทะเบียนกฎหมายลำดับรองจริง (ถ้ามีไฟล์) — seed ล้างตารางทุกครั้ง จึงต้องนำเข้าซ้ำที่นี่
+    reg_path = Path(os.environ.get("REGISTER_XLSX", "/data/register.xlsx"))
+    n_reg = 0
+    if reg_path.is_file():
+        from .import_register import load_register
+        n_reg = load_register(conn, str(reg_path))["rows"]
+    return {**counts, "law_chunks": n_law, "case_chunks": n_case, "register_rows": n_reg}
 
 
 if __name__ == "__main__":

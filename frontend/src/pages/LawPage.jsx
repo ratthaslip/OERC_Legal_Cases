@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
+import RegisterPanel from './law/RegisterPanel.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
 
 const DEFAULT_ELI = 'eli/th/act/2550/sec-75';
 
-export default function LawPage({ me, go, notify, route }) {
+function ProvisionView({ me, go, notify, route }) {
   const [instruments, setInstruments] = useState([]);
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState('');
@@ -393,6 +394,42 @@ function CiteColumn({ title, icon, items, unit, empty, tag, btn, btnLabel, onOpe
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+
+/** โมดูลสืบค้นกฎหมาย: ตัวบทรายมาตรา (point-in-time) + ทะเบียนคุมกฎหมายลำดับรอง */
+export default function LawPage(props) {
+  const { route } = props;
+  const [tab, setTab] = useState(route.tab || (route.reg ? 'register' : 'provision'));
+  const [count, setCount] = useState(null);
+  useEffect(() => {
+    if (route.tab || route.reg) setTab(route.tab || 'register');
+  }, [route.nonce]);
+  useEffect(() => {
+    api.register({ limit: 1 }).then((r) => setCount(r.facets?.meta?.total || 0)).catch(() => setCount(0));
+  }, []);
+  const tabs = [
+    ['provision', 'ตัวบทรายมาตรา (ตรวจย้อนหลังตามวันที่)'],
+    ['register', `ทะเบียนกฎหมายลำดับรอง${count ? ` (${count})` : ''}`]
+  ];
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-slate-200">
+        {tabs.map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`px-4 py-2 text-xs sm:text-sm font-semibold border-b-2 -mb-px ${
+              tab === k ? 'border-amber-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'provision' ? <ProvisionView {...props} /> : <RegisterPanel me={props.me} initialId={route.reg} />}
     </div>
   );
 }
