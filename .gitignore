@@ -7,3 +7,4 @@ __pycache__/
 data/
 *.xlsx
 *.xls
+backend/eval/results.json
