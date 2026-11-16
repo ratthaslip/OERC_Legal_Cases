@@ -38,9 +38,33 @@ def main(base_path: str, amend_paths: list[str]) -> None:
         for p in am["provisions"]:
             text = p["versions"][0]["text"]
             head = text.split("\n", 1)[0]
-            m_add = re.search(rf"ให้เพิ่มข้อความต่อไปนี้เป็นข้อ {NUM}", head)
+            m_add = re.search(rf"ให้เพิ่ม(?:ข้อ)?ความต่อไปนี้เป็นข้อ {NUM}", head)
+            # เพิ่มอนุ/วรรคในข้อเดิม เช่น "ให้เพิ่มเติมความต่อไปนี้เป็น (ฉ) ของข้อ ๗ (๑)"
+            m_sub = re.search(rf"ให้เพิ่มเติมความต่อไปนี้เป็น (\([ก-ฮ๐-๙]+\)) ของข้อ {NUM}(?: (\([๐-๙]+\)))?", head)
             m_rep = re.search(rf"ให้ยกเลิกความในข้อ {NUM}.*ให้ใช้ความต่อไปนี้แทน", head)
             m_del = re.search(rf"^ให้ยกเลิกข้อ {NUM}", head)
+            if m_sub:
+                item, num, parent_item = m_sub.group(1), m_sub.group(2), m_sub.group(3)
+                n_ar = num.translate(TH)
+                prov = by_num.get(n_ar)
+                q = re.search(r"“(\(.+?)”\s*$", text, re.S)
+                if not prov or not q:
+                    raise SystemExit(f"{am['code']} {p['number']}: ไม่พบข้อ {num} หรือความที่เพิ่ม")
+                cur = prov["versions"][-1]
+                lines = cur["text"].split("\n")
+                # แทรกก่อนอนุถัดไปของระดับบน (เช่น ก่อน "(๒)" เมื่อเพิ่มใน (๑)); ถ้าไม่มีให้ต่อท้าย
+                pos = len(lines)
+                if parent_item:
+                    nxt = "(" + str(int(parent_item.strip("()").translate(TH)) + 1).translate(str.maketrans("0123456789", "๐๑๒๓๔๕๖๗๘๙")) + ")"
+                    pos = next((i for i, ln in enumerate(lines) if ln.startswith(nxt)), len(lines))
+                new_text = "\n".join(lines[:pos] + q.group(1).strip().split("\n") + lines[pos:])
+                cur["validTo"] = day_before
+                cur.setdefault("relations", []).append({"type": "ถูกแก้ไขเพิ่มเติมโดย", "target": f"{am['title']} {p['number']}"})
+                prov["versions"].append({"version": cur["version"] + 1, "validFrom": am["effectiveDate"], "validTo": None,
+                                         "text": new_text, "amendingInstrument": label, "summary": cur.get("summary"),
+                                         "relations": [{"type": "แก้ไขเพิ่มเติมโดย", "target": f"{am['title']} {p['number']} (เพิ่ม {item}{' ใน ' + parent_item if parent_item else ''})"}]})
+                print(f"  ~ เพิ่ม {item} ในข้อ {n_ar}{' ' + parent_item if parent_item else ''}: รุ่นใหม่ตั้งแต่ {am['effectiveDate']}")
+                continue
             if not (m_add or m_rep or m_del):
                 if p["number"] not in ("ข้อ 1", "ข้อ 2"):
                     print(f"  ⚠ {am['code']} {p['number']} ไม่ใช่ถ้อยคำแก้ไขที่รู้จัก — ไม่ได้นำไปใช้")
