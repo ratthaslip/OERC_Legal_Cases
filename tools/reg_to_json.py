@@ -62,6 +62,8 @@ def main() -> None:
     ap.add_argument("--category", default="ระเบียบ กกพ."); ap.add_argument("--type", default="ระเบียบ")
     ap.add_argument("--issuer", default="คณะกรรมการกำกับกิจการพลังงาน")
     ap.add_argument("--effective", help="YYYY-MM-DD ถ้าไม่ใช่วันถัดจากวันประกาศ")
+    ap.add_argument("--repealed-from", help="YYYY-MM-DD วันที่ฉบับที่ยกเลิกใช้บังคับ (ทุกข้อสิ้นผลวันก่อนหน้า)")
+    ap.add_argument("--repealed-by", help="ชื่อกฎหมายที่ยกเลิก")
     a = ap.parse_args()
 
     rows = []
@@ -107,6 +109,11 @@ def main() -> None:
             cur["paras"][-1] = join(cur["paras"][-1], t); cur["lines"].append(t)
         i += 1
     signed = next((t for _, _, _, t in body if t.startswith("ประกาศ ณ วันที่")), None)
+    # บัญชี/อัตราท้ายระเบียบ (ตาราง): เก็บเป็นข้อความทีละบรรทัด ให้ค้นได้ — ตรวจรูปแบบตารางกับต้นฉบับ
+    annex = []
+    if signed:
+        si = next(i for i, r in enumerate(body) if r[3] == signed)
+        annex = [r for r in body[si + 3:]]
     # ชื่อเรื่องอยู่ 2 ที่ (หัวเรื่องหลายบรรทัด และใน "ข้อ ๑ ... เรียกว่า “...”") ซึ่งตัดบรรทัดคนละตำแหน่ง
     # ช่องว่างกลางบรรทัดเชื่อถือได้ ช่องว่างที่รอยต่อบรรทัดไม่รู้ → รวมช่องว่างกลางบรรทัดจากทั้งสองแหล่ง
     c1 = next((c for c in clauses if c["num"] == "๑"), None)
@@ -128,9 +135,17 @@ def main() -> None:
         text = re.sub(r"(มาตรา|ข้อ)(?=[๐-๙])", r"\1 ", text)
         provs.append({"id": f"{a.id}/clause-{n_ar.replace('/', '-')}", "number": f"ข้อ {n_ar}",
                       "part": c["part"] or None, "sourcePage": c["page"],
-                      "versions": [{"version": 1, "validFrom": eff, "validTo": None, "text": text,
+                      "versions": [{"version": 1, "validFrom": eff,
+                                    "validTo": (date.fromisoformat(a.repealed_from) - timedelta(days=1)).isoformat() if a.repealed_from else None,
+                                    "text": text,
                                     "amendingInstrument": f"ตัวบทตั้งต้น ({source})", "summary": c["part"] or None,
-                                    "relations": []}]})
+                                    "relations": [{"type": "ถูกยกเลิกโดย", "target": a.repealed_by}] if a.repealed_by else []}]})
+    if len(annex) >= 5:
+        provs.append({"id": f"{a.id}/annex", "number": "บัญชีท้ายระเบียบ", "part": None, "sourcePage": annex[0][0],
+                      "versions": [{"version": 1, "validFrom": eff, "validTo": provs[0]["versions"][0]["validTo"] if provs else None,
+                                    "text": "\n".join(t for _, _, _, t in annex),
+                                    "amendingInstrument": f"ตัวบทตั้งต้น ({source}) — ตารางแปลงเป็นข้อความทีละบรรทัด",
+                                    "summary": "บัญชี/อัตราท้ายระเบียบ", "relations": []}]})
     data = [{"id": a.id, "type": a.type, "title": title, "code": a.code, "issuer": a.issuer, "category": a.category,
              "publishedDate": pub.isoformat(), "effectiveDate": eff, "isDemo": False, "source": source,
              "preamble": preamble, "signed": signed, "provisions": provs}]

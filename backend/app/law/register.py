@@ -36,10 +36,17 @@ def _key(s) -> str:
     return re.sub(r"\s+", "", str(s or ""))
 
 
+# ข้อความที่คัดลอกจาก PDF ฟอนต์ไทยรุ่นเก่า มีสระ/วรรณยุกต์ใน Private Use Area (มองไม่เห็นในหลายโปรแกรม)
+PUA = str.maketrans({0xF700: 'ฐ', 0xF701: 'ิ', 0xF702: 'ี', 0xF703: 'ึ', 0xF704: 'ื', 0xF705: '่', 0xF706: '้',
+                     0xF707: '๊', 0xF708: '๋', 0xF709: '์', 0xF70A: '่', 0xF70B: '้', 0xF70C: '๊', 0xF70D: '๋',
+                     0xF70E: '์', 0xF70F: 'ญ', 0xF710: 'ั', 0xF711: 'ํ', 0xF712: '็', 0xF713: '่', 0xF714: '้',
+                     0xF715: '๊', 0xF716: '๋', 0xF717: '์', 0xF718: 'ุ', 0xF719: 'ู', 0xF71A: 'ฺ'})
+
+
 def clean(s) -> str | None:
     if s is None:
         return None
-    t = re.sub(r"\s+", " ", str(s)).strip()
+    t = re.sub(r"\s+", " ", str(s).translate(PUA)).strip().replace("\u0e4d\u0e32", "\u0e33")
     return t or None
 
 
