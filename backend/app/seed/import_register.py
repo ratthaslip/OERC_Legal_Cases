@@ -11,6 +11,7 @@
 import collections
 import csv
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -34,12 +35,29 @@ def load_register(conn: Connection, path: str) -> dict:
                 :owner_unit, :effective_text, :effective_date, :review_text, :status, :status_text, :note,
                 :hearing_text, CAST(:attachments AS jsonb), :issues, :source_file)"""),
             {**r.__dict__, "attachments": json.dumps(r.attachments), "source_file": Path(path).name})
-    # ผูกกับตัวบทเต็มที่นำเข้าแล้ว (ชื่อตรงกัน)
-    conn.execute(text("""UPDATE law_register r SET instrument_eli = i.eli_id FROM legal_instrument i
-                         WHERE i.is_demo = FALSE AND regexp_replace(i.title_th, '\\s', '', 'g')
-                                                   = regexp_replace(r.title_th, '\\s', '', 'g')"""))
+    link_instruments(conn)
     n = reindex_register(conn)
     return {"sheet": sheet_title, "rows": len(items), "indexed": n, "items": items}
+
+
+def _title_key(t: str) -> str:
+    """ชื่อทางการกับชื่อในทะเบียนเขียนต่างกัน: 'คณะกรรมการกำกับกิจการพลังงาน' ↔ 'กกพ.', เลขไทย/อารบิก, ช่องว่าง"""
+    t = t.translate(str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")).replace("\u0e4d\u0e32", "\u0e33")
+    t = t.replace("คณะกรรมการกำกับกิจการพลังงาน", "กกพ.").replace("กกพ", "กกพ.").replace("..", ".")
+    return re.sub(r"[\s.]", "", t)
+
+
+def link_instruments(conn: Connection) -> int:
+    """ผูกระเบียนทะเบียนกับตัวบทเต็มที่นำเข้าแล้ว (ตัวบทจริงเท่านั้น) โดยเทียบชื่อหลังปรับรูปแบบ"""
+    insts = {_title_key(r[1]): r[0] for r in conn.execute(
+        text("SELECT eli_id, title_th FROM legal_instrument WHERE is_demo = FALSE"))}
+    n = 0
+    for rid, title in conn.execute(text("SELECT register_id, title_th FROM law_register")).all():
+        eli = insts.get(_title_key(title))
+        if eli:
+            conn.execute(text("UPDATE law_register SET instrument_eli = :e WHERE register_id = :i"), {"e": eli, "i": rid})
+            n += 1
+    return n
 
 
 def summarize(items) -> str:

@@ -197,5 +197,9 @@ def get_register(register_id: int, user: User = Depends(current_user), conn: Con
                              ORDER BY sheet_row""", g=item["group_no"], i=register_id)
     heading = one(conn, "SELECT title_th FROM law_register WHERE group_no = :g AND status = 'GROUP' LIMIT 1",
                   g=item["group_no"])
+    first = one(conn, """SELECT p.eli_id FROM provision p JOIN legal_instrument i USING (instrument_id)
+                         WHERE i.eli_id = :e ORDER BY p.sort_order LIMIT 1""", e=item["instrument_eli"]) \
+        if item["instrument_eli"] else None
     audit.record(conn, user, "law.register.view", str(register_id))
-    return {"item": item, "related": related, "group_title": heading["title_th"] if heading else None}
+    return {"item": item, "related": related, "group_title": heading["title_th"] if heading else None,
+            "first_provision_eli": first["eli_id"] if first else None}

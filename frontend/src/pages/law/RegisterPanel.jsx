@@ -276,7 +276,19 @@ function RegisterDetail({ id, internal, go, onSelect, onClose }) {
       </dl>
       <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
         <BookOpen className="w-4 h-4 shrink-0 text-slate-400" />
-        {r.instrument_eli ? 'มีตัวบทเต็มในระบบ' : 'ยังไม่มีตัวบทเต็มในระบบ — ระเบียนนี้มาจากทะเบียนคุม ใช้ตรวจชื่อ สถานะ และบทอาศัยอำนาจ'}
+        {r.instrument_eli && d.first_provision_eli ? (
+          <span className="flex-1 flex flex-wrap items-center justify-between gap-2">
+            <span>มีตัวบทเต็มในระบบ (นำเข้าจากราชกิจจานุเบกษา)</span>
+            <button
+              onClick={() => go('law', { tab: 'provision', eli: d.first_provision_eli })}
+              className="px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-white hover:bg-slate-800"
+            >
+              เปิดตัวบทเต็ม
+            </button>
+          </span>
+        ) : (
+          'ยังไม่มีตัวบทเต็มในระบบ — ระเบียนนี้มาจากทะเบียนคุม ใช้ตรวจชื่อ สถานะ และบทอาศัยอำนาจ'
+        )}
       </div>
       {internal && r.issues?.length > 0 && (
         <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-1">
