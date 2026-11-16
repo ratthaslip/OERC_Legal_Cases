@@ -113,6 +113,19 @@ def test_register_api_permissions(workbook):
     assert d["group_title"] == "หัวกลุ่มทดสอบ" and len(d["related"]) == 2
     sec = c.get("/api/v1/laws/register", params={"section": 33}, headers={"X-Demo-User": "pub"}).json()
     assert sec["total"] == 2
+    # หน้าตัวบท: มาตราของ พ.ร.บ. แสดงกฎหมายลำดับรองที่ออกตามมาตรานั้น (ฉบับยกเลิกอยู่ท้าย) และนับในสารบัญ
+    p = c.get("/api/v1/laws/provisions/eli/th/act/2550/energy-industry/sec-33", headers={"X-Demo-User": "pub"}).json()
+    assert [s["reg_no"] for s in p["subordinate"]] == ["1.9", "1.10"]
+    assert p["subordinate"][-1]["status"] == "REPEALED"
+    assert "owner_unit" not in p["subordinate"][0]
+    p11 = c.get("/api/v1/laws/provisions/eli/th/act/2550/energy-industry/sec-11", headers={"X-Demo-User": "pub"}).json()
+    assert [s["reg_no"] for s in p11["subordinate"]] == ["1.1"] and p11["subordinate"][0]["group_title"] == "หัวกลุ่มทดสอบ"
+    other = c.get("/api/v1/laws/provisions/eli/th/act/2539/admin-procedure/sec-33", headers={"X-Demo-User": "pub"}).json()
+    assert other["subordinate"] == []  # เลขมาตราเดียวกันของ พ.ร.บ.อื่นไม่เกี่ยว
+    act = next(i for i in c.get("/api/v1/laws/instruments").json()["items"] if i["eli_id"].endswith("energy-industry"))
+    counts = {x["provision_no"]: x["subordinate_count"] for x in act["provisions"]}
+    assert counts["มาตรา 33"] == 2 and counts["มาตรา 11"] == 1 and counts["มาตรา 121"] == 0
+    assert act["subordinate_total"] == 3
 
 
 def test_apply_amendments(tmp_path):

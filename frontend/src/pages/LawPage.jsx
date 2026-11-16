@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
+import { ParentAuthority, SubordinatePanel } from './law/Subordinate.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
 
 const DEFAULT_ELI = 'eli/th/act/2550/energy-industry/sec-121';
@@ -154,6 +155,9 @@ function ProvisionView({ me, go, notify, route }) {
                   </span>
                   <h3 className="text-xs sm:text-sm font-bold text-slate-900">{inst.title_th}</h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">วันที่มีผลบังคับใช้: {thDate(inst.effective_date)}</p>
+                  {inst.subordinate_total > 0 && (
+                    <p className="text-[11px] text-indigo-700 mt-0.5">กฎหมายลำดับรองในทะเบียน {inst.subordinate_total} ฉบับ — ดูได้ที่แต่ละมาตรา</p>
+                  )}
                   <div className="space-y-1 mt-2 pl-2 border-l-2 border-slate-200">
                     {inst.provisions.map((p) => (
                       <button
@@ -171,6 +175,11 @@ function ProvisionView({ me, go, notify, route }) {
                           <span className="block text-slate-500 text-[11px] line-clamp-1 font-normal">{p.latest_summary}</span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 ml-2">
+                          {p.subordinate_count > 0 && (
+                            <span title="กฎหมายลำดับรองที่ออกตามมาตรานี้" className="px-1.5 py-0.5 text-[10px] rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium">
+                              รอง {p.subordinate_count}
+                            </span>
+                          )}
                           {p.version_count > 1 && (
                             <span className="px-1.5 py-0.5 text-[10px] rounded bg-amber-100 text-amber-800 font-medium">{p.version_count} รุ่น</span>
                           )}
@@ -249,6 +258,12 @@ function ProvisionView({ me, go, notify, route }) {
                   </div>
                 )}
 
+                <ParentAuthority
+                  pa={detail.parent_authority}
+                  onOpenText={(e) => { setEli(e); setCompare(false); }}
+                  onOpenRegister={(id) => go('law', { reg: id })}
+                />
+
                 {!compare ? (
                   active && (
                     <div className="mt-5">
@@ -294,6 +309,17 @@ function ProvisionView({ me, go, notify, route }) {
                       </div>
                     ))}
                   </div>
+                )}
+
+                {detail.subordinate?.length > 0 && (
+                  <SubordinatePanel
+                    key={detail.provision.eli_id}
+                    provisionNo={detail.provision.provision_no}
+                    items={detail.subordinate}
+                    asOf={asOf}
+                    onOpenText={(e) => { setEli(e); setCompare(false); }}
+                    onOpenRegister={(id) => go('law', { reg: id })}
+                  />
                 )}
 
                 {active && (
