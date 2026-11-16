@@ -49,14 +49,20 @@ def _title_key(t: str) -> str:
 
 def link_instruments(conn: Connection) -> int:
     """ผูกระเบียนทะเบียนกับตัวบทเต็มที่นำเข้าแล้ว (ตัวบทจริงเท่านั้น) โดยเทียบชื่อหลังปรับรูปแบบ"""
-    insts = {_title_key(r[1]): r[0] for r in conn.execute(
-        text("SELECT eli_id, title_th FROM legal_instrument WHERE is_demo = FALSE"))}
+    insts = {_title_key(r[1]): (r[0], r[2]) for r in conn.execute(
+        text("SELECT eli_id, title_th, effective_date FROM legal_instrument WHERE is_demo = FALSE"))}
     n = 0
-    for rid, title in conn.execute(text("SELECT register_id, title_th FROM law_register")).all():
-        eli = insts.get(_title_key(title))
-        if eli:
-            conn.execute(text("UPDATE law_register SET instrument_eli = :e WHERE register_id = :i"), {"e": eli, "i": rid})
-            n += 1
+    for rid, title, eff in conn.execute(text("SELECT register_id, title_th, effective_date FROM law_register")).all():
+        hit = insts.get(_title_key(title))
+        if not hit:
+            continue
+        eli, inst_eff = hit
+        conn.execute(text("UPDATE law_register SET instrument_eli = :e WHERE register_id = :i"), {"e": eli, "i": rid})
+        if inst_eff and eff != inst_eff:  # ตัวบทคือแหล่งความจริง: แจ้งให้แก้ทะเบียน
+            th = f"{inst_eff.day}/{inst_eff.month}/{inst_eff.year + 543}"
+            conn.execute(text("UPDATE law_register SET issues = array_append(issues, :m) WHERE register_id = :i"),
+                         {"m": f"วันใช้บังคับในทะเบียนไม่ตรงกับตัวบท (ตามตัวบทคือ {th})", "i": rid})
+        n += 1
     return n
 
 

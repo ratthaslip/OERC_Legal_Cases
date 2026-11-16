@@ -33,6 +33,28 @@ def join(prev: str, nxt: str) -> str:
     return prev + nxt
 
 
+def _spaces(lines: list[str]) -> tuple[str, set[int]]:
+    """คืน (ข้อความไม่มีช่องว่าง, ตำแหน่งที่มีช่องว่างกลางบรรทัด)"""
+    flat, sp = "", set()
+    for line in lines:
+        for i, ch in enumerate(line):
+            if ch == " ":
+                sp.add(len(flat))
+            else:
+                flat += ch
+    return flat, sp
+
+
+def merge_spaces(a: list[str], b: list[str]) -> str:
+    fa, sa = _spaces(a)
+    fb, sb = _spaces(b)
+    if fa != fb:
+        return " ".join(" ".join(b).split())
+    sp = sa | sb
+    out = "".join((" " if i in sp else "") + ch for i, ch in enumerate(fa)).strip()
+    return re.sub(r"(?<=\S)พ\.ศ\.", " พ.ศ.", out)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("src"); ap.add_argument("out")
@@ -74,17 +96,25 @@ def main() -> None:
             continue
         m = CLAUSE.match(t)
         if m and x >= indent - 5:
-            cur = {"num": m.group(1), "paras": [m.group(2)], "part": " · ".join(v for v in [chapter, part] if v), "page": p}
+            cur = {"num": m.group(1), "paras": [m.group(2)], "part": " · ".join(v for v in [chapter, part] if v), "page": p,
+                   "lines": [m.group(2)]}
             clauses.append(cur)
         elif cur is None:
             preamble = join(preamble, t) if x < indent - 5 else (preamble + "\n" + t if preamble else t)
         elif x >= indent - 5:
-            cur["paras"].append(t)
+            cur["paras"].append(t); cur["lines"].append(t)
         else:
-            cur["paras"][-1] = join(cur["paras"][-1], t)
+            cur["paras"][-1] = join(cur["paras"][-1], t); cur["lines"].append(t)
         i += 1
     signed = next((t for _, _, _, t in body if t.startswith("ประกาศ ณ วันที่")), None)
-
+    # ชื่อเรื่องอยู่ 2 ที่ (หัวเรื่องหลายบรรทัด และใน "ข้อ ๑ ... เรียกว่า “...”") ซึ่งตัดบรรทัดคนละตำแหน่ง
+    # ช่องว่างกลางบรรทัดเชื่อถือได้ ช่องว่างที่รอยต่อบรรทัดไม่รู้ → รวมช่องว่างกลางบรรทัดจากทั้งสองแหล่ง
+    c1 = next((c for c in clauses if c["num"] == "๑"), None)
+    if c1:
+        raw = "\n".join(c1["lines"])
+        m1 = re.search(r"เรียกว่า ?“(.+?)”", raw, re.S)
+        if m1:
+            title = merge_spaces([t for _, _, _, t in body[:start]], m1.group(1).split("\n"))
     c2 = next((c for c in clauses if c["num"] == "๒"), None)
     if not a.effective and not (c2 and "วันถัดจากวันประกาศในราชกิจจานุเบกษา" in "".join(c2["paras"])):
         raise SystemExit("ข้อ ๒ ไม่ได้กำหนดให้ใช้บังคับวันถัดจากวันประกาศ — ระบุ --effective")
