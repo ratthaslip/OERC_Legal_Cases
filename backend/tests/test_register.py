@@ -111,3 +111,37 @@ def test_register_api_permissions(workbook):
     assert d["group_title"] == "หัวกลุ่มทดสอบ" and len(d["related"]) == 2
     sec = c.get("/api/v1/laws/register", params={"section": 33}, headers={"X-Demo-User": "pub"}).json()
     assert sec["total"] == 2
+
+
+def test_apply_amendments(tmp_path):
+    """ฉบับแก้ไข: เพิ่มข้อใหม่ + ยกเลิกความเดิมแล้วใช้ความใหม่ → รุ่นตามวันที่"""
+    import importlib.util
+    import json
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("apply_amendments", Path(__file__).parents[2] / "tools" / "apply_amendments.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    def v(text, vf):
+        return [{"version": 1, "validFrom": vf, "validTo": None, "text": text, "amendingInstrument": "x", "summary": None, "relations": []}]
+    base = [{"id": "eli/b", "provisions": [
+        {"id": "eli/b/clause-1", "number": "ข้อ 1", "part": None, "versions": v("ชื่อ", "2010-01-01")},
+        {"id": "eli/b/clause-2", "number": "ข้อ 2", "part": "หมวด ๑", "versions": v("เดิม", "2010-01-01")},
+        {"id": "eli/b/clause-3", "number": "ข้อ 3", "part": "หมวด ๑", "versions": v("จะถูกยกเลิก", "2010-01-01")}]}]
+    amend = [{"id": "eli/a", "code": "แก้ 1", "title": "ฉบับที่ ๒", "source": "ราชกิจจาฯ", "effectiveDate": "2015-06-27",
+              "provisions": [
+                  {"number": "ข้อ 1", "versions": v("ระเบียบนี้เรียกว่า", "2015-06-27")},
+                  {"number": "ข้อ 3", "versions": v("ให้เพิ่มข้อความต่อไปนี้เป็นข้อ ๒/๑ ของระเบียบ\n“ข้อ ๒/๑ ใหม่”", "2015-06-27")},
+                  {"number": "ข้อ 4", "versions": v("ให้ยกเลิกความในข้อ ๒ ของระเบียบ และให้ใช้ความต่อไปนี้แทน\n“ข้อ ๒ ความใหม่\nวรรคสอง”", "2015-06-27")},
+                  {"number": "ข้อ 5", "versions": v("ให้ยกเลิกข้อ ๓ ของระเบียบ", "2015-06-27")}]}]
+    bp, ap = tmp_path / "b.json", tmp_path / "a.json"
+    bp.write_text(json.dumps(base, ensure_ascii=False)); ap.write_text(json.dumps(amend, ensure_ascii=False))
+    mod.main(str(bp), [str(ap)])
+    out = {p["number"]: p for p in json.loads(bp.read_text())[0]["provisions"]}
+    assert list(out) == ["ข้อ 1", "ข้อ 2", "ข้อ 2/1", "ข้อ 3"]
+    assert [(x["validFrom"], x["validTo"]) for x in out["ข้อ 2"]["versions"]] == [("2010-01-01", "2015-06-26"), ("2015-06-27", None)]
+    assert out["ข้อ 2"]["versions"][1]["text"] == "ความใหม่\nวรรคสอง"
+    assert out["ข้อ 2/1"]["versions"][0]["validFrom"] == "2015-06-27"
+    assert out["ข้อ 3"]["versions"][0]["validTo"] == "2015-06-26"
+    mod.main(str(bp), [str(ap)])  # นำไปใช้ซ้ำต้องไม่เปลี่ยนอะไร
+    assert len(json.loads(bp.read_text())[0]["provisions"]) == 4
