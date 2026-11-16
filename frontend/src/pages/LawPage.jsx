@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
 
-const DEFAULT_ELI = 'eli/th/act/2550/sec-75';
+const DEFAULT_ELI = 'eli/th/act/2550/energy-industry/sec-121';
 
 function ProvisionView({ me, go, notify, route }) {
   const [instruments, setInstruments] = useState([]);
@@ -76,7 +76,7 @@ function ProvisionView({ me, go, notify, route }) {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="เช่น มาตรา 75, อุทธรณ์คำสั่ง, ใบอนุญาตผลิตไฟฟ้า, จุดเชื่อมโยง..."
+                placeholder="เช่น มาตรา 121, อุทธรณ์คำสั่ง, ใบอนุญาตผลิตไฟฟ้า, จุดเชื่อมโยง..."
                 className={`${inputCls} pl-10`}
               />
             </div>
@@ -252,7 +252,7 @@ function ProvisionView({ me, go, notify, route }) {
                 {!compare ? (
                   active && (
                     <div className="mt-5">
-                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-900 text-sm sm:text-base leading-relaxed">
+                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-900 text-sm sm:text-base leading-relaxed whitespace-pre-line">
                         <span className="font-bold text-slate-950 mr-2">{detail.provision.provision_no}</span>
                         {active.body_text}
                       </div>
@@ -287,7 +287,7 @@ function ProvisionView({ me, go, notify, route }) {
                           )}
                         </div>
                         <p className="text-[11px] text-slate-500 mb-2.5">{v.amended_by}</p>
-                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed bg-white p-3 rounded-lg border border-slate-200/80">{v.body_text}</p>
+                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed bg-white p-3 rounded-lg border border-slate-200/80 whitespace-pre-line">{v.body_text}</p>
                         <button onClick={() => setAsOf(v.valid_from)} className="mt-2 text-[11px] font-semibold text-amber-700 hover:underline">
                           ดูตัวบทและบรรทัดฐานของรุ่นนี้
                         </button>
@@ -429,7 +429,7 @@ export default function LawPage(props) {
           </button>
         ))}
       </div>
-      {tab === 'provision' ? <ProvisionView {...props} /> : <RegisterPanel me={props.me} initialId={route.reg} />}
+      {tab === 'provision' ? <ProvisionView {...props} /> : <RegisterPanel me={props.me} initialId={route.reg} go={props.go} />}
     </div>
   );
 }

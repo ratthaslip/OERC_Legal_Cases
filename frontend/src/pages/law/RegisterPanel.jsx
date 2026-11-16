@@ -21,7 +21,7 @@ export function StatusPill({ status }) {
 }
 
 /** ทะเบียนคุมกฎหมายลำดับรอง (นำเข้าจาก Excel ฝ่ายกฎหมาย) */
-export default function RegisterPanel({ me, initialId }) {
+export default function RegisterPanel({ me, initialId, go }) {
   const internal = me.role !== 'PUB';
   const [query, setQuery] = useState('');
   const [f, setF] = useState({ doc_type: '', status: '', section: '', unit: '', issues_only: false });
@@ -192,7 +192,7 @@ export default function RegisterPanel({ me, initialId }) {
         </Card>
         <div className="lg:col-span-5">
           {selected ? (
-            <RegisterDetail id={selected} internal={internal} onSelect={setSelected} onClose={() => setSelected(null)} />
+            <RegisterDetail id={selected} internal={internal} go={go} onSelect={setSelected} onClose={() => setSelected(null)} />
           ) : (
             <Card className="p-6 text-center text-xs text-slate-500">
               <Layers className="w-6 h-6 text-slate-300 mx-auto mb-2" />
@@ -215,7 +215,7 @@ function Row({ k, children }) {
   );
 }
 
-function RegisterDetail({ id, internal, onSelect, onClose }) {
+function RegisterDetail({ id, internal, go, onSelect, onClose }) {
   const [d, setD] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -244,7 +244,24 @@ function RegisterDetail({ id, internal, onSelect, onClose }) {
       </div>
       <dl>
         <Row k="ประเภท">{r.doc_type}</Row>
-        <Row k="บทอาศัยอำนาจ">{r.authority_text ? `พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550 มาตรา ${r.authority_text}` : null}</Row>
+        <Row k="บทอาศัยอำนาจ">
+          {r.authority_text ? (
+            <span className="space-y-1.5 block">
+              <span className="block">พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550 มาตรา {r.authority_text}</span>
+              <span className="flex flex-wrap gap-1.5">
+                {r.authority_secs.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => go('law', { tab: 'provision', eli: `eli/th/act/2550/energy-industry/sec-${s}` })}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-amber-300 bg-amber-50 text-[11px] font-semibold text-amber-900 hover:bg-amber-100"
+                  >
+                    <BookOpen className="w-3 h-3" /> เปิดตัวบทมาตรา {s}
+                  </button>
+                ))}
+              </span>
+            </span>
+          ) : null}
+        </Row>
         <Row k="วันใช้บังคับ">{r.effective_date ? thDate(r.effective_date) : r.effective_text}</Row>
         <Row k="สถานะในทะเบียน">{r.status_text || (r.status === 'UNKNOWN' ? 'ไม่ระบุ' : null)}</Row>
         {internal && (

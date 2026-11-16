@@ -4,7 +4,7 @@ import { askAssistant } from '../api.js';
 import { Card, thDate, todayIso } from '../components/ui.jsx';
 
 const PRESETS = [
-  'เปรียบเทียบแนววินิจฉัยชั้นอุทธรณ์และคำพิพากษาศาลปกครองสูงสุด เรื่องการยื่นอุทธรณ์ตามมาตรา 75',
+  'เปรียบเทียบแนววินิจฉัยชั้นอุทธรณ์และคำพิพากษาศาลปกครองสูงสุด เรื่องการยื่นอุทธรณ์ตามมาตรา 121',
   'หลักเกณฑ์การสั่งปรับทางปกครองตามมาตรา 128 กรณีท่อส่งก๊าซธรรมชาติ',
   'การประเมินความสามารถรองรับของสายป้อน (Feeder Capacity) ตามข้อ 12 มีแนววินิจฉัยอย่างไร',
   'หลักเกณฑ์การอุดหนุนภาษีคาร์บอนสำหรับโรงไฟฟ้าพลังงานนิวเคลียร์ขนาดเล็ก (SMR)'
@@ -175,7 +175,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="พิมพ์คำถามข้อกฎหมาย แนวคำวินิจฉัยอุทธรณ์ หรือคำพิพากษา (เช่น มาตรา 75, อธ. 14/2562)"
+                  placeholder="พิมพ์คำถามข้อกฎหมาย แนวคำวินิจฉัยอุทธรณ์ หรือคำพิพากษา (เช่น มาตรา 121, อธ. 14/2562)"
                   className="flex-1 px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
                 <button disabled={busy || !input.trim()} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50">
