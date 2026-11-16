@@ -103,7 +103,8 @@ function Screening({ d, run }) {
   const a = d.appeal;
   const isAppeal = a.case_type === 'APPEAL';
   const filing = d.clocks.find((c) => c.key === 'filing');
-  const [chk, setChk] = useState({ standing: true, jurisdiction: true, timely: true, prior_steps_done: true });
+  const consumer = !isAppeal && a.complaint_basis === 'CONSUMER';
+  const [chk, setChk] = useState({ standing: true, jurisdiction: true, timely: true, prior_steps_done: true, court_case: false });
   const [docs, setDocs] = useState(Object.fromEntries(d.required_docs.map((x) => [x.key, true])));
   const [route, setRoute] = useState('SUBCOMMITTEE');
   const [note, setNote] = useState('');
@@ -111,7 +112,7 @@ function Screening({ d, run }) {
   const [date, setDate] = useState(todayIso());
 
   const timely = isAppeal ? (filing?.state === 'DONE_LATE' ? false : filing?.state === 'DONE_ON_TIME' ? true : null) : chk.timely;
-  const eligible = chk.standing && chk.jurisdiction && timely !== false && (isAppeal || chk.prior_steps_done);
+  const eligible = chk.standing && chk.jurisdiction && timely !== false && (isAppeal || chk.prior_steps_done) && !(consumer && chk.court_case);
   const complete = Object.values(docs).every(Boolean);
   const result = !eligible ? 'REJECTED' : complete ? 'ACCEPTED' : 'NEED_CORRECTION';
   const label = {
@@ -137,12 +138,13 @@ function Screening({ d, run }) {
             <div className={`text-xs px-2 py-1.5 rounded border ${timely === false ? 'bg-rose-50 border-rose-200 text-rose-800' : timely ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
               {timely === null
                 ? 'ไม่มีวันได้รับแจ้งคำสั่ง — ตรวจหลักฐานใบตอบรับไปรษณีย์/ราชกิจจานุเบกษาก่อน'
-                : `ระบบคำนวณ: ยื่นวันที่ ${filing.days_used} นับแต่ได้รับแจ้ง (${thDate(filing.start)}) → ${timely ? 'ทันกำหนด 30 วัน' : 'พ้นกำหนด 30 วัน'}`}
+                : `ระบบคำนวณ: ยื่นวันที่ ${filing.days_used} นับแต่ได้รับแจ้ง (${thDate(filing.start)}) → ${timely ? 'ทันกำหนด' : 'พ้นกำหนด'} ${filing.label.replace('ยื่นอุทธรณ์ภายใน ', '')}`}
             </div>
           ) : (
             <>
               {box('timely', 'ยื่นภายในกำหนดเวลาตามระเบียบ/ประกาศ/สัญญา')}
               {box('prior_steps_done', 'ปฏิบัติตามขั้นตอนที่กำหนดในระเบียบ/ประกาศ/สัญญาครบแล้วก่อนยื่น')}
+              {consumer && box('court_case', 'เรื่องนี้ฟ้องคดีอยู่ในศาล หรือศาลมีคำพิพากษา/คำสั่งเสร็จเด็ดขาดแล้ว (ข้อ 16/1 ระเบียบร้องเรียน 2553 — ไม่รับไว้พิจารณา)')}
             </>
           )}
         </div>
