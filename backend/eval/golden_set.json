@@ -1,0 +1,1190 @@
+[
+ {
+  "id": "G01",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "การยื่นอุทธรณ์คำสั่งของ กกพ. ต้องยื่นภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับแจ้งคำสั่งจาก กกพ. (กรณีกฎ นับแต่วันที่ กกพ. ออกระเบียบ ข้อบังคับ ประกาศ หรือข้อกำหนด)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-121"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-121": [
+    "ภายในสามสิบวันนับแต่วันที่ได้รับแจ้งคำสั่งจากคณะกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G02",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "การอุทธรณ์คำสั่ง กกพ. ทำให้ทุเลาการบังคับตามคำสั่งหรือไม่",
+  "reference_answer": "ไม่ทุเลาการบังคับ เว้นแต่ กกพ. จะสั่งเป็นอย่างอื่นเป็นการชั่วคราวก่อนมีคำวินิจฉัยอุทธรณ์",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-121"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-121": [
+    "ย่อมไม่เป็นการทุเลาการบังคับตามคำสั่งของคณะกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G03",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "คำวินิจฉัยอุทธรณ์ของ กกพ. ถือเป็นที่สุดหรือไม่",
+  "reference_answer": "เป็นที่สุด ตามมาตรา 121 วรรคท้าย",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-121"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-121": [
+    "คำวินิจฉัยอุทธรณ์ของคณะกรรมการให้เป็นที่สุด"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G04",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "การประกอบกิจการพลังงานโดยไม่ได้รับค่าตอบแทนต้องขอใบอนุญาตหรือไม่",
+  "reference_answer": "ต้องขอ — การประกอบกิจการพลังงานไม่ว่าจะมีค่าตอบแทนหรือไม่ ต้องได้รับใบอนุญาตจาก กกพ.",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-47"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-47": [
+    "ไม่ว่าจะมีค่าตอบแทนหรือไม่ ต้องได้รับใบอนุญาตจากคณะกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G05",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "คำว่า พลังงาน ตามพระราชบัญญัติการประกอบกิจการพลังงาน หมายถึงอะไร",
+  "reference_answer": "ไฟฟ้าหรือก๊าซธรรมชาติ",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-5"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-5": [
+    "“พลังงาน” หมายความว่า ไฟฟ้าหรือก๊าซธรรมชาติ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G06",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "ผู้รับใบอนุญาตโอนสิทธิตามใบอนุญาตให้บุคคลอื่นได้หรือไม่",
+  "reference_answer": "ห้ามโอน เว้นแต่ได้รับความเห็นชอบจาก กกพ. ตามหลักเกณฑ์ที่ กกพ. ประกาศกำหนด",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-55"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-55": [
+    "เว้นแต่ได้รับความเห็นชอบจากคณะกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G07",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "ใครเป็นผู้รักษาการตามพระราชบัญญัติการประกอบกิจการพลังงาน",
+  "reference_answer": "รัฐมนตรีว่าการกระทรวงพลังงาน",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-6"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-6": [
+    "ให้รัฐมนตรีว่าการกระทรวงพลังงานรักษาการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G08",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "กรรมการกำกับกิจการพลังงานต้องมีอายุไม่ต่ำกว่ากี่ปี",
+  "reference_answer": "ไม่ต่ำกว่า 40 ปีบริบูรณ์",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-13"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-13": [
+    "มีอายุไม่ต่ำกว่าสี่สิบปีบริบูรณ์"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G09",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "ผู้ใช้พลังงานที่ได้รับความเดือดร้อนจากการให้บริการของผู้รับใบอนุญาตยื่นร้องเรียนต่อใคร",
+  "reference_answer": "ยื่นหนังสือร้องเรียนต่อคณะกรรมการผู้ใช้พลังงานประจำเขต",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-100"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-100": [
+    "ยื่นหนังสือร้องเรียนต่อคณะกรรมการผู้ใช้พลังงานประจำเขต"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G10",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "ข้อพิพาทระหว่างผู้รับใบอนุญาตด้วยกันต้องระงับอย่างไร",
+  "reference_answer": "ระงับตามระเบียบที่ กกพ. ประกาศกำหนด (มาตรา 120 (2)) ซึ่งคือระเบียบข้อพิพาทระหว่างผู้รับใบอนุญาต พ.ศ. 2555",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-120",
+   "eli/th/reg/erc/2555/licensee-dispute/clause-5"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-120": [
+    "กรณีที่เป็นข้อพิพาทระหว่างผู้รับใบอนุญาตด้วยกัน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G11",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "กกพ. สั่งพักใช้หรือเพิกถอนใบอนุญาตได้ในกรณีใด",
+  "reference_answer": "เมื่อผู้รับใบอนุญาตขาดคุณสมบัติหรือไม่ปฏิบัติตามระเบียบที่ กกพ. ประกาศกำหนดตามมาตรา 50",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-56",
+   "eli/th/ann/erc/2555/license-suspension/clause-3"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-56": [
+    "ขาดคุณสมบัติหรือไม่ปฏิบัติตามระเบียบที่คณะกรรมการประกาศกำหนดตามมาตรา ๕๐"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G12",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "ค่าปรับทางปกครองกรณีผู้รับใบอนุญาตไม่ปฏิบัติตามคำสั่ง กกพ. สูงสุดเท่าไร",
+  "reference_answer": "ไม่เกินห้าแสนบาทต่อวัน (มาตรา 128)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-128"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-128": [
+    "ไม่เกินห้าแสนบาทต่อวัน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G13",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "ผู้รับใบอนุญาตต้องยื่นขอต่ออายุใบอนุญาตเมื่อใด",
+  "reference_answer": "ก่อนวันที่ใบอนุญาตสิ้นอายุ เมื่อยื่นแล้วถือว่ายังอยู่ในฐานะผู้รับใบอนุญาตจนกว่าจะได้รับแจ้งคำสั่งไม่อนุญาต",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-54"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-54": [
+    "ยื่นคำขอก่อนวันที่ใบอนุญาตสิ้นอายุ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G14",
+  "category": "พ.ร.บ.พลังงาน",
+  "question": "กรรมการหรือผู้จัดการของนิติบุคคลต้องรับโทษร่วมกับนิติบุคคลเมื่อใด",
+  "reference_answer": "เมื่อความผิดของนิติบุคคลเกิดจากการสั่งการหรือการกระทำของบุคคลนั้น หรือบุคคลนั้นละเว้นหน้าที่จนเป็นเหตุให้เกิดความผิด (มาตรา 141 รุ่นที่แก้ไขโดย พ.ร.บ. พ.ศ. 2560 มีผล 12 ก.พ. 2560)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-141"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-141": [
+    "เกิดจากการสั่งการหรือการกระทำของกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G15",
+  "category": "สิทธิ์การเข้าถึง",
+  "question": "ผลการวินิจฉัยอุทธรณ์ อธ. 14/2562 เป็นอย่างไร",
+  "reference_answer": "ผู้ใช้ภายนอกต้องไม่ได้รับข้อมูลสำนวนอุทธรณ์ — ระบบต้องไม่อ้างแหล่งประเภทงานอุทธรณ์/คดี",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "pub",
+  "as_of": null,
+  "expected_status": "ANY",
+  "must_not_cite": [],
+  "must_not_kinds": [
+   "appeal",
+   "court_case"
+  ],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G16",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "อุทธรณ์จำนวนเงินค่าทดแทนความเสียหายตามมาตรา 105 ต้องยื่นภายในกี่วัน",
+  "reference_answer": "ภายใน 60 วันนับแต่วันที่ได้รับแจ้งจำนวนเงินค่าทดแทน (ข้อ 9 (2))",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-9"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-9": [
+    "หกสิบวันนับแต่วันที่ได้รับแจ้งจำนวนเงินค่าทดแทน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G17",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "อุทธรณ์คำวินิจฉัยชี้ขาดตามมาตรา 111 ยื่นได้ภายในกี่วัน",
+  "reference_answer": "ภายใน 60 วันนับแต่วันที่ทราบคำวินิจฉัยชี้ขาด (ข้อ 9 (5))",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-9"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-9": [
+    "หกสิบวันนับแต่วันที่ทราบคำวินิจฉัยชี้ขาด"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G18",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "อุทธรณ์คำวินิจฉัยของคณะกรรมการผู้ใช้พลังงานประจำเขตต้องยื่นภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับแจ้งคำวินิจฉัย (ข้อ 9 (1))",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-9"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-9": [
+    "สามสิบวันนับแต่วันที่ได้รับแจ้งคำวินิจฉัย"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G19",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "ยื่นอุทธรณ์ต่อ กกพ. ด้วยวาจาได้หรือไม่",
+  "reference_answer": "ได้ — ต้องไปแจ้งต่อพนักงานของสำนักงานเพื่อจัดทำอุทธรณ์และลงลายมือชื่อ (ข้อ 6 และข้อ 8)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-6",
+   "eli/th/reg/erc/2552/appeal/clause-8"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-6": [
+    "อุทธรณ์ให้ทำเป็นหนังสือหรือจะอุทธรณ์ด้วยวาจาก็ได้"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G20",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "ส่งหนังสืออุทธรณ์ทางไปรษณีย์ นับวันยื่นอุทธรณ์จากวันใด",
+  "reference_answer": "นับจากวันที่ที่ทำการไปรษณีย์ต้นทางประทับตรารับที่ซองหนังสืออุทธรณ์ (ข้อ 10)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-10"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-10": [
+    "วันที่ทำการไปรษณีย์ต้นทางประทับตรารับที่ซองหนังสืออุทธรณ์"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G21",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "คำอุทธรณ์ที่จัดทำเป็นหนังสือต้องระบุอะไรบ้าง",
+  "reference_answer": "ลงลายมือชื่อผู้อุทธรณ์ และระบุวันเดือนปี ชื่อและที่อยู่ รายละเอียดข้อโต้แย้งพร้อมข้อเท็จจริงหรือข้อกฎหมาย (ข้อ 7)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-7"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-7": [
+    "ต้องลงลายมือชื่อผู้อุทธรณ์",
+    "ชื่อ และที่อยู่ของผู้อุทธรณ์ที่สามารถติดต่อได้"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G22",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "คณะอนุกรรมการพิจารณาอุทธรณ์ต้องสรุปความเห็นเสนอ กกพ. ภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันรับอุทธรณ์ (ข้อ 19 วรรคสอง)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-19"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-19": [
+    "ภายในสามสิบวันนับแต่วันรับอุทธรณ์"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G23",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "ถ้า กกพ. วินิจฉัยยกอุทธรณ์ สำนักงานต้องแจ้งอะไรให้ผู้อุทธรณ์ทราบเพิ่มเติม",
+  "reference_answer": "ต้องแจ้งผลพร้อมเหตุผล และแจ้งสิทธิในการฟ้องคดีให้ผู้อุทธรณ์ทราบด้วย (ข้อ 20)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-20"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-20": [
+    "แจ้งสิทธิในการฟ้องคดีให้ผู้อุทธรณ์ทราบด้วย"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G24",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "อุทธรณ์ที่ยื่นพ้นกำหนดเวลาต้องดำเนินการอย่างไร",
+  "reference_answer": "สำนักงานเสนอความเห็นพร้อมอุทธรณ์ต่อ กกพ. เพื่อพิจารณา (ข้อ 12 วรรคสาม)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-12"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-12": [
+    "มิได้ยื่นภายในระยะเวลาที่กำหนดตามข้อ ๙",
+    "เสนอความเห็นพร้อมอุทธรณ์ต่อคณะกรรมการเพื่อพิจารณาต่อไป"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G25",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "คณะอนุกรรมการพิจารณาอุทธรณ์มีกี่คณะ อะไรบ้าง",
+  "reference_answer": "3 คณะ: เขตระบบโครงข่ายพลังงาน, ค่าทดแทน, และเกี่ยวกับคำวินิจฉัยชี้ขาด คำสั่ง ระเบียบ ข้อบังคับ ประกาศ หรือข้อกำหนดของ กกพ. (ข้อ 15)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-15"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-15": [
+    "คณะอนุกรรมการพิจารณาอุทธรณ์เขตระบบโครงข่ายพลังงาน",
+    "คณะอนุกรรมการพิจารณาอุทธรณ์ค่าทดแทน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G26",
+  "category": "ระเบียบอุทธรณ์ 2552",
+  "question": "การคัดค้านการดำเนินการตามมาตรา 107 ต้องยื่นคำร้องภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับแจ้งเป็นหนังสือจากผู้รับใบอนุญาต (ข้อ 23)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal/clause-23"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2552/appeal/clause-23": [
+    "ภายในระยะเวลาสามสิบวันนับแต่วันที่ได้รับแจ้งเป็นหนังสือจากผู้รับใบอนุญาต"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G27",
+  "category": "ระเบียบร้องเรียน 2553",
+  "question": "เรื่องร้องเรียนของผู้ใช้พลังงานต้องไกล่เกลี่ยให้เสร็จภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับเรื่องร้องเรียน (ข้อ 16)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-16"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-16": [
+    "ให้แล้วเสร็จภายในสามสิบวันนับแต่วันที่ได้รับเรื่องร้องเรียน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G28",
+  "category": "ระเบียบร้องเรียน 2553",
+  "question": "คณะกรรมการผู้ใช้พลังงานประจำเขตต้องวินิจฉัยเรื่องร้องเรียนให้เสร็จภายในกี่วัน",
+  "reference_answer": "ภายใน 60 วันนับแต่วันที่รับเรื่องร้องเรียน ถ้าไม่ทันต้องแจ้งเหตุล่าช้าให้ผู้ร้องทราบ (ข้อ 19)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-19"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-19": [
+    "ภายในระยะเวลาหกสิบวันนับแต่วันที่รับเรื่องร้องเรียน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G29",
+  "category": "ระเบียบร้องเรียน 2553",
+  "question": "เรื่องร้องเรียนที่มีการฟ้องคดีอยู่ในศาลแล้ว รับไว้พิจารณาได้หรือไม่",
+  "reference_answer": "ไม่รับไว้พิจารณาหรือให้ยุติการพิจารณา เว้นแต่การพิจารณาต่อไปจะเป็นประโยชน์ต่อผู้ใช้พลังงานโดยรวม (ข้อ 16/1 เพิ่มโดยฉบับที่ 2 พ.ศ. 2558)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-16-1"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-16-1": [
+    "เรื่องที่มีการฟ้องร้องเป็นคดีอยู่ในศาล"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G30",
+  "category": "ระเบียบร้องเรียน 2553",
+  "question": "ผู้ใช้พลังงานร้องเรียนด้วยวาจาได้หรือไม่",
+  "reference_answer": "ได้ — ยื่นเป็นหนังสือหรือร้องเรียนด้วยวาจาต่อคณะกรรมการผู้ใช้พลังงานประจำเขต (ข้อ 6)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-6"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-6": [
+    "หรือร้องเรียนด้วยวาจาต่อคณะกรรมการผู้ใช้พลังงานประจำเขต"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G31",
+  "category": "ระเบียบร้องเรียน 2553",
+  "question": "มอบอำนาจให้ผู้อื่นยื่นเรื่องร้องเรียนแทนได้หรือไม่",
+  "reference_answer": "ได้ โดยมอบอำนาจเป็นหนังสือ (ข้อ 7)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-7"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-7": [
+    "มอบอำนาจเป็นหนังสือให้ผู้อื่นกระทำการแทนก็ได้"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G32",
+  "category": "ระเบียบร้องเรียน 2553",
+  "question": "ระเบียบเรื่องร้องเรียนของผู้ใช้พลังงานใช้บังคับกับกรณีที่มีสัญญากำหนดวิธีระงับข้อพิพาทไว้หรือไม่",
+  "reference_answer": "ไม่ใช้บังคับ หากผู้ร้องและผู้รับใบอนุญาตมีข้อตกลงเป็นสัญญากำหนดการระงับข้อพิพาทเป็นอย่างอื่น (ข้อ 5)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-5"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-5": [
+    "ระเบียบนี้ไม่ให้ใช้บังคับในกรณีที่ผู้ร้องและผู้รับใบอนุญาตมีข้อตกลงเป็นสัญญา"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G33",
+  "category": "ระเบียบข้อพิพาท 2555",
+  "question": "ผู้รับใบอนุญาตยื่นข้อพิพาทกับผู้รับใบอนุญาตรายอื่นทางไปรษณีย์ได้หรือไม่",
+  "reference_answer": "ได้ — ยื่นโดยตรงต่อสำนักงานหรือส่งทางไปรษณีย์ก็ได้ (ข้อ 8)",
+  "expected_sources": [
+   "eli/th/reg/erc/2555/licensee-dispute/clause-8"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2555/licensee-dispute/clause-8": [
+    "อาจยื่นโดยส่งทางไปรษณีย์ก็ได้"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G34",
+  "category": "ระเบียบข้อพิพาท 2555",
+  "question": "หนังสือยื่นข้อพิพาทระหว่างผู้รับใบอนุญาตต้องระบุอะไรบ้าง",
+  "reference_answer": "วันเดือนปี ชื่อและที่อยู่ รายละเอียดของข้อพิพาทและข้อเท็จจริงหรือข้อกฎหมายพร้อมพยานหลักฐาน และลายมือชื่อผู้ยื่น (ข้อ 7)",
+  "expected_sources": [
+   "eli/th/reg/erc/2555/licensee-dispute/clause-7"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2555/licensee-dispute/clause-7": [
+    "รายละเอียดของข้อพิพาทและข้อเท็จจริง",
+    "ลายมือชื่อผู้ยื่นข้อพิพาท"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G35",
+  "category": "ระเบียบข้อพิพาท 2555",
+  "question": "เมื่อ กกพ. วินิจฉัยข้อพิพาทระหว่างผู้รับใบอนุญาตแล้ว ต้องแจ้งผลให้ใครทราบ",
+  "reference_answer": "แจ้งผลพร้อมเหตุผลให้ผู้รับใบอนุญาตผู้ยื่นข้อพิพาทและผู้รับใบอนุญาตที่เป็นคู่กรณี (ข้อ 17)",
+  "expected_sources": [
+   "eli/th/reg/erc/2555/licensee-dispute/clause-17"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2555/licensee-dispute/clause-17": [
+    "ผู้รับใบอนุญาตผู้ยื่นข้อพิพาทและผู้รับใบอนุญาตซึ่งเป็นคู่กรณีทราบ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G36",
+  "category": "ระเบียบข้อพิพาท 2555",
+  "question": "ในการวินิจฉัยข้อพิพาทระหว่างผู้รับใบอนุญาต กกพ. ต้องคำนึงถึงอะไรเป็นหลัก",
+  "reference_answer": "วัตถุประสงค์ของพระราชบัญญัติการประกอบกิจการพลังงาน พ.ศ. 2550 (ข้อ 6)",
+  "expected_sources": [
+   "eli/th/reg/erc/2555/licensee-dispute/clause-6"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2555/licensee-dispute/clause-6": [
+    "คำนึงถึงวัตถุประสงค์ของพระราชบัญญัติการประกอบกิจการพลังงาน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G37",
+  "category": "ระเบียบรับฟังความคิดเห็น 2560",
+  "question": "ระเบียบ กกพ. ว่าด้วยการรับฟังความคิดเห็นในการออกระเบียบ พ.ศ. 2560 ใช้บังคับเมื่อใด",
+  "reference_answer": "เมื่อพ้นกำหนด 120 วันนับแต่วันประกาศในราชกิจจานุเบกษา (ประกาศ 20 ต.ค. 2560 → ใช้บังคับ 18 ก.พ. 2561)",
+  "expected_sources": [
+   "eli/th/reg/erc/2560/public-hearing/clause-2"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2560/public-hearing/clause-2": [
+    "เมื่อพ้นกำหนดหนึ่งร้อยยี่สิบวันนับแต่วันประกาศในราชกิจจานุเบกษา"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G38",
+  "category": "ระเบียบรับฟังความคิดเห็น 2560",
+  "question": "การรับฟังความคิดเห็นในการออกระเบียบของ กกพ. ทำได้ด้วยวิธีใดบ้าง",
+  "reference_answer": "วิธีใดวิธีหนึ่งหรือหลายวิธี เช่น สำรวจความคิดเห็น/แบบสอบถาม, จัดสัมมนา อบรม อภิปราย, ใช้สื่อโฆษณาหรือประชาสัมพันธ์ ฯลฯ (ข้อ 8)",
+  "expected_sources": [
+   "eli/th/reg/erc/2560/public-hearing/clause-8"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2560/public-hearing/clause-8": [
+    "การรวบรวมข้อมูลหรือสำรวจความคิดเห็น",
+    "การจัดสัมมนา อบรม อภิปราย"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G39",
+  "category": "ระเบียบรับฟังความคิดเห็น 2560",
+  "question": "เทคนิคพิจารณ์ หมายถึงอะไร",
+  "reference_answer": "การรับฟังความคิดเห็นจากผู้เชี่ยวชาญ เช่น นักวิชาการหรือผู้มีประสบการณ์ ในเรื่องการออกกฎด้านเทคนิคเป็นการเฉพาะ (ข้อ 3)",
+  "expected_sources": [
+   "eli/th/reg/erc/2560/public-hearing/clause-3"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2560/public-hearing/clause-3": [
+    "“เทคนิคพิจารณ์” หมายความว่า การรับฟังความคิดเห็นจากผู้เชี่ยวชาญ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G40",
+  "category": "ระเบียบใบอนุญาต 2551",
+  "question": "บุคคลธรรมดาที่ขอรับใบอนุญาตประกอบกิจการพลังงานต้องมีสัญชาติอะไร",
+  "reference_answer": "สัญชาติไทย (ข้อ 4 (1) (ก))",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/licensing/clause-4"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/licensing/clause-4": [
+    "(ก) มีสัญชาติไทย"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G41",
+  "category": "ระเบียบใบอนุญาต 2551",
+  "question": "กกพ. ต้องพิจารณาคำขอรับใบอนุญาตประกอบกิจการพลังงานให้เสร็จภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับความเห็นของสำนักงาน (ข้อ 9)",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/licensing/clause-9"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/licensing/clause-9": [
+    "ให้แล้วเสร็จภายในสามสิบวันนับแต่วันที่ได้รับความเห็นของสำนักงาน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G42",
+  "category": "ระเบียบใบอนุญาต 2551",
+  "question": "สถานีอัดประจุไฟฟ้าตามระเบียบการขอรับใบอนุญาตหมายถึงอะไร",
+  "reference_answer": "อาคารหรือสถานที่ให้บริการอัดประจุแก่ยานยนต์ไฟฟ้า ที่ติดตั้งหม้อแปลงหรือเครื่องแปลงกระแสไฟฟ้าขนาดรวมตั้งแต่ 1,000 kVA ขึ้นไป (ข้อ 3/1 เพิ่มโดยฉบับที่ 3 พ.ศ. 2560 มีผล 21 ต.ค. 2560)",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/licensing/clause-3-1"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/licensing/clause-3-1": [
+    "ขนาดรวมกันตั้งแต่ ๑,๐๐๐ กิโลโวลต์แอมแปร์ขึ้นไป"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G43",
+  "category": "ระเบียบใบอนุญาต 2551",
+  "question": "ใบอนุญาตประกอบกิจการพลังงานสูญหายต้องทำอย่างไร",
+  "reference_answer": "ยื่นคำขอรับใบแทนใบอนุญาตต่อสำนักงาน (ข้อ 15)",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/licensing/clause-15"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/licensing/clause-15": [
+    "ยื่นคำขอรับใบแทนใบอนุญาตต่อสำนักงาน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G44",
+  "category": "ตัวบท ณ วันที่",
+  "question": "สถานีอัดประจุไฟฟ้าตามระเบียบการขอรับใบอนุญาตหมายถึงอะไร (ณ วันที่ 1 มิถุนายน 2559)",
+  "reference_answer": "ณ วันที่ 1 มิ.ย. 2559 ข้อ 3/1 ยังไม่มีผลใช้บังคับ (เริ่ม 21 ต.ค. 2560) — ระบบต้องไม่อ้างข้อ 3/1",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": "2016-06-01",
+  "expected_status": "ANY",
+  "must_not_cite": [
+   "eli/th/reg/erc/2551/licensing/clause-3-1"
+  ],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G45",
+  "category": "ค่าธรรมเนียม 2551",
+  "question": "ค่าธรรมเนียมใบอนุญาตผลิตไฟฟ้าที่มีกำลังการผลิตติดตั้งเกิน 150 เมกะวัตต์เท่าไร",
+  "reference_answer": "ฉบับละ 50,000 บาท",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/fees/item-1"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/fees/item-1": [
+    "เกินกว่า ๑๕๐ เมกะวัตต์ ฉบับละ ๕๐,๐๐๐ บาท"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G46",
+  "category": "ค่าธรรมเนียม 2551",
+  "question": "ค่าธรรมเนียมการต่ออายุใบอนุญาตประกอบกิจการพลังงานเท่าไร",
+  "reference_answer": "ฉบับละ 5,000 บาท",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/fees/item-3"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/fees/item-3": [
+    "การต่ออายุใบอนุญาต ฉบับละ ๕,๐๐๐ บาท"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G47",
+  "category": "ค่าธรรมเนียม 2551",
+  "question": "ค่าธรรมเนียมการประกอบกิจการควบคุมระบบไฟฟ้ารายปีเท่าไร",
+  "reference_answer": "ปีละ 20 ล้านบาท",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/fees/item-2"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/fees/item-2": [
+    "การประกอบกิจการควบคุมระบบไฟฟ้า ปีละ ๒๐ ล้านบาท"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G48",
+  "category": "ประกาศพักใช้ 2555",
+  "question": "อุทธรณ์คำสั่งพักใช้หรือเพิกถอนใบอนุญาตต้องยื่นภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับแจ้งคำสั่งจาก กกพ. และไม่ทุเลาการบังคับ (ข้อ 13)",
+  "expected_sources": [
+   "eli/th/ann/erc/2555/license-suspension/clause-13"
+  ],
+  "evidence": {
+   "eli/th/ann/erc/2555/license-suspension/clause-13": [
+    "ภายในสามสิบวันนับแต่วันที่ได้รับแจ้งคำสั่งจากคณะกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G49",
+  "category": "ประกาศพักใช้ 2555",
+  "question": "เมื่อ กกพ. ชี้ขาดอุทธรณ์คำสั่งพักใช้ใบอนุญาตแล้ว ต้องแจ้งผู้อุทธรณ์ภายในกี่วัน",
+  "reference_answer": "แจ้งคำชี้ขาดพร้อมเหตุผลภายใน 15 วันนับแต่วันที่มีคำชี้ขาด และคำสั่งเป็นที่สุด (ข้อ 14)",
+  "expected_sources": [
+   "eli/th/ann/erc/2555/license-suspension/clause-14"
+  ],
+  "evidence": {
+   "eli/th/ann/erc/2555/license-suspension/clause-14": [
+    "ภายในสิบห้าวันนับแต่วันที่ได้มีคำชี้ขาดนั้น"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G50",
+  "category": "ประกาศพักใช้ 2555",
+  "question": "ผู้รับใบอนุญาตที่ถูกเพิกถอนใบอนุญาตต้องส่งมอบใบอนุญาตคืนภายในกี่วัน",
+  "reference_answer": "ภายใน 15 วันนับแต่วันที่ กกพ. มีคำสั่งเพิกถอน (ข้อ 12)",
+  "expected_sources": [
+   "eli/th/ann/erc/2555/license-suspension/clause-12"
+  ],
+  "evidence": {
+   "eli/th/ann/erc/2555/license-suspension/clause-12": [
+    "ภายในสิบห้าวันนับแต่วันที่คณะกรรมการมีคำสั่งเพิกถอนใบอนุญาต"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G51",
+  "category": "ประกาศพักใช้ 2555",
+  "question": "ผู้รับใบอนุญาตที่ไม่เห็นด้วยกับคำสั่งให้แก้ไขปรับปรุงก่อนการพักใช้ใบอนุญาต ต้องโต้แย้งภายในกี่วัน",
+  "reference_answer": "ยื่นหนังสือแสดงเหตุแห่งการไม่เห็นด้วยภายใน 15 วันนับแต่ได้รับแจ้ง และ กกพ. ต้องวินิจฉัยภายใน 60 วัน (ข้อ 4)",
+  "expected_sources": [
+   "eli/th/ann/erc/2555/license-suspension/clause-4"
+  ],
+  "evidence": {
+   "eli/th/ann/erc/2555/license-suspension/clause-4": [
+    "ภายในสิบห้าวันนับแต่วันที่ได้รับแจ้ง",
+    "ภายในหกสิบวันนับแต่วันที่ได้รับหนังสือจากผู้รับใบอนุญาต"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G52",
+  "category": "วิ.ปกครอง 2539",
+  "question": "ถ้ากฎหมายไม่ได้กำหนดขั้นตอนอุทธรณ์ไว้เป็นการเฉพาะ ต้องอุทธรณ์คำสั่งทางปกครองภายในกี่วัน",
+  "reference_answer": "ภายใน 15 วันนับแต่วันที่ได้รับแจ้งคำสั่ง โดยยื่นต่อเจ้าหน้าที่ผู้ทำคำสั่ง (มาตรา 44)",
+  "expected_sources": [
+   "eli/th/act/2539/admin-procedure/sec-44"
+  ],
+  "evidence": {
+   "eli/th/act/2539/admin-procedure/sec-44": [
+    "ภายในสิบห้าวันนับแต่วันที่ตนได้รับแจ้งคำสั่งดังกล่าว"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G53",
+  "category": "วิ.ปกครอง 2539",
+  "question": "เจ้าหน้าที่ต้องพิจารณาคำอุทธรณ์คำสั่งทางปกครองภายในกี่วัน",
+  "reference_answer": "โดยไม่ชักช้า แต่ไม่เกิน 30 วันนับแต่วันที่ได้รับอุทธรณ์ (มาตรา 45)",
+  "expected_sources": [
+   "eli/th/act/2539/admin-procedure/sec-45"
+  ],
+  "evidence": {
+   "eli/th/act/2539/admin-procedure/sec-45": [
+    "ต้องไม่เกินสามสิบวันนับแต่วันที่ได้รับอุทธรณ์"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G54",
+  "category": "วิ.ปกครอง 2539",
+  "question": "หากกฎหมายไม่กำหนดเวลาไว้ เจ้าหน้าที่ต้องออกคำสั่งทางปกครองเป็นหนังสือให้เสร็จภายในกี่วัน",
+  "reference_answer": "ภายใน 30 วันนับแต่วันที่ได้รับคำขอและเอกสารถูกต้องครบถ้วน (มาตรา 39/1)",
+  "expected_sources": [
+   "eli/th/act/2539/admin-procedure/sec-39-1"
+  ],
+  "evidence": {
+   "eli/th/act/2539/admin-procedure/sec-39-1": [
+    "ให้แล้วเสร็จภายในสามสิบวันนับแต่วันที่เจ้าหน้าที่ได้รับคำขอและเอกสารถูกต้องครบถ้วน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G55",
+  "category": "ศาลปกครอง 2542",
+  "question": "การฟ้องคดีปกครองต้องยื่นฟ้องภายในกี่วัน",
+  "reference_answer": "ภายใน 90 วันนับแต่วันที่รู้หรือควรรู้ถึงเหตุแห่งการฟ้องคดี (มาตรา 49)",
+  "expected_sources": [
+   "eli/th/act/2542/admin-court/sec-49"
+  ],
+  "evidence": {
+   "eli/th/act/2542/admin-court/sec-49": [
+    "ภายในเก้าสิบวันนับแต่วันที่รู้หรือควรรู้ถึงเหตุแห่งการฟ้องคดี"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G56",
+  "category": "ศาลปกครอง 2542",
+  "question": "การฟ้องคดีพิพาทเกี่ยวกับสัญญาทางปกครองต้องยื่นภายในกี่ปี",
+  "reference_answer": "ภายใน 5 ปีนับแต่วันที่รู้หรือควรรู้ถึงเหตุแห่งการฟ้องคดี แต่ไม่เกิน 10 ปีนับแต่มีเหตุ (มาตรา 51 ประกอบมาตรา 9 วรรคหนึ่ง (4))",
+  "expected_sources": [
+   "eli/th/act/2542/admin-court/sec-51",
+   "eli/th/act/2542/admin-court/sec-9"
+  ],
+  "evidence": {
+   "eli/th/act/2542/admin-court/sec-51": [
+    "ให้ยื่นฟ้องภายในห้าปี"
+   ],
+   "eli/th/act/2542/admin-court/sec-9": [
+    "คดีพิพาทเกี่ยวกับสัญญาทางปกครอง"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G57",
+  "category": "ศาลปกครอง 2542",
+  "question": "การฟ้องคดีปกครองเกี่ยวกับการคุ้มครองประโยชน์สาธารณะมีกำหนดเวลาฟ้องหรือไม่",
+  "reference_answer": "ไม่มีกำหนด — จะยื่นฟ้องเมื่อใดก็ได้ (มาตรา 52)",
+  "expected_sources": [
+   "eli/th/act/2542/admin-court/sec-52"
+  ],
+  "evidence": {
+   "eli/th/act/2542/admin-court/sec-52": [
+    "จะยื่นฟ้องคดีเมื่อใดก็ได้"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G58",
+  "category": "ทะเบียนกฎหมาย",
+  "question": "ระเบียบ กกพ. ว่าด้วยการอุทธรณ์และการพิจารณาอุทธรณ์ ออกโดยอาศัยอำนาจตามมาตราใด",
+  "reference_answer": "ทะเบียนระบุบทอาศัยอำนาจ มาตรา 121 (ระเบียบลงวันที่ใช้บังคับ 12 พ.ย. 2552); คำปรารภของระเบียบอ้างมาตรา 24, 101, 105, 106, 108, 109, 111, 113 และ 121",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": "การอุทธรณ์และการพิจารณาอุทธรณ์"
+ },
+ {
+  "id": "G59",
+  "category": "ไม่มีหลักฐาน",
+  "question": "หลักเกณฑ์การอุดหนุนภาษีคาร์บอนสำหรับโรงไฟฟ้านิวเคลียร์ขนาดเล็ก (SMR) เป็นอย่างไร",
+  "reference_answer": "ไม่มีตัวบทหรือสำนวนรองรับ — ต้องตอบว่าไม่พบหลักฐาน",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "NO_EVIDENCE",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ },
+ {
+  "id": "G60",
+  "category": "ไม่มีหลักฐาน",
+  "question": "พระราชบัญญัติปิโตรเลียมกำหนดอัตราค่าภาคหลวงไว้อย่างไร",
+  "reference_answer": "ไม่มี พ.ร.บ.ปิโตรเลียมในระบบ — ต้องตอบว่าไม่พบหลักฐาน",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "NO_EVIDENCE",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null
+ }
+]
