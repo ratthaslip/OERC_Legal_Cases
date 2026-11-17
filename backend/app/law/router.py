@@ -1,7 +1,7 @@
 import re
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
@@ -9,6 +9,7 @@ from .. import audit, authz
 from ..auth import User, current_user
 from ..db import get_conn, one, rows
 from ..search.hybrid import hybrid_search
+from . import coverage as law_coverage
 from .resolver import NotYetInForce, Repealed, resolve
 
 STATUS_TH = {"IN_FORCE": "ใช้บังคับ", "REPEALED": "ยกเลิก", "UNKNOWN": "ไม่ระบุ", "GROUP": "หัวกลุ่ม"}
@@ -171,24 +172,14 @@ _INTERNAL_COLS = ", owner_unit, review_text, status_text, note, hearing_text, at
 @router.get("/register")
 def list_register(q: str | None = None, doc_type: str | None = None, status: str | None = None,
                   section: int | None = None, unit: str | None = None, issues_only: bool = False,
+                  has_text: bool | None = None,
                   limit: int = Query(default=50, le=400), offset: int = 0,
                   user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     """ทะเบียนกฎหมายลำดับรอง: กรองตามประเภท/สถานะ/มาตราแม่บท/ฝ่ายงาน + ค้นจากชื่อ (Thai FTS + vector)
     ข้อมูลภายใน (ฝ่ายงาน รอบประเมิน หมายเหตุ ประเด็นข้อมูล) เห็นเฉพาะเจ้าหน้าที่"""
     internal = user.role in authz.INTERNAL_ROLES
     cols = _PUBLIC_COLS + (_INTERNAL_COLS if internal else "")
-    where = ["status <> 'GROUP'"]
-    params: dict = {}
-    if doc_type:
-        where.append("doc_type = :doc_type"); params["doc_type"] = doc_type
-    if status:
-        where.append("status = :status"); params["status"] = status
-    if section:
-        where.append(":section = ANY(authority_secs)"); params["section"] = section
-    if unit and internal:
-        where.append("owner_unit ILIKE :unit"); params["unit"] = f"%{unit}%"
-    if issues_only and internal:
-        where.append("cardinality(issues) > 0")
+    where, params = _register_where(internal, doc_type, status, section, unit, issues_only, has_text)
     order = "ORDER BY group_no::text ~ '^[0-9]+$' DESC, NULLIF(regexp_replace(group_no, '[^0-9]', '', 'g'), '')::int, sheet_row"
     rank: dict[int, float] = {}
     if q and q.strip():
@@ -215,6 +206,48 @@ def list_register(q: str | None = None, doc_type: str | None = None, status: str
     return {"items": items, "total": total, "facets": _register_facets(conn, internal)}
 
 
+def _register_where(internal: bool, doc_type=None, status=None, section=None, unit=None, issues_only=False,
+                    has_text=None, alias: str = "") -> tuple[list[str], dict]:
+    a = f"{alias}." if alias else ""
+    where = [f"{a}status <> 'GROUP'"]
+    params: dict = {}
+    if doc_type:
+        where.append(f"{a}doc_type = :doc_type"); params["doc_type"] = doc_type
+    if status:
+        where.append(f"{a}status = :status"); params["status"] = status
+    if section:
+        where.append(f":section = ANY({a}authority_secs)"); params["section"] = section
+    if unit and internal:
+        where.append(f"{a}owner_unit ILIKE :unit"); params["unit"] = f"%{unit}%"
+    if issues_only and internal:
+        where.append(f"cardinality({a}issues) > 0")
+    if has_text is not None:
+        where.append(f"{a}instrument_eli IS {'NOT ' if has_text else ''}NULL")
+    return where, params
+
+
+@router.get("/coverage")
+def coverage(user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    """นำเข้าตัวบทแล้วกี่ฉบับ ทะเบียนมีตัวบทเต็มกี่ฉบับ ประเด็นค้าง และบันทึกการนำเข้า (เจ้าหน้าที่เท่านั้น)"""
+    authz.require_internal(user)
+    return law_coverage.summary(conn)
+
+
+@router.get("/register/export")
+def export_register(doc_type: str | None = None, status: str | None = None, section: int | None = None,
+                    has_text: bool | None = False, user: User = Depends(current_user),
+                    conn: Connection = Depends(get_conn)):
+    """ส่งออกรายการทะเบียนตามตัวกรองเป็น Excel — ค่าเริ่มต้นคือรายการที่ยังไม่มีตัวบทในระบบ (ใช้ขอไฟล์จากฝ่ายกฎหมาย)"""
+    authz.require_internal(user)
+    where, params = _register_where(True, doc_type, status, section, None, False, has_text, alias="r")
+    data = law_coverage.missing_workbook(conn, " AND ".join(where), params)
+    audit.record(conn, user, "law.register.export", "law_register",
+                 detail={"has_text": has_text, "status": status, "section": section, "doc_type": doc_type})
+    name = f"register-{'missing-text' if has_text is False else 'all'}-{date.today().isoformat()}.xlsx"
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 def _register_facets(conn: Connection, internal: bool) -> dict:
     f = {
         "doc_types": rows(conn, """SELECT doc_type AS key, count(*) AS n FROM law_register
@@ -224,6 +257,7 @@ def _register_facets(conn: Connection, internal: bool) -> dict:
         "sections": rows(conn, """SELECT s AS key, count(*) AS n FROM law_register, unnest(authority_secs) s
                                   GROUP BY 1 ORDER BY 2 DESC, 1"""),
         "meta": one(conn, """SELECT count(*) FILTER (WHERE status <> 'GROUP') AS total,
+                                    count(*) FILTER (WHERE status <> 'GROUP' AND instrument_eli IS NOT NULL) AS with_text,
                                     count(DISTINCT group_no) AS groups, max(source_file) AS source_file,
                                     max(imported_at) AS imported_at FROM law_register"""),
     }

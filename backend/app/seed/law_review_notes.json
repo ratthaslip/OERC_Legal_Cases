@@ -1,0 +1,16 @@
+[
+ {"instrument": "eli/th/reg/erc/2551/licensing", "kind": "pending_amendment",
+  "note": "ยังไม่ได้ตัวบทฉบับที่ ๒ พ.ศ. ๒๕๕๗ (ทะเบียนระบุใช้บังคับ 28 พ.ค. 2557) — ข้อที่ฉบับที่ ๒ แก้ไขยังแสดงถ้อยคำก่อนแก้ ต้องประกอบใหม่ตามลำดับ ฉบับหลัก → ฉบับที่ ๒ → ฉบับที่ ๓"},
+ {"instrument": "eli/th/reg/erc/2551/fees", "kind": "date_estimate",
+  "note": "ระเบียบไม่มีข้อกำหนดวันใช้บังคับ — ใช้วันที่ตามทะเบียน (8 ม.ค. 2552 = วันประกาศ) ต้องให้นิติกรยืนยัน"},
+ {"instrument": "eli/th/act/2542/admin-court", "kind": "date_estimate",
+  "note": "วันมีผลของฉบับแก้ไขที่ ๒–๑๔ ใช้ 'วันถัดจากวันประกาศ' เป็นค่าประมาณ — ต้องตรวจบทเฉพาะกาลของแต่ละฉบับ"},
+ {"instrument": "eli/th/act/2539/admin-procedure", "kind": "date_estimate", "provision": "eli/th/act/2539/admin-procedure/sec-39-1",
+  "note": "วันมีผลของฉบับที่ ๒ พ.ศ. ๒๕๕๗ (ม.27 แก้ไข, ม.39/1 เพิ่ม) ใช้ 31 ธ.ค. 2557 เป็นค่าประมาณ"},
+ {"instrument": "eli/th/act/2550/energy-industry", "kind": "placeholder_text", "provision": "eli/th/act/2550/energy-industry/sec-141",
+  "note": "ถ้อยคำเดิมของมาตรา 141 (ก่อน 12 ก.พ. 2560) ยังเป็นข้อความแทนที่ — ต้องได้จากราชกิจจานุเบกษา เล่ม 124 ตอนที่ 89 ก"},
+ {"instrument": "eli/th/act/2550/energy-industry", "kind": "needs_confirmation",
+  "note": "ฉบับรวมปรับปรุงถึง พ.ศ. 2560 — ต้องยืนยันว่าไม่มีการแก้ไขเพิ่มเติมหลังจากนั้น"},
+ {"instrument": "eli/th/act/2539/admin-procedure", "kind": "needs_confirmation",
+  "note": "ฉบับรวมแก้ไขถึงฉบับที่ ๒ พ.ศ. ๒๕๕๗ — ต้องยืนยันว่าไม่มีการแก้ไขเพิ่มเติมหลังจากนั้น"}
+]

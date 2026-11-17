@@ -32,6 +32,7 @@ export const api = {
   appealWorkflow: () => request('GET', '/appeals/workflow'),
   register: (params) => request('GET', '/laws/register', { params }),
   registerItem: (id) => request('GET', `/laws/register/${id}`),
+  coverage: () => request('GET', '/laws/coverage'),
   appeals: (params) => request('GET', '/appeals', { params }),
   appeal: (id) => request('GET', `/appeals/${id}`),
   registerAppeal: (body) => request('POST', '/appeals', { body }),
@@ -89,4 +90,18 @@ export async function askAssistant(question, asOf, onEvent, signal) {
   }
   if (buf.trim()) emit(buf);
   if (!gotDone) throw new Error('การเชื่อมต่อกับเซิร์ฟเวอร์ขาดก่อนได้คำตอบครบ (ดู docker compose logs api)');
+}
+
+/** ดาวน์โหลดรายการทะเบียนเป็น Excel (ค่าเริ่มต้น: ยังไม่มีตัวบทในระบบ) */
+export async function downloadRegisterExport(params = {}) {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+  const res = await fetch(`/api/v1/laws/register/export?${qs}`, { headers: { 'X-Demo-User': currentUser } });
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  const name = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'register.xlsx';
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
