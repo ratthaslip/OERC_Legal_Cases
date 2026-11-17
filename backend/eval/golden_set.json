@@ -17,7 +17,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G02",
@@ -37,7 +40,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G03",
@@ -57,7 +63,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G04",
@@ -77,7 +86,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G05",
@@ -97,7 +109,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G06",
@@ -117,7 +132,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G07",
@@ -137,7 +155,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G08",
@@ -157,7 +178,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G09",
@@ -177,7 +201,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G10",
@@ -198,7 +225,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G11",
@@ -219,7 +249,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G12",
@@ -239,7 +272,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G13",
@@ -259,7 +295,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G14",
@@ -279,7 +318,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G15",
@@ -296,7 +338,10 @@
    "appeal",
    "court_case"
   ],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G16",
@@ -316,7 +361,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G17",
@@ -336,7 +384,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G18",
@@ -356,7 +407,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G19",
@@ -377,7 +431,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G20",
@@ -397,7 +454,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G21",
@@ -418,7 +478,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G22",
@@ -438,7 +501,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G23",
@@ -458,7 +524,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G24",
@@ -479,7 +548,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G25",
@@ -500,7 +572,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G26",
@@ -520,7 +595,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G27",
@@ -540,7 +618,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G28",
@@ -560,7 +641,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G29",
@@ -580,7 +664,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G30",
@@ -600,7 +687,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G31",
@@ -620,7 +710,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G32",
@@ -640,7 +733,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G33",
@@ -660,7 +756,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G34",
@@ -681,7 +780,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G35",
@@ -701,7 +803,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G36",
@@ -721,7 +826,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G37",
@@ -741,7 +849,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G38",
@@ -762,7 +873,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G39",
@@ -782,7 +896,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G40",
@@ -802,7 +919,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G41",
@@ -822,7 +942,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G42",
@@ -842,7 +965,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G43",
@@ -862,7 +988,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G44",
@@ -878,7 +1007,10 @@
    "eli/th/reg/erc/2551/licensing/clause-3-1"
   ],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G45",
@@ -898,7 +1030,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G46",
@@ -918,7 +1053,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G47",
@@ -938,7 +1076,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G48",
@@ -958,7 +1099,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G49",
@@ -978,7 +1122,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G50",
@@ -998,7 +1145,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G51",
@@ -1019,7 +1169,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G52",
@@ -1039,7 +1192,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G53",
@@ -1059,7 +1215,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G54",
@@ -1079,7 +1238,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G55",
@@ -1099,7 +1261,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G56",
@@ -1123,7 +1288,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G57",
@@ -1143,7 +1311,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G58",
@@ -1157,7 +1328,10 @@
   "expected_status": "ANSWERED",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": "การอุทธรณ์และการพิจารณาอุทธรณ์"
+  "expected_title_contains": "การอุทธรณ์และการพิจารณาอุทธรณ์",
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G59",
@@ -1171,7 +1345,10 @@
   "expected_status": "NO_EVIDENCE",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
  },
  {
   "id": "G60",
@@ -1185,6 +1362,401 @@
   "expected_status": "NO_EVIDENCE",
   "must_not_cite": [],
   "must_not_kinds": [],
-  "expected_title_contains": null
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G61",
+  "category": "ลำดับรอง (ทะเบียน)",
+  "question": "ระเบียบที่ออกโดยอาศัยอำนาจตามมาตรา 121 มีฉบับใดบ้าง",
+  "reference_answer": "1 ฉบับ: ระเบียบ กกพ. ว่าด้วยหลักเกณฑ์ วิธีการ และเงื่อนไข การอุทธรณ์และการพิจารณาอุทธรณ์ฯ พ.ศ. 2552 (ทะเบียน #157)",
+  "expected_sources": [
+   "eli/th/reg/erc/2552/appeal"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "การอุทธรณ์และการพิจารณาอุทธรณ์"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G62",
+  "category": "ลำดับรอง (ทะเบียน)",
+  "question": "ประกาศที่ออกโดยอาศัยอำนาจตามมาตรา 11 มีกี่ฉบับ",
+  "reference_answer": "84 ฉบับ (ใช้บังคับ 79 ยกเลิก 5) ไม่นับประกาศสำนักงาน กกพ. อีก 2 ฉบับ",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "84"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G63",
+  "category": "ลำดับรอง (ทะเบียน)",
+  "question": "กฎหมายลำดับรองที่ออกโดยอาศัยอำนาจตามมาตรา 50 ที่ยังใช้บังคับอยู่มีกี่ฉบับ",
+  "reference_answer": "15 ฉบับ (ระเบียบ 12 ประกาศ 2 ประกาศสำนักงาน กกพ. 1)",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "15"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G64",
+  "category": "ลำดับรอง (ทะเบียน)",
+  "question": "ระเบียบที่ออกโดยอาศัยอำนาจตามมาตรา 33 ซึ่งถูกยกเลิกแล้วมีกี่ฉบับ",
+  "reference_answer": "9 ฉบับ",
+  "expected_sources": [],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "9"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G65",
+  "category": "บทอาศัยอำนาจ",
+  "question": "ระเบียบ กกพ. ว่าด้วยหลักเกณฑ์และวิธีการรับฟังความคิดเห็นในการออกระเบียบ ออกโดยอาศัยอำนาจตามมาตราใด",
+  "reference_answer": "มาตรา 26 แห่ง พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550 (ทะเบียน #13)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-26"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "มาตรา 26"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G66",
+  "category": "บทอาศัยอำนาจ",
+  "question": "ระเบียบ กกพ. ว่าด้วยการขอรับใบอนุญาตและการอนุญาตการประกอบกิจการพลังงาน ออกโดยอาศัยอำนาจตามมาตราใด",
+  "reference_answer": "มาตรา 50 (ทะเบียน #58)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-50"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "มาตรา 50"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G67",
+  "category": "บทอาศัยอำนาจ",
+  "question": "ประกาศ กกพ. เรื่อง หลักเกณฑ์ วิธีการ และเงื่อนไขการพักใช้และเพิกถอนใบอนุญาต ออกโดยอาศัยอำนาจตามมาตราใด",
+  "reference_answer": "มาตรา 56 (ทะเบียน #65)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-56"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "มาตรา 56"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G68",
+  "category": "บทอาศัยอำนาจ",
+  "question": "ระเบียบ กกพ. ว่าด้วยหลักเกณฑ์การยื่นเรื่องร้องเรียน การรับเรื่องร้องเรียน ออกโดยอาศัยอำนาจตามมาตราใด",
+  "reference_answer": "มาตรา 100 (ทะเบียน #144)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-100"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "มาตรา 100"
+  ],
+  "require_all": false,
+  "data": "register"
+ },
+ {
+  "id": "G69",
+  "category": "ประวัติการแก้ไข",
+  "question": "ข้อ 21 ของระเบียบ กกพ. ว่าด้วยหลักเกณฑ์การยื่นเรื่องร้องเรียน ถูกแก้ไขโดยฉบับใด",
+  "reference_answer": "แก้ไขโดยระเบียบฯ (ฉบับที่ 2) พ.ศ. 2558 มีผล 27 มิ.ย. 2558",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-21"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "2558"
+  ],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G70",
+  "category": "ประวัติการแก้ไข",
+  "question": "มาตรา 141 พ.ร.บ.การประกอบกิจการพลังงาน ถูกแก้ไขเมื่อใด",
+  "reference_answer": "แก้ไขโดย พ.ร.บ.แก้ไขเพิ่มเติมบทบัญญัติแห่งกฎหมายที่เกี่ยวกับความรับผิดในทางอาญาของผู้แทนนิติบุคคล พ.ศ. 2560 มีผล 12 ก.พ. 2560",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-141"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "2560"
+  ],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G71",
+  "category": "ประวัติการแก้ไข",
+  "question": "มาตรา 27 พ.ร.บ.วิธีปฏิบัติราชการทางปกครอง มีการแก้ไขหรือไม่",
+  "reference_answer": "มี — แก้ไขโดย พ.ร.บ.วิธีปฏิบัติราชการทางปกครอง (ฉบับที่ 2) พ.ศ. 2557",
+  "expected_sources": [
+   "eli/th/act/2539/admin-procedure/sec-27"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "2557"
+  ],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G72",
+  "category": "ประวัติการแก้ไข",
+  "question": "ข้อ 7 ของระเบียบการขอรับใบอนุญาตประกอบกิจการพลังงานมีกี่รุ่น",
+  "reference_answer": "2 รุ่น: ตัวบทตั้งต้น (มีผล 9 ม.ค. 2552) และรุ่นที่แก้ไขโดยระเบียบฯ (ฉบับที่ 3) พ.ศ. 2560 (มีผล 21 ต.ค. 2560)",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/licensing/clause-7"
+  ],
+  "evidence": {},
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [
+   "2 รุ่น"
+  ],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G73",
+  "category": "บทนิยาม",
+  "question": "คำว่า ผู้รับใบอนุญาต ตามพระราชบัญญัติการประกอบกิจการพลังงาน หมายความว่าอะไร",
+  "reference_answer": "ผู้ได้รับใบอนุญาตให้ประกอบกิจการพลังงานตามพระราชบัญญัตินี้ (มาตรา 5)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-5"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-5": [
+    "“ผู้รับใบอนุญาต” หมายความว่า"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G74",
+  "category": "บทนิยาม",
+  "question": "คู่กรณี ตามพระราชบัญญัติวิธีปฏิบัติราชการทางปกครอง หมายถึงใคร",
+  "reference_answer": "ผู้ยื่นคำขอหรือผู้คัดค้านคำขอ ผู้อยู่ในบังคับหรือจะอยู่ในบังคับของคำสั่งทางปกครอง และผู้ซึ่งได้เข้ามาในกระบวนการพิจารณาทางปกครองเนื่องจากสิทธิของผู้นั้นจะถูกกระทบกระเทือน (มาตรา 5)",
+  "expected_sources": [
+   "eli/th/act/2539/admin-procedure/sec-5"
+  ],
+  "evidence": {
+   "eli/th/act/2539/admin-procedure/sec-5": [
+    "“คู่กรณี” หมายความว่า"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [
+   "eli/th/act/2542/admin-court/sec-3"
+  ],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G75",
+  "category": "บทนิยาม",
+  "question": "ข้อพิพาท ตามระเบียบว่าด้วยการยื่นข้อพิพาทระหว่างผู้รับใบอนุญาต หมายถึงอะไร",
+  "reference_answer": "นิยามในข้อ 3 ของระเบียบข้อพิพาทระหว่างผู้รับใบอนุญาต พ.ศ. 2555 (ไม่ใช่นิยามในระเบียบร้องเรียน)",
+  "expected_sources": [
+   "eli/th/reg/erc/2555/licensee-dispute/clause-3"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2555/licensee-dispute/clause-3": [
+    "“ข้อพิพาท” หมายความว่า"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [
+   "eli/th/reg/erc/2553/complaint/clause-3"
+  ],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G76",
+  "category": "หลายขั้น",
+  "question": "ระเบียบอุทธรณ์ของ กกพ. ออกตามมาตรา 121 ซึ่งมาตราดังกล่าวกำหนดให้อุทธรณ์ภายในกี่วัน",
+  "reference_answer": "30 วันนับแต่วันที่ได้รับแจ้งคำสั่ง (มาตรา 121)",
+  "expected_sources": [
+   "eli/th/act/2550/energy-industry/sec-121"
+  ],
+  "evidence": {
+   "eli/th/act/2550/energy-industry/sec-121": [
+    "ภายในสามสิบวันนับแต่วันที่ได้รับแจ้งคำสั่งจากคณะกรรมการ"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G77",
+  "category": "หลายขั้น",
+  "question": "เมื่อผู้ใช้พลังงานร้องเรียนตามมาตรา 100 แล้ว คณะกรรมการผู้ใช้พลังงานประจำเขตต้องวินิจฉัยภายในกี่วัน",
+  "reference_answer": "60 วันนับแต่วันที่รับเรื่องร้องเรียน (ข้อ 19 ระเบียบร้องเรียน 2553 ซึ่งออกตามมาตรา 100)",
+  "expected_sources": [
+   "eli/th/reg/erc/2553/complaint/clause-19"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2553/complaint/clause-19": [
+    "ภายในระยะเวลาหกสิบวันนับแต่วันที่รับเรื่องร้องเรียน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
+  "data": "law"
+ },
+ {
+  "id": "G78",
+  "category": "หลายขั้น",
+  "question": "ถ้า กกพ. ชี้ขาดอุทธรณ์คำสั่งพักใช้ใบอนุญาตแล้ว ผู้รับใบอนุญาตฟ้องศาลปกครองได้ภายในกี่วัน",
+  "reference_answer": "คำชี้ขาดเป็นที่สุดในชั้น กกพ. (ประกาศพักใช้ ข้อ 14) ฟ้องศาลปกครองได้ภายใน 90 วันนับแต่รู้หรือควรรู้เหตุ (พ.ร.บ.จัดตั้งศาลปกครองฯ มาตรา 49)",
+  "expected_sources": [
+   "eli/th/ann/erc/2555/license-suspension/clause-14",
+   "eli/th/act/2542/admin-court/sec-49"
+  ],
+  "evidence": {
+   "eli/th/ann/erc/2555/license-suspension/clause-14": [
+    "ให้เป็นที่สุด"
+   ],
+   "eli/th/act/2542/admin-court/sec-49": [
+    "ภายในเก้าสิบวัน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": true,
+  "data": "law"
  }
 ]

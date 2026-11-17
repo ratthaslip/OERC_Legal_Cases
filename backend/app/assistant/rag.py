@@ -14,7 +14,9 @@ from sqlalchemy.engine import Connection
 from .. import audit
 from ..auth import User
 from ..config import get_settings
+from ..search.graph import expand
 from ..search.hybrid import Hit, hybrid_search
+from .structured import StructuredAnswer, try_answer
 from .llm import LlmUnavailable, stream_chat
 from .validator import check_sentence, split_sentences
 
@@ -47,7 +49,7 @@ class Source:
         h = self.hit
         return {"key": self.key, "kind": h.kind, "ref_id": h.ref_id, "title": h.title, "eli_id": h.eli_id,
                 "version_no": h.version_no, "valid_from": h.valid_from, "valid_to": h.valid_to,
-                "classification": h.classification, "snippet": h.chunk_text[:280]}
+                "classification": h.classification, "snippet": h.chunk_text[:280], "via": h.via}
 
 
 def select_sources(hits: list[Hit], top_k: int) -> tuple[list[Source], bool]:
@@ -55,7 +57,7 @@ def select_sources(hits: list[Hit], top_k: int) -> tuple[list[Source], bool]:
     s = get_settings()
     enough = any(h.coverage >= s.rag_min_coverage or h.cosine >= s.rag_min_cosine or h.exact_ref for h in hits)
     relevant = [h for h in hits
-                if h.coverage >= s.rag_min_coverage * 0.6 or h.cosine >= s.rag_min_cosine * 0.8 or h.exact_ref]
+                if h.coverage >= s.rag_min_coverage * 0.6 or h.cosine >= s.rag_min_cosine * 0.8 or h.exact_ref or h.via]
     top = max((h.score for h in relevant), default=0.0)
     relevant = [h for h in relevant if h.score >= 0.5 * top or h.exact_ref]  # ตัดแหล่งที่ห่างจากอันดับแรกมาก
     cap = max(2, (top_k + 1) // 2)
@@ -105,9 +107,17 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
                        "disclaimer": DISCLAIMER}
         return
 
+    # ระดับ 2: คำถามเชิงโครงสร้าง (มีฉบับใดบ้าง / กี่ฉบับ / แก้ไขโดย / หมายความว่า) → query ตรง
+    if s.rag_structured:
+        sa = try_answer(conn, user, question, as_of)
+        if sa:
+            yield from _structured(conn, user, sa, answer_id, len(question))
+            return
+
     kinds = ["provision", "register"] if user.role == "PUB" else ["provision", "register", "appeal", "court_case"]
     res = hybrid_search(conn, user, question, kinds=kinds, as_of=as_of, limit=max(s.rag_top_k * 2, 20))
-    sources, enough = select_sources(res.hits, s.rag_top_k)
+    hits = expand(conn, user, res.hits, question, as_of) if s.rag_graph_expand else res.hits  # ระดับ 1
+    sources, enough = select_sources(hits, s.rag_top_k)
 
     if not enough or not sources:
         audit.record(conn, user, "assistant.answer", f"answer/{answer_id}",
@@ -158,3 +168,28 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
     })
     yield "done", {"answer_id": answer_id, "status": status, "used_sources": used, "dropped_sentences": dropped,
                    "restricted_omitted": res.restricted_omitted, "disclaimer": DISCLAIMER}
+
+
+def _structured(conn: Connection, user: User, sa: StructuredAnswer, answer_id: str,
+                question_len: int) -> Iterator[tuple[str, dict]]:
+    """ส่งคำตอบจาก query ตรง ผ่านตัวตรวจอ้างอิงทีละประโยคเหมือนคำตอบปกติ"""
+    sources = [Source(f"S{i + 1}", h) for i, h in enumerate(sa.hits)]
+    source_text = {src.key: src.full_text() for src in sources}
+    yield "sources", {"sources": [src.public() for src in sources]}
+    passed, dropped, used = 0, 0, []
+    for text_, idx in sa.sentences:
+        c = check_sentence(text_ + " " + "".join(f"[S{i + 1}]" for i in idx), source_text)
+        if c.ok:
+            passed += 1
+            used += [k for k in c.citations if k not in used]
+            yield "sentence", {"text": c.text, "citations": c.citations}
+        else:
+            dropped += 1
+            log.warning("structured sentence dropped (%s): %s", c.reason, text_[:120])
+    status = "ANSWERED" if passed else "NO_EVIDENCE"
+    audit.record(conn, user, "assistant.answer", f"answer/{answer_id}", detail={
+        "status": status, "route": sa.route, "sources": [src.public()["title"] for src in sources if src.key in used],
+        "sentences": passed, "dropped": dropped, "provider": "structured", "question_len": question_len,
+    })
+    yield "done", {"answer_id": answer_id, "status": status, "used_sources": used, "dropped_sentences": dropped,
+                   "restricted_omitted": 0, "route": sa.route, "disclaimer": DISCLAIMER}

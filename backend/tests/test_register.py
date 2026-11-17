@@ -1,3 +1,6 @@
+import json
+
+from sqlalchemy import text as sql_text
 """ตัวนำเข้าทะเบียนกฎหมายลำดับรอง — ใช้ workbook สังเคราะห์ (ไม่ใช้ข้อมูลจริงของสำนักงาน)"""
 from datetime import date
 
@@ -126,6 +129,41 @@ def test_register_api_permissions(workbook):
     counts = {x["provision_no"]: x["subordinate_count"] for x in act["provisions"]}
     assert counts["มาตรา 33"] == 2 and counts["มาตรา 11"] == 1 and counts["มาตรา 121"] == 0
     assert act["subordinate_total"] == 3
+    # ผู้ช่วย AI ระดับ 2: คำถามเชิงโครงสร้างตอบด้วย query ตรง นับครบ และทุกประโยคมีอ้างอิง
+    def ask(q, user="pub"):
+        ev = []
+        for b in c.post("/api/v1/assistant/answers", json={"question": q}, headers={"X-Demo-User": user}).text.strip().split("\n\n"):
+            if b.startswith("event:"):
+                n, d = b.split("\n", 1)
+                ev.append((n[7:].strip(), json.loads(d[6:])))
+        done = next(d for n, d in ev if n == "done")
+        sents = [d for n, d in ev if n == "sentence"]
+        srcs = next((d["sources"] for n, d in ev if n == "sources"), [])
+        return done, sents, srcs
+    done, sents, srcs = ask("ประกาศที่ออกโดยอาศัยอำนาจตามมาตรา 33 มีกี่ฉบับ")
+    assert done["route"] == "subordinate" and done["status"] == "ANSWERED" and done["dropped_sentences"] == 0
+    assert "จำนวน 1 ฉบับ" in sents[0]["text"] and "ระเบียบ 1 ฉบับ" in sents[1]["text"]
+    assert all(s["citations"] for s in sents) and srcs[0]["kind"] == "register_list"
+    done, sents, _ = ask("กฎหมายลำดับรองที่ออกโดยอาศัยอำนาจตามมาตรา 33 ที่ยังใช้บังคับอยู่มีกี่ฉบับ")
+    assert "จำนวน 1 ฉบับ" in sents[0]["text"]  # 1.10 ถูกยกเลิก
+    done, sents, _ = ask("ระเบียบ กกพ. ว่าด้วยเรื่องทดสอบ ออกโดยอาศัยอำนาจตามมาตราใด")
+    assert done["route"] == "parent" and "มาตรา 11" in sents[0]["text"] and sents[1]["text"].startswith("มาตรา 11 บัญญัติว่า")
+    # ระดับ 1: มาตรา 11 ที่ค้นได้ → ดึงระเบียบในทะเบียนที่ออกตามมาตรา 11 และชื่อตรงคำถามมาเพิ่ม
+    from app.auth import DEMO_USERS
+    from app.search.graph import expand
+    from app.search.hybrid import Hit
+    with get_engine().connect() as conn:
+        r = conn.execute(sql_text("""SELECT chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from,
+                                            valid_to, classification FROM search_chunk
+                                     WHERE kind = 'provision' AND eli_id = 'eli/th/act/2550/energy-industry/sec-11'
+                                     AND valid_to IS NULL""")).mappings().one()
+        seed_hit = Hit(**dict(r), score=1.0)
+        out = expand(conn, DEMO_USERS["pub"], [seed_hit], "ระเบียบ กกพ. ว่าด้วยเรื่องทดสอบ", date.today())
+        added = [h for h in out if h.via]
+        assert [h.kind for h in added] == ["register"] and "เรื่องทดสอบ" in added[0].title
+        assert added[0].score < seed_hit.score
+        none = expand(conn, DEMO_USERS["pub"], [seed_hit], "ค่าธรรมเนียมใบอนุญาต", date.today())
+        assert not any(h.via for h in none)  # ชื่อไม่ตรงคำถาม → ไม่เพิ่ม
 
 
 def test_apply_amendments(tmp_path):
