@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, CheckCircle2, Lock, Search } from 'lucide-react';
 import { api } from '../api.js';
-import { Card, ClassBadge, ErrorBox, inputCls, Label, LockedPanel, OmittedNote, Spinner, thDate, useDebounced } from '../components/ui.jsx';
+import { Card, ClassBadge, ErrorBox, inputCls, Label, LockedPanel, OmittedNote, Spinner, thDate, useDebounced, DemoBadge } from '../components/ui.jsx';
 import { DocView, Field } from '../components/ui.jsx';
 
 export default function CasesPage({ me, go, route, switchUser }) {
@@ -89,6 +89,7 @@ export default function CasesPage({ me, go, route, switchUser }) {
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white">{c.black_no}</span>
+                  <DemoBadge show={c.is_demo} />
                   {c.red_no && <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-600 text-white">{c.red_no}</span>}
                   <ClassBadge classification={c.classification} />
                 </div>
@@ -115,6 +116,7 @@ export default function CasesPage({ me, go, route, switchUser }) {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white">คดีดำที่ {k.black_no}</span>
+                    <DemoBadge show={k.is_demo} size="lg" />
                     {k.red_no && <span className="px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white">คดีแดงที่ {k.red_no}</span>}
                     <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200">{k.court_level}</span>
                     <ClassBadge classification={k.classification} />

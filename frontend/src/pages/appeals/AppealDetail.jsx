@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, CheckCircle2, Circle, Clock, FileText, Gavel, Lock, Mail, MinusCircle } from 'lucide-react';
 import { api } from '../../api.js';
-import { Card, ClassBadge, DocView, ErrorBox, Field, thDate, todayIso } from '../../components/ui.jsx';
+import { Card, ClassBadge, DocView, ErrorBox, Field, thDate, todayIso, DemoBadge } from '../../components/ui.jsx';
 import StepActions, { RevertButton } from './StepActions.jsx';
 import {
   CASE_TYPE, CHANNEL, ClockCard, COMPLAINT_BASIS, LawRefs, Pill, ROUTE, smallInput, stepTimingText, TARGET, TARGET_TYPE
@@ -20,6 +20,7 @@ export default function AppealDetail({ d, go, run, error }) {
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white">เลขรับ {a.appeal_no}</span>
+            <DemoBadge show={a.is_demo} size="lg" />
             <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${a.case_type === 'APPEAL' ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-violet-50 text-violet-900 border-violet-200'}`}>
               {CASE_TYPE[a.case_type]}
             </span>

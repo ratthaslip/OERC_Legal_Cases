@@ -41,6 +41,7 @@ class Hit:
     rrf: float = 0.0
     exact_ref: bool = False
     via: str | None = None  # มาจากการขยายตามเส้นความสัมพันธ์ (search/graph.py)
+    is_demo: bool = False   # มาจากเรื่อง/คดีสาธิต
 
 
 @dataclass
@@ -49,9 +50,12 @@ class SearchResult:
     restricted_omitted: int = 0
 
 
-def _base_where(user: User, kinds: list[str], as_of: date | None, sector: str | None) -> tuple[str, dict]:
+def _base_where(user: User, kinds: list[str], as_of: date | None, sector: str | None,
+                exclude_demo: bool = False) -> tuple[str, dict]:
     perm_sql, params = authz.search_filter_sql(user)
     where = [perm_sql, "kind = ANY(:kinds)"]
+    if exclude_demo:
+        where.append("NOT is_demo")
     params["kinds"] = kinds
     if as_of is not None:
         where.append("(kind <> 'provision' OR (valid_from <= :as_of AND (valid_to IS NULL OR :as_of <= valid_to)))")
@@ -63,11 +67,11 @@ def _base_where(user: User, kinds: list[str], as_of: date | None, sector: str | 
 
 
 def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of: date | None = None,
-                  limit: int = 20, sector: str | None = None) -> SearchResult:
+                  limit: int = 20, sector: str | None = None, exclude_demo: bool = False) -> SearchResult:
     q = expand_query(q)
     tsq = to_query(q)
-    where, params = _base_where(user, kinds, as_of, sector)
-    cols = ("chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification")
+    where, params = _base_where(user, kinds, as_of, sector, exclude_demo)
+    cols = ("chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification, is_demo")
 
     # 1) lexical (กรองสิทธิ์ใน WHERE ก่อนจัดอันดับ)
     lexical: list[dict] = []
@@ -145,7 +149,8 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
         perm_sql, perm_params = authz.search_filter_sql(user)
         hidden = conn.execute(text(f"""
             SELECT kind, ref_id, title, ARRAY(SELECT lexeme FROM unnest(tokens)) AS lex FROM search_chunk
-            WHERE kind = ANY(:ck) AND NOT {perm_sql}"""), {**perm_params, "ck": case_kinds}).mappings()
+            WHERE kind = ANY(:ck) AND NOT {perm_sql} {"AND NOT is_demo" if exclude_demo else ""}"""),
+            {**perm_params, "ck": case_kinds}).mappings()
         ref = normalize_ref_no(q)
         refs = set()
         for r in hidden:

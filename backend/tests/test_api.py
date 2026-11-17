@@ -260,7 +260,9 @@ def test_assistant_no_evidence(client):
     assert not [d for n, d in events if n == "sentence"]
 
 
-def test_assistant_never_leaks_restricted_sources(client):
+def test_assistant_never_leaks_restricted_sources(client, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), "rag_include_demo_cases", True)  # ข้อมูลทดสอบเป็นเรื่องสาธิตทั้งหมด
     r = client.post("/api/v1/assistant/answers", json={"question": "ปรับทางปกครองท่อส่งก๊าซธรรมชาติ มาตรา 128"},
                     headers=h("stf1"))
     events = sse(r.text)

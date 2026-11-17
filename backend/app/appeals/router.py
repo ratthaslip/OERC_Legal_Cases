@@ -61,7 +61,7 @@ def list_appeals(q: str | None = None, sector: str | None = None, case_type: str
                  user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     authz.require_internal(user)
     base = rows(conn, f"""
-        SELECT a.appeal_id, a.appeal_no, a.case_type, a.complaint_basis, a.subject, a.energy_sector, a.incident_date,
+        SELECT a.appeal_id, a.appeal_no, a.is_demo, a.case_type, a.complaint_basis, a.subject, a.energy_sector, a.incident_date,
                a.received_date, a.sla_days, a.status, a.decision_result, a.classification, a.admissibility, a.route,
                ARRAY(SELECT user_id FROM appeal_owner o WHERE o.appeal_id = a.appeal_id) AS owners
         FROM appeal a WHERE {ACCESS_SQL}
@@ -145,7 +145,7 @@ def _detail(conn: Connection, user: User, appeal_id: int, owners: list[str]) -> 
         c["label"] = labels.get(c["cited_eli_id"], {}).get("label", c["cited_eli_id"])
     d["citations"] = cits
     court = []
-    for k in rows(conn, """SELECT k.case_id, k.black_no, k.red_no, k.court_level, k.classification,
+    for k in rows(conn, """SELECT k.case_id, k.black_no, k.red_no, k.court_level, k.classification, k.is_demo,
                                   ARRAY(SELECT user_id FROM court_case_owner o WHERE o.case_id = k.case_id) AS owners
                            FROM court_case k WHERE k.appeal_id = :i""", i=i):
         if authz.can_read_case(user, k["classification"], k.pop("owners")):

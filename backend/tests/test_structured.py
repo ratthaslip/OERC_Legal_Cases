@@ -92,3 +92,18 @@ def test_section_search_prefers_energy_act(client):
     order = [i["eli_id"] for i in client.get("/api/v1/laws/instruments").json()["items"]]
     assert order[0] == "eli/th/act/2550/energy-industry"
     assert order.index("eli/th/act/2539/admin-procedure") > order.index("eli/th/reg/erc/2552/appeal")
+
+
+def test_demo_cases_flagged_and_excluded_from_assistant(client, monkeypatch):
+    """เรื่อง/คดีที่ seed สร้างติดธง is_demo และผู้ช่วย AI ไม่ใช้เป็นหลักฐาน เว้นแต่เปิด RAG_INCLUDE_DEMO_CASES"""
+    from app.config import get_settings
+    items = client.get("/api/v1/appeals", headers={"X-Demo-User": "dir1"}).json()["items"]
+    assert items and all(a["is_demo"] for a in items)
+    cases = client.get("/api/v1/court-cases", headers={"X-Demo-User": "dir1"}).json()["items"]
+    assert cases and all(c["is_demo"] for c in cases)
+    q = "อุทธรณ์คำสั่งพักใช้ใบอนุญาตขนส่งก๊าซธรรมชาติทางท่อ"
+    done, _, srcs = ask(client, q, user="dir1")
+    assert done["demo_excluded"] is True and all(s["kind"] in ("provision", "register") for s in srcs)
+    monkeypatch.setattr(get_settings(), "rag_include_demo_cases", True)
+    done, _, srcs = ask(client, q, user="dir1")
+    assert not done.get("demo_excluded") and any(s["kind"] == "appeal" and s["is_demo"] for s in srcs)

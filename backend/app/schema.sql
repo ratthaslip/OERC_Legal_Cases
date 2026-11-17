@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS appeal (
     appeal_id       SERIAL PRIMARY KEY,
     appeal_no       VARCHAR(50) NOT NULL,
     appeal_no_norm  VARCHAR(50) NOT NULL UNIQUE,
+    is_demo         BOOLEAN NOT NULL DEFAULT FALSE,  -- TRUE = เรื่องสมมติที่ seed สร้างเพื่อสาธิต ไม่ใช่เรื่องจริง
     case_type       VARCHAR(10) NOT NULL DEFAULT 'APPEAL',  -- APPEAL (อุทธรณ์ ม.121) | COMPLAINT (เรื่องร้องเรียน)
     complaint_basis VARCHAR(20),                 -- PROCUREMENT (ระเบียบจัดหา/ประกาศรับซื้อไฟฟ้า) | PPA (สัญญาซื้อขายไฟฟ้า) | CONSUMER (ผู้ใช้พลังงาน ระเบียบ 2553)
     appeal_ground   VARCHAR(12),                 -- ฐานการอุทธรณ์ตามข้อ 9 ระเบียบอุทธรณ์ 2552 (appeals/legal.py GROUNDS)
@@ -239,6 +240,7 @@ CREATE TABLE IF NOT EXISTS court_case (
     case_id        SERIAL PRIMARY KEY,
     appeal_id      INT REFERENCES appeal(appeal_id),
     black_no       VARCHAR(50) NOT NULL,
+    is_demo        BOOLEAN NOT NULL DEFAULT FALSE,   -- TRUE = คดีสมมติเพื่อสาธิต
     red_no         VARCHAR(50),
     court_level    VARCHAR(50) NOT NULL,     -- ศาลปกครองชั้นต้น | ศาลปกครองสูงสุด
     court_name     VARCHAR(100) NOT NULL,
@@ -312,7 +314,8 @@ CREATE TABLE IF NOT EXISTS search_chunk (
     embedding      REAL[] NOT NULL,
     classification VARCHAR(20) NOT NULL DEFAULT 'public',
     owners         TEXT[] NOT NULL DEFAULT '{}',
-    energy_sector  VARCHAR(40)
+    energy_sector  VARCHAR(40),
+    is_demo        BOOLEAN NOT NULL DEFAULT FALSE   -- มาจากเรื่อง/คดีสาธิต (ผู้ช่วย AI ไม่ใช้เป็นหลักฐานโดยค่าเริ่มต้น)
 );
 CREATE INDEX IF NOT EXISTS search_chunk_tokens ON search_chunk USING gin (tokens);
 CREATE INDEX IF NOT EXISTS search_chunk_kind ON search_chunk (kind, ref_id);

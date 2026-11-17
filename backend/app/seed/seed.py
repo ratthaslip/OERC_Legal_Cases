@@ -480,6 +480,9 @@ def run(conn: Connection, today: date | None = None) -> dict:
     generated, extra = generate(conn, windows, today, rng)
     load_prototype_cases(conn, data, proto_ids, extra)
     generate_cases(conn, generated, windows, rng)
+    # ทุกเรื่อง/คดีที่ seed สร้างเป็นข้อมูลสมมติ — ติดธงเพื่อแสดงป้าย "ข้อมูลสาธิต" และไม่ให้ผู้ช่วย AI ใช้เป็นหลักฐาน
+    conn.execute(text("UPDATE appeal SET is_demo = TRUE"))
+    conn.execute(text("UPDATE court_case SET is_demo = TRUE"))
     n_law = reindex_laws(conn)
     n_case = reindex_cases(conn)
     counts = {t: conn.execute(text(f"SELECT count(*) FROM {t}")).scalar()

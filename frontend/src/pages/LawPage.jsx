@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
 import { ParentAuthority, SourceFiles, SubordinatePanel } from './law/Subordinate.jsx';
 import CoveragePanel from './law/CoveragePanel.jsx';
-import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
+import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced, DemoBadge } from '../components/ui.jsx';
 
 const DEFAULT_ELI = 'eli/th/act/2550/energy-industry/sec-121';
 
@@ -409,6 +409,7 @@ function CiteColumn({ title, icon, items, unit, empty, tag, btn, btnLabel, onOpe
               <div>
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tag}`}>{c.ref_no}</span>
+                  <DemoBadge show={c.is_demo} />
                   <span className="text-[10px] text-slate-500">วันเกิดเหตุ: {thDate(c.incident_date)}</span>
                   {c.classification === 'restricted' && <Lock className="w-3 h-3 text-rose-600" />}
                 </div>

@@ -49,7 +49,8 @@ class Source:
         h = self.hit
         return {"key": self.key, "kind": h.kind, "ref_id": h.ref_id, "title": h.title, "eli_id": h.eli_id,
                 "version_no": h.version_no, "valid_from": h.valid_from, "valid_to": h.valid_to,
-                "classification": h.classification, "snippet": h.chunk_text[:280], "via": h.via}
+                "classification": h.classification, "snippet": h.chunk_text[:280], "via": h.via,
+                "is_demo": h.is_demo}
 
 
 def select_sources(hits: list[Hit], top_k: int) -> tuple[list[Source], bool]:
@@ -115,7 +116,9 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
             return
 
     kinds = ["provision", "register"] if user.role == "PUB" else ["provision", "register", "appeal", "court_case"]
-    res = hybrid_search(conn, user, question, kinds=kinds, as_of=as_of, limit=max(s.rag_top_k * 2, 20))
+    exclude_demo = not s.rag_include_demo_cases
+    res = hybrid_search(conn, user, question, kinds=kinds, as_of=as_of, limit=max(s.rag_top_k * 2, 20),
+                        exclude_demo=exclude_demo)
     hits = expand(conn, user, res.hits, question, as_of) if s.rag_graph_expand else res.hits  # ระดับ 1
     sources, enough = select_sources(hits, s.rag_top_k)
 
@@ -123,6 +126,7 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
         audit.record(conn, user, "assistant.answer", f"answer/{answer_id}",
                      detail={"status": "NO_EVIDENCE", "question_len": len(question)})
         yield "done", {"answer_id": answer_id, "status": "NO_EVIDENCE", "restricted_omitted": res.restricted_omitted,
+                       "demo_excluded": exclude_demo and "appeal" in kinds,
                        "disclaimer": DISCLAIMER}
         return
 
@@ -167,7 +171,8 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
         "sentences": passed, "dropped": dropped, "provider": s.llm_provider, "model": s.llm_model,
     })
     yield "done", {"answer_id": answer_id, "status": status, "used_sources": used, "dropped_sentences": dropped,
-                   "restricted_omitted": res.restricted_omitted, "disclaimer": DISCLAIMER}
+                   "restricted_omitted": res.restricted_omitted, "demo_excluded": exclude_demo and "appeal" in kinds,
+                   "disclaimer": DISCLAIMER}
 
 
 def _structured(conn: Connection, user: User, sa: StructuredAnswer, answer_id: str,

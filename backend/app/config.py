@@ -42,6 +42,8 @@ class Settings:
         self.rerank_model_weight = float(os.getenv("RERANK_MODEL_WEIGHT", "0.8"))
         self.rerank_timeout_s = float(os.getenv("RERANK_TIMEOUT_S", "15"))
         # ระดับ 1–2 ของการใช้ความสัมพันธ์ระหว่างกฎหมาย (ปิดได้เพื่อเทียบผล)
+        # ใช้เรื่อง/คดีสาธิตเป็นหลักฐานของผู้ช่วย AI หรือไม่ (ค่าเริ่มต้น: ไม่ใช้ — ตอบจากตัวบทและทะเบียนจริงเท่านั้น)
+        self.rag_include_demo_cases = os.getenv("RAG_INCLUDE_DEMO_CASES", "false").lower() == "true"
         self.rag_graph_expand = os.getenv("RAG_GRAPH_EXPAND", "true").lower() == "true"
         self.rag_structured = os.getenv("RAG_STRUCTURED", "true").lower() == "true"
         # ที่เก็บไฟล์ต้นฉบับ (PDF ตัวบท, Excel ทะเบียน) — โฟลเดอร์ใน POC ดู app/storage.py
