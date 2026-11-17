@@ -171,6 +171,60 @@ def test_late_appeal_must_be_rejected_with_reason(client):
     assert d["appeal"]["admissibility"] == "REJECTED"
 
 
+def test_appeal_ground_sets_filing_deadline(client):
+    """ข้อ 9 ระเบียบอุทธรณ์ 2552: อุทธรณ์ค่าทดแทน ม.105 ยื่นได้ 60 วัน ส่วนคำสั่งตาม ม.121 ได้ 30 วัน"""
+    from datetime import date, timedelta
+    today = date.today()
+    base = {"case_type": "APPEAL", "target_type": "ORDER", "filing_channel": "POST", "party_code": "T-105",
+            "energy_sector": "กิจการไฟฟ้า", "received_date": (today - timedelta(days=1)).isoformat(),
+            "notice_date": (today - timedelta(days=46)).isoformat()}
+    a105 = client.post("/api/v1/appeals", headers=h("lgl1"), json={**base, "appeal_ground": "S105",
+                       "subject": "อุทธรณ์ค่าทดแทน ม.105"}).json()["appeal_id"]
+    a121 = client.post("/api/v1/appeals", headers=h("lgl1"), json={**base, "subject": "อุทธรณ์คำสั่ง ม.121"}).json()["appeal_id"]
+    f105 = next(c for c in client.get(f"/api/v1/appeals/{a105}", headers=h("dir1")).json()["clocks"] if c["key"] == "filing")
+    f121 = next(c for c in client.get(f"/api/v1/appeals/{a121}", headers=h("dir1")).json()["clocks"] if c["key"] == "filing")
+    assert (f105["label"], f105["state"]) == ("ยื่นอุทธรณ์ภายใน 60 วัน", "DONE_ON_TIME")
+    assert (f121["label"], f121["state"]) == ("ยื่นอุทธรณ์ภายใน 30 วัน", "DONE_LATE")
+    assert {r["eli"] for r in f105["refs"]} == {"eli/th/act/2550/energy-industry/sec-105", "eli/th/reg/erc/2552/appeal/clause-9"}
+    bad = client.post("/api/v1/appeals", headers=h("lgl1"), json={**base, "appeal_ground": "X", "subject": "ฐานไม่ถูกต้อง"})
+    assert bad.status_code in (400, 422)
+
+
+def test_suspension_appeal_has_15_day_notify_clock(client):
+    """ประกาศพักใช้/เพิกถอนใบอนุญาต 2555 ข้อ 14: แจ้งคำชี้ขาดภายใน 15 วัน; ฐานทางกฎหมายของขั้นตอนคลิกไปตัวบทได้"""
+    items = client.get("/api/v1/appeals", params={"q": "พักใช้ใบอนุญาตผลิตไฟฟ้า"}, headers=h("dir1")).json()["items"]
+    d = client.get(f"/api/v1/appeals/{items[0]['appeal_id']}", headers=h("dir1")).json()
+    assert d["ground"]["code"] == "SUSPEND"
+    notify = next(c for c in d["clocks"] if c["key"] == "notify")
+    assert notify["label"] == "แจ้งคำชี้ขาดภายใน 15 วัน" and notify["refs"][0]["eli"].endswith("license-suspension/clause-14")
+    step5 = next(s for s in d["steps"] if s["code"] == "SUBCOMMITTEE")
+    assert [r["eli"] for r in step5["refs"]] == ["eli/th/reg/erc/2552/appeal/clause-19", "eli/th/act/2539/admin-procedure/sec-45"]
+    # ฐานที่อ้างต้องมีตัวบทอยู่จริงในระบบ
+    for r in notify["refs"] + step5["refs"]:
+        assert client.get(f"/api/v1/laws/provisions/{r['eli']}").status_code == 200
+
+
+def test_consumer_complaint_timelines_and_court_case_screening(client):
+    """ระเบียบร้องเรียน 2553: ไกล่เกลี่ย 30 วัน (ข้อ 16), วินิจฉัย 60 วัน (ข้อ 19), เรื่องที่อยู่ในศาลไม่รับ (ข้อ 16/1)"""
+    from datetime import date, timedelta
+    aid = client.post("/api/v1/appeals", headers=h("lgl1"), json={
+        "case_type": "COMPLAINT", "complaint_basis": "CONSUMER", "filing_channel": "COUNTER", "party_code": "U-001",
+        "received_date": (date.today() - timedelta(days=3)).isoformat(), "energy_sector": "กิจการไฟฟ้า",
+        "subject": "ร้องเรียนค่าไฟฟ้าย้อนหลัง", "sla_days": 15}).json()["appeal_id"]
+    d = client.get(f"/api/v1/appeals/{aid}", headers=h("dir1")).json()
+    clocks = {c["key"]: c for c in d["clocks"]}
+    assert clocks["mediation"]["label"] == "ไกล่เกลี่ย 30 วัน"
+    assert clocks["total"]["label"] == "กรอบเวลารวม 60 วัน"  # ไม่ใช้ค่าที่กรอกมา
+    d = _do(client, "dir1", aid, ":assign", {"officer": "lgl1"}, d["appeal"]["row_version"])
+    docs = {k["key"]: True for k in d["required_docs"]}
+    full = {"standing": True, "jurisdiction": True, "timely": True, "prior_steps_done": True, "docs": docs}
+    v = d["appeal"]["row_version"]
+    _do(client, "lgl1", aid, "/steps/2:complete", {"checks": {**full, "court_case": True}, "result": "ACCEPTED"}, v, 422)
+    d = _do(client, "lgl1", aid, "/steps/2:complete", {"checks": {**full, "court_case": True}, "result": "REJECTED",
+                                                       "route": "DIRECT", "note": "อยู่ระหว่างพิจารณาของศาล (ข้อ 16/1)"}, v)
+    assert d["appeal"]["admissibility"] == "REJECTED"
+
+
 def test_revert_requires_reason(client):
     items = client.get("/api/v1/appeals", params={"status": "IN_PROGRESS"}, headers=h("dir1")).json()["items"]
     a = next(x for x in items if x["current_step"] and x["current_step"]["step_no"] >= 4)

@@ -1,9 +1,13 @@
 import React from 'react';
 import { thDate } from '../../components/ui.jsx';
 
-export const CASE_TYPE = { APPEAL: 'อุทธรณ์ (ม.121)', COMPLAINT: 'เรื่องร้องเรียน' };
+export const CASE_TYPE = { APPEAL: 'อุทธรณ์', COMPLAINT: 'เรื่องร้องเรียน' };
 export const CASE_TYPE_SHORT = { APPEAL: 'อุทธรณ์', COMPLAINT: 'ร้องเรียน' };
-export const COMPLAINT_BASIS = { PROCUREMENT: 'ระเบียบจัดหาไฟฟ้า/ประกาศรับซื้อไฟฟ้า', PPA: 'ข้อพิพาทตามสัญญาซื้อขายไฟฟ้า' };
+export const COMPLAINT_BASIS = {
+  PROCUREMENT: 'ระเบียบจัดหาไฟฟ้า/ประกาศรับซื้อไฟฟ้า',
+  PPA: 'ข้อพิพาทตามสัญญาซื้อขายไฟฟ้า',
+  CONSUMER: 'เรื่องร้องเรียนของผู้ใช้พลังงาน (ระเบียบ 2553)'
+};
 export const TARGET = { ORDER: 'อุทธรณ์คำสั่ง', RULE: 'อุทธรณ์ระเบียบ/ประกาศ/ข้อกำหนด' };
 export const CHANNEL = { COUNTER: 'ยื่นด้วยตนเอง', POST: 'ไปรษณีย์ลงทะเบียน', ELECTRONIC: 'ช่องทางอิเล็กทรอนิกส์' };
 export const ROUTE = { SUBCOMMITTEE: 'เสนอคณะอนุกรรมการฯ', DIRECT: 'เสนอ กกพ. โดยตรง (ไม่ผ่านอนุฯ)' };
@@ -63,7 +67,27 @@ export function stepTimingText(s) {
   return '';
 }
 
-export function ClockCard({ c }) {
+/** ลิงก์ไปตัวบทที่เป็นฐานทางกฎหมาย (เปิดหน้าสืบค้นกฎหมาย ณ วันที่ที่กำหนด) */
+export function LawRefs({ refs, go, asOf, className = '' }) {
+  if (!refs?.length) return null;
+  return (
+    <span className={`flex flex-wrap gap-1 ${className}`}>
+      {refs.map((r) => (
+        <button
+          key={r.eli}
+          type="button"
+          onClick={() => go && go('law', { tab: 'provision', eli: r.eli, ...(asOf ? { asOf } : {}) })}
+          className="inline-flex items-center px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-[10px] font-medium text-amber-900 hover:bg-amber-100"
+          title="เปิดตัวบท"
+        >
+          {r.label}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+export function ClockCard({ c, go, asOf }) {
   return (
     <div className="p-3 rounded-xl border border-slate-200 bg-white flex flex-col gap-1.5">
       <span className="text-[11px] font-bold text-slate-800 leading-snug">{c.label}</span>
@@ -74,7 +98,7 @@ export function ClockCard({ c }) {
         {c.start ? `เริ่ม ${thDate(c.start)}` : '—'}
         {c.due ? ` · ครบ ${thDate(c.due)}` : ''}
       </div>
-      <div className="text-[10px] text-slate-400 leading-snug">{c.basis}</div>
+      {c.refs?.length ? <LawRefs refs={c.refs} go={go} asOf={asOf} /> : <div className="text-[10px] text-slate-400 leading-snug">{c.basis}</div>}
     </div>
   );
 }
