@@ -43,6 +43,16 @@ services:
     volumes: [./frontend:/web, webmodules:/web/node_modules]
     depends_on: [api]
 
+  # Reranker (cross-encoder) — เปิดเมื่อต้องการ: docker compose --profile rerank up -d reranker
+  # แล้วตั้ง .env: RERANK_PROVIDER=tei, RERANK_BASE_URL=http://reranker:80 และ restart api
+  # มี GPU ให้ใช้ image แบบ CUDA เช่น RERANK_IMAGE=ghcr.io/huggingface/text-embeddings-inference:1.9 (+ deploy GPU)
+  reranker:
+    image: ${RERANK_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.9}
+    profiles: ["rerank"]
+    command: ["--model-id", "BAAI/bge-reranker-v2-m3"]
+    volumes: [hfcache:/data]   # เก็บโมเดลที่ดาวน์โหลดครั้งแรก (~2.3 GB)
+
 volumes:
+  hfcache:
   pgdata:
   webmodules:

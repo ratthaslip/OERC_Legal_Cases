@@ -15,6 +15,7 @@ from sqlalchemy.engine import Connection
 from .. import authz
 from ..auth import User
 from .embeddings import embed
+from .rerank import rerank
 from .thai import content_terms, expand_query, normalize_ref_no, to_query
 
 RRF_K = 60
@@ -110,14 +111,18 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
         h = hit_of(r)
         h.rrf += 1.0 / (RRF_K + rank + 1)
         h.cosine = sim
-    # rerank: ความครอบคลุมคำสำคัญ + อันดับ RRF (จุดนี้คือที่เสียบ cross-encoder reranker ในระบบจริง)
+    # คะแนนชุดแรก: ความครอบคลุมคำสำคัญ + อันดับ RRF
     max_rrf = max((h.rrf for h in fused.values()), default=1.0) or 1.0
     for h in fused.values():
         h.coverage = cov.get(h.chunk_id, 0.0)
         h.score = 0.65 * h.coverage + 0.35 * (h.rrf / max_rrf)
 
-    # 4) ค้นด้วยเลขที่ (อธ. 104/2567, พ. 89/2565) → ดันขึ้นอันดับแรก
+    # 3b) rerank ผู้สมัครอันดับต้น (search/rerank.py: legal features และ/หรือ cross-encoder)
     ref = normalize_ref_no(q)
+    rerank(q, list(fused.values()), q_terms, idf,
+           exact_ref_of=lambda h: bool(ref) and normalize_ref_no(h.title) == ref)
+
+    # 4) ค้นด้วยเลขที่ (อธ. 104/2567, พ. 89/2565) → ดันขึ้นอันดับแรก
     if ref:
         for h in fused.values():
             if normalize_ref_no(h.title) == ref:

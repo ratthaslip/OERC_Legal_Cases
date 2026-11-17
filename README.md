@@ -203,3 +203,23 @@ TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/erc_test
 | มี.ค. 2570 | นำเสนอ POC พร้อมรายงานผลเทียบเกณฑ์ผ่าน | เอกสารสรุป POC |
 
 เกณฑ์ผ่านที่ควรตกลงกับ กกพ. ก่อนเริ่ม: golden set ทุกข้อที่ตอบต้องอ้างอิงถูก, ทดสอบเรื่องนอกสิทธิ์รั่ว 0 ครั้ง, คำถามนอกฐานข้อมูลตอบ NO_EVIDENCE ทุกข้อ
+
+## Reranker และการวัดผลผู้ช่วย AI
+
+ทดลองเปิด cross-encoder reranker (BAAI/bge-reranker-v2-m3) แล้ววัดผลกับชุดคำถามทดสอบ 60 ข้อ:
+
+```bash
+# 1) วัดรอบฐาน (ไม่ rerank)
+docker compose exec api python -m eval.run_eval --out eval/results_none.json
+
+# 2) เปิด reranker (ครั้งแรกดาวน์โหลดโมเดล ~2.3 GB) แล้วตั้ง .env: RERANK_PROVIDER=tei
+docker compose --profile rerank up -d reranker
+docker compose logs -f reranker          # รอจนขึ้น "Ready"
+docker compose up -d api                 # โหลด .env ใหม่
+
+# 3) วัดอีกรอบแล้วเทียบรายข้อ
+docker compose exec api python -m eval.run_eval --out eval/results_tei.json
+docker compose exec api python -m eval.compare eval/results_none.json eval/results_tei.json
+```
+
+ถ้า image CPU รุ่นใหม่โหลดโมเดลไม่ขึ้น ให้ลอง `RERANK_IMAGE=ghcr.io/huggingface/text-embeddings-inference:cpu-1.4`
