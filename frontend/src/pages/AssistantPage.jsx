@@ -60,7 +60,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
   };
 
   const openSource = (s) => {
-    if (s.kind === 'provision') go('law', { eli: s.eli_id, asOf: s.valid_from > asOf ? s.valid_from : asOf });
+    if (s.kind === 'provision') go('law', { eli: s.eli_id, asOf: s.valid_from > asOf ? s.valid_from : asOf, frag: s.fragment?.id });
     else if (s.kind === 'register') go('law', { tab: 'register', reg: s.ref_id });
     else if (s.kind === 'register_list') go('law', { eli: s.eli_id, asOf });
     else if (s.kind === 'appeal') go('appeal', { id: s.ref_id });
@@ -294,7 +294,14 @@ function Turn({ t, onOpen }) {
                         {s.via && (
                           <span className="block text-[10px] font-semibold text-indigo-700">↳ เชื่อมโยง: {s.via}</span>
                         )}
-                        <span className="block text-[11px] text-slate-500 line-clamp-2">{s.snippet}</span>
+                        {s.fragment ? (
+                          <span className="block text-[11px] text-slate-600 line-clamp-2">
+                            <span className="px-1.5 py-0.5 mr-1 rounded bg-amber-100 text-amber-800 text-[10px] font-semibold">{s.fragment.label}</span>
+                            {s.fragment.text}
+                          </span>
+                        ) : (
+                          <span className="block text-[11px] text-slate-500 line-clamp-2">{s.snippet}</span>
+                        )}
                       </span>
                     </button>
                   );

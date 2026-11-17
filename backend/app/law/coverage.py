@@ -10,6 +10,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy.engine import Connection
 
 from ..db import one, rows
+from . import relations
 
 TYPE_TH = {"act": "พระราชบัญญัติ", "regulation": "ระเบียบ", "announcement": "ประกาศ"}
 STATUS_TH = {"IN_FORCE": "ใช้บังคับ", "REPEALED": "ยกเลิก", "UNKNOWN": "ไม่ระบุ"}
@@ -98,6 +99,7 @@ def summary(conn: Connection) -> dict:
                  "amended_provisions": sum(i["amended_provisions"] for i in instruments)},
         "instruments": instruments, "register": reg, "open_issues": issues, "imports": imports,
         "last_import": imports[0]["imported_at"] if imports else None,
+        "relations": relations.stats(conn),
     }
 
 

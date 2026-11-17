@@ -15,7 +15,9 @@ from .. import audit
 from ..auth import User
 from ..config import get_settings
 from ..search.graph import expand
+from ..law import fragments
 from ..search.hybrid import Hit, hybrid_search
+from ..search.thai import content_terms
 from .structured import StructuredAnswer, try_answer
 from .llm import LlmUnavailable, stream_chat
 from .validator import check_sentence, split_sentences
@@ -37,12 +39,21 @@ SYSTEM_PROMPT = """คุณคือผู้ช่วยค้นคว้า�
 8. แหล่ง kind="register" มีเฉพาะชื่อกฎหมาย บทอาศัยอำนาจ วันใช้บังคับ และสถานะ ห้ามสรุปเนื้อหาของกฎหมายนั้นเกินกว่าที่ระบุ"""
 
 
+def provision_body(h: Hit) -> str:
+    """ถ้อยคำมาตรา/ข้อจาก chunk ของรุ่น (ตัด "สาระสำคัญ" ที่ระบบเติมท้ายออก)"""
+    return h.chunk_text.split("\nสาระสำคัญ:")[0]
+
+
 @dataclass
 class Source:
     key: str
     hit: Hit
+    fragment: fragments.Fragment | None = None   # วรรค/อนุที่ตรงคำถามที่สุด (เฉพาะตัวบทที่มีหลายวรรค)
 
     def full_text(self) -> str:
+        if self.hit.kind == "provision":
+            rest = self.hit.chunk_text[len(provision_body(self.hit)):]
+            return f"{self.hit.title}\n{fragments.with_labels(provision_body(self.hit))}{rest}"
         return f"{self.hit.title}\n{self.hit.chunk_text}"
 
     def public(self) -> dict:
@@ -50,7 +61,9 @@ class Source:
         return {"key": self.key, "kind": h.kind, "ref_id": h.ref_id, "title": h.title, "eli_id": h.eli_id,
                 "version_no": h.version_no, "valid_from": h.valid_from, "valid_to": h.valid_to,
                 "classification": h.classification, "snippet": h.chunk_text[:280], "via": h.via,
-                "is_demo": h.is_demo}
+                "is_demo": h.is_demo,
+                "fragment": ({**self.fragment.public(), "ref": fragments.ref(h.eli_id, h.version_no, self.fragment.id)}
+                             if self.fragment else None)}
 
 
 def select_sources(hits: list[Hit], top_k: int) -> tuple[list[Source], bool]:
@@ -88,9 +101,24 @@ def build_user_prompt(question: str, sources: list[Source], as_of: date) -> str:
             f"\n\nคำถาม: {question}")
 
 
+def attach_fragments(sources: list[Source], question: str) -> None:
+    terms = content_terms(question)
+    for src in sources:
+        if src.hit.kind == "provision":
+            src.fragment = fragments.best(provision_body(src.hit), terms)
+
+
 def extractive_answer(sources: list[Source]) -> Iterator[str]:
-    """โหมดไม่ใช้ LLM: ยกข้อความต้นฉบับจากแหล่งอันดับต้น ๆ พร้อมอ้างอิง"""
+    """โหมดไม่ใช้ LLM: ยกข้อความต้นฉบับจากแหล่งอันดับต้น ๆ พร้อมอ้างอิง (ยกวรรคที่ตรงคำถามถ้ามี)"""
     for src in sources[:4]:
+        f = src.fragment
+        if f and f.id != "para-1":
+            text = re.sub(r"\s+", " ", f.text).strip()
+            if len(text) > 260:
+                cut = text.rfind(" ", 0, 260)
+                text = text[: cut if cut > 80 else 260] + " …"
+            yield f"{src.hit.title} {f.label}: {text} [{src.key}]\n"
+            continue
         text = re.sub(r"\s+", " ", src.hit.chunk_text).strip()
         if len(text) > 220:
             cut = text.rfind(" ", 0, 220)
@@ -121,6 +149,7 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
                         exclude_demo=exclude_demo)
     hits = expand(conn, user, res.hits, question, as_of) if s.rag_graph_expand else res.hits  # ระดับ 1
     sources, enough = select_sources(hits, s.rag_top_k)
+    attach_fragments(sources, question)
 
     if not enough or not sources:
         audit.record(conn, user, "assistant.answer", f"answer/{answer_id}",

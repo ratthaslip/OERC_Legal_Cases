@@ -17,7 +17,8 @@ from sqlalchemy.engine import Connection
 
 from .. import authz
 from ..auth import User
-from ..db import one, rows
+from ..db import rows
+from ..law import relations
 from .hybrid import Hit
 from .thai import content_terms, tokenize
 
@@ -47,22 +48,22 @@ def _subordinate(conn, user, sec: int, q_terms, limit=2) -> list[dict]:
     perm, params = authz.search_filter_sql(user)
     cands = rows(conn, f"""SELECT {_COLS} FROM search_chunk
                            WHERE kind = 'register' AND {perm}
-                             AND ref_id IN (SELECT register_id FROM law_register
-                                            WHERE :s = ANY(authority_secs) AND status <> 'GROUP')""", s=sec, **params)
+                             AND ref_id IN (SELECT dst_register_id FROM law_relation
+                                            WHERE rel_type = 'authorizes' AND src_eli = :s)""",
+                 s=f"{PARENT_ACT}/sec-{sec}", **params)
     scored = sorted(((_overlap(q_terms, c["title"]), c) for c in cands), key=lambda x: -x[0])
     return [c for s, c in scored[:limit] if s >= MIN_TITLE_OVERLAP]
 
 
 def _parents(conn, user, instrument_eli: str, as_of: date, limit=2) -> list[dict]:
-    reg = one(conn, """SELECT authority_secs FROM law_register WHERE instrument_eli = :e AND status <> 'GROUP'
-                       ORDER BY sheet_row LIMIT 1""", e=instrument_eli)
-    if not reg or not reg["authority_secs"]:
+    srcs = relations.authority_sections(conn, instrument_eli=instrument_eli)
+    if not srcs:
         return []
     perm, params = authz.search_filter_sql(user)
     return rows(conn, f"""SELECT {_COLS} FROM search_chunk
                           WHERE kind = 'provision' AND eli_id = ANY(:e) AND {perm}
                             AND valid_from <= :d AND (valid_to IS NULL OR :d <= valid_to) LIMIT :n""",
-                e=[f"{PARENT_ACT}/sec-{s}" for s in reg["authority_secs"]], d=as_of, n=limit, **params)
+                e=srcs, d=as_of, n=limit, **params)
 
 
 def _best_provision(conn, user, instrument_eli: str, as_of: date, q_terms) -> dict | None:

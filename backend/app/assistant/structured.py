@@ -21,6 +21,7 @@ from sqlalchemy.engine import Connection
 from .. import authz
 from ..auth import User
 from ..db import one, rows
+from ..law import relations
 from ..law.router import PARENT_ACT, subordinate_of
 from ..search.hybrid import Hit, hybrid_search
 from ..search.thai import content_terms, normalize, tokenize
@@ -172,14 +173,14 @@ def route_parent(conn: Connection, user: User, q: str, as_of: date) -> Structure
     top = next((h for h in res.hits if h.coverage >= 0.5), None)
     if not top:
         return None
-    reg = one(conn, "SELECT reg_no, title_th, authority_text, authority_secs FROM law_register WHERE register_id = :i",
-              i=top.ref_id)
-    if not reg or not reg["authority_secs"]:
+    reg = one(conn, "SELECT reg_no, title_th, authority_text FROM law_register WHERE register_id = :i", i=top.ref_id)
+    secs = [int(e.rsplit("-", 1)[-1]) for e in relations.authority_sections(conn, register_id=top.ref_id)]
+    if not reg or not secs:
         return None
     hits = [top]
-    secs_txt = ", ".join(f"มาตรา {s}" for s in reg["authority_secs"])
+    secs_txt = ", ".join(f"มาตรา {s}" for s in secs)
     sents = [(f"{reg['title_th']} ออกโดยอาศัยอำนาจตาม{secs_txt} แห่ง {ACT_TITLE} (ทะเบียน #{reg['reg_no']})", [0])]
-    for s in reg["authority_secs"][:3]:
+    for s in secs[:3]:
         h = _provision_at(conn, user, f"{PARENT_ACT}/sec-{s}", as_of)
         if not h:
             continue

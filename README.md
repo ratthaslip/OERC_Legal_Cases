@@ -232,6 +232,33 @@ docker compose exec api python -m eval.compare eval/results_none.json eval/resul
 
 ถ้า image CPU รุ่นใหม่โหลดโมเดลไม่ขึ้น ให้ลอง `RERANK_IMAGE=ghcr.io/huggingface/text-embeddings-inference:cpu-1.4`
 
+### กันคะแนนถอยหลัง (CI)
+
+ทุก PR รัน `.github/workflows/ci.yml`: pytest + ชุดคำถามทดสอบ + build หน้าเว็บ — PR ไม่ผ่านถ้าข้อที่เคยผ่านใน `eval/baseline.json`
+กลับไม่ผ่าน CI ไม่มีทะเบียนจริง (ข้อมูลภายใน) จึงรันโหมด `public` ข้ามข้อที่ต้องใช้ทะเบียน บนเซิร์ฟเวอร์ที่นำเข้าทะเบียนแล้วรันโหมด `full`:
+
+```bash
+docker compose exec api python -m eval.run_eval --inproc --baseline eval/baseline.json          # เทียบ baseline
+docker compose exec api python -m eval.run_eval --inproc --baseline eval/baseline.json --write-baseline  # เมื่อผ่านเพิ่ม
+```
+
+## ความสัมพันธ์ระหว่างกฎหมาย (`law_relation`)
+
+ตารางเดียวเก็บทุกเส้น ทิศ src → dst: `authorizes` (มาตราแม่บท → กฎหมายลำดับรอง, จากทะเบียน), `amends` / `repeals`
+(จาก relations ในไฟล์ตัวบท), `refers_to` (มาตรา/ข้อที่อ้างถึงกัน สกัดจากถ้อยคำอัตโนมัติ, status `auto`) และ `remedy`
+(ช่องทางเยียวยาหลายทอด จากไฟล์ `backend/app/seed/relations/*.json` ที่นิติกรอนุมัติแล้ว — ไฟล์ `*.draft.json` ไม่โหลด)
+สร้างใหม่ทุกครั้งที่นำเข้าตัวบทหรือทะเบียน · API: `GET /api/v1/laws/relations?eli=…`, `GET /api/v1/laws/relations/walk?eli=…`
+(เดินหลายทอดด้วย recursive CTE เฉพาะเส้นที่อนุมัติแล้ว) · หน้ามาตราแสดงแผง "ความสัมพันธ์กับบทบัญญัติอื่น"
+
+รหัสอ้างอิงระดับวรรค: `…/sec-121/v1#para-4`, `…/sec-11/v1#para-1/item-4` คำนวณจากถ้อยคำ (1 บรรทัด = 1 ย่อหน้า, "(1)" = อนุ)
+ผู้ช่วย AI ยกวรรคที่ตรงคำถามและแหล่งที่ส่งให้ LLM มีป้าย `[วรรค…]` กำกับ ตัวตรวจอ้างอิงปฏิเสธประโยคที่อ้างวรรคที่ไม่มีอยู่จริง
+
+## คลังคำค้นหา (`backend/app/search/lexicon.json`)
+
+คำย่อ (กกพ., พ.ร.ฎ., กฟผ. …), คำพ้อง และคำเรียกทั่วไป → ถ้อยคำในกฎหมาย ฝ่ายกฎหมายแก้ไฟล์นี้ได้โดยตรงแล้ว index ใหม่
+นอกจากนี้ระบบแปลงเลขเป็นคำ ("หกสิบวัน" → 60) และจับคู่คำถามแบบ "กี่วัน / เท่าไร / ใช้บังคับเมื่อใด / มีอะไรบ้าง"
+กับถ้อยคำที่ตอบคำถามแบบนั้นโดยอัตโนมัติ
+
 ## ไฟล์ต้นฉบับ (PDF ตัวบท, Excel ทะเบียน)
 
 เก็บในโฟลเดอร์ `./data/raw` (เมานต์เป็น `/data/raw` ในคอนเทนเนอร์ ไม่อยู่ใน git) แยก `public/` (ตัวบทกฎหมาย) และ `internal/`

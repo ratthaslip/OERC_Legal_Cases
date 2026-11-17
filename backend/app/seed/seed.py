@@ -23,6 +23,7 @@ from sqlalchemy.engine import Connection
 from ..appeals.workflow import STEPS
 from ..db import get_engine, reset_schema
 from ..law.resolver import NotYetInForce, Repealed, VersionWindow, pick_version
+from ..law import relations
 from ..search.indexer import reindex_cases, reindex_laws
 from .appeals_seed import Plan, simulate
 
@@ -476,6 +477,7 @@ def run(conn: Connection, today: date | None = None) -> dict:
     for f in files:
         log_law_file(conn, f)
     load_review_notes(conn)
+    relations.rebuild(conn)
     proto_ids = load_prototype(conn, data, windows, today, rng)
     generated, extra = generate(conn, windows, today, rng)
     load_prototype_cases(conn, data, proto_ids, extra)

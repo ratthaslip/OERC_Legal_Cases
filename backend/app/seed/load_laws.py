@@ -32,6 +32,7 @@ from pathlib import Path
 from sqlalchemy import text
 
 from ..db import get_engine
+from ..law import relations
 from ..search.indexer import reindex_laws
 from .seed import load_laws
 
@@ -55,6 +56,7 @@ def main(path: str, replace: bool) -> None:
         load_laws(conn, data)
         conn.execute(text("UPDATE legal_instrument SET is_demo = FALSE WHERE eli_id = ANY(:e)"),
                      {"e": [i["id"] for i in data]})
+        relations.rebuild(conn)
         n = reindex_laws(conn)
     print(f"นำเข้า {len(data)} ตราสาร, index ตัวบท {n} รุ่น")
 

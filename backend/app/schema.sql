@@ -47,11 +47,37 @@ CREATE TABLE IF NOT EXISTS provision_version (
 CREATE TABLE IF NOT EXISTS legal_relation (
     relation_id   SERIAL PRIMARY KEY,
     version_id    INT NOT NULL REFERENCES provision_version(version_id),
-    relation_type TEXT NOT NULL,     -- แก้ไขเพิ่มเติมจาก | ถูกแก้ไขโดย | ออกโดยอาศัยอำนาจตาม | ฐานอำนาจของ
+    relation_type TEXT NOT NULL,     -- (บันทึกตามตัวบทต้นฉบับ; ใช้งานผ่าน law_relation) แก้ไขเพิ่มเติมจาก | ถูกแก้ไขโดย | ออกโดยอาศัยอำนาจตาม | ฐานอำนาจของ
     target_text   TEXT NOT NULL,
     target_eli_id VARCHAR(200)
 );
 
+
+-- ความสัมพันธ์ระหว่างกฎหมายแบบรวมศูนย์ (เส้นเชื่อมของ "กราฟกฎหมาย" ใน PostgreSQL — เดินหลายทอดด้วย recursive CTE)
+-- ทิศทางเดียวกันทุกประเภท: src → dst  เช่น  มาตรา 121 —authorizes→ ระเบียบอุทธรณ์ / ฉบับแก้ไข —amends→ ข้อ 21
+-- สร้างใหม่ทุกครั้งที่นำเข้า (app/law/relations.py: rebuild) ยกเว้น source = 'manual' ที่นิติกรบันทึกเอง
+CREATE TABLE IF NOT EXISTS law_relation (
+    relation_id     SERIAL PRIMARY KEY,
+    rel_type        VARCHAR(20) NOT NULL CHECK (rel_type IN ('authorizes', 'amends', 'repeals', 'refers_to', 'remedy')),
+    src_eli         VARCHAR(200),                      -- ต้นทาง (NULL = ยังผูกกับตัวบทในระบบไม่ได้ ดู src_text)
+    src_text        TEXT,
+    dst_eli         VARCHAR(200),                      -- ปลายทาง: มาตรา/ข้อ หรือตราสาร
+    dst_register_id INT,                               -- ปลายทางที่มีแค่ในทะเบียน (ยังไม่มีตัวบท)
+    dst_text        TEXT,
+    valid_from      DATE,
+    valid_to        DATE,
+    status          VARCHAR(10) NOT NULL DEFAULT 'approved' CHECK (status IN ('auto', 'draft', 'approved', 'rejected')),
+    source          VARCHAR(20) NOT NULL,              -- register | law_json | text_ref | manual
+    source_ref      TEXT,                              -- เช่น ลำดับทะเบียน / version_id / ชื่อไฟล์
+    note            TEXT,
+    approved_by     VARCHAR(80),
+    approved_at     TIMESTAMPTZ,
+    CHECK (src_eli IS NOT NULL OR src_text IS NOT NULL),
+    CHECK (dst_eli IS NOT NULL OR dst_register_id IS NOT NULL OR dst_text IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS law_relation_src ON law_relation (src_eli, rel_type);
+CREATE INDEX IF NOT EXISTS law_relation_dst ON law_relation (dst_eli, rel_type);
+CREATE INDEX IF NOT EXISTS law_relation_reg ON law_relation (dst_register_id) WHERE dst_register_id IS NOT NULL;
 
 -- ทะเบียนคุมกฎหมายลำดับรองที่ออกโดยอาศัยอำนาจ พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550
 -- นำเข้าจาก Excel ของฝ่ายกฎหมาย (seed/import_register.py) — 1 แถว Excel = 1 ระเบียน, ยังไม่มีตัวบท
