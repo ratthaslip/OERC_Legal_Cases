@@ -9,6 +9,7 @@ from .. import audit, authz
 from ..auth import User, current_user
 from ..db import get_conn, one, rows
 from ..search.hybrid import hybrid_search
+from ..search.thai import content_terms, normalize, tokenize
 from ..rawfiles import sources_of
 from . import coverage as law_coverage
 from .resolver import NotYetInForce, Repealed, resolve
@@ -20,6 +21,13 @@ router = APIRouter(prefix="/api/v1/laws", tags=["laws"])
 # ทะเบียนกฎหมายลำดับรองของ กกพ. ระบุบทอาศัยอำนาจเป็นเลขมาตราของ พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550
 PARENT_ACT = "eli/th/act/2550/energy-industry"
 _SEC = re.compile(rf"^{re.escape(PARENT_ACT)}/sec-(\d+)$")
+
+
+# ลำดับตราสาร: พ.ร.บ.การประกอบกิจการพลังงาน (ฉบับหลักของระบบ) → ระเบียบ/ประกาศ กกพ. → กฎหมายกลางอื่น
+INSTRUMENT_RANK_SQL = f"""(CASE WHEN {{a}}eli_id = '{PARENT_ACT}' THEN 0
+                               WHEN {{a}}eli_id LIKE 'eli/th/reg/erc/%' OR {{a}}eli_id LIKE 'eli/th/ann/erc/%' THEN 1
+                               ELSE 2 END)"""
+PROV_REF = re.compile(r"(มาตรา|ข้อ)\s*(\d+(?:/\d+)?)")
 
 
 def _parent_section(eli: str) -> int | None:
@@ -67,7 +75,7 @@ def list_instruments(category: str | None = None, conn: Connection = Depends(get
                                  promulgated_date, effective_date, is_demo
                           FROM legal_instrument
                           WHERE (CAST(:cat AS text) IS NULL OR category = :cat)
-                          ORDER BY promulgated_date""", cat=category)
+                          ORDER BY """ + INSTRUMENT_RANK_SQL.format(a="") + """, promulgated_date""", cat=category)
     provs = rows(conn, """
         SELECT p.instrument_id, p.eli_id, p.provision_no, p.part_heading,
                count(pv.*) FILTER (WHERE pv.status = 'approved') AS version_count,
@@ -95,8 +103,33 @@ def list_instruments(category: str | None = None, conn: Connection = Depends(get
 def search_laws(q: str, as_of: date | None = None, user: User = Depends(current_user),
                 conn: Connection = Depends(get_conn)):
     """ค้นตัวบท (hybrid) เฉพาะรุ่นที่มีผล ณ วันที่ที่เลือก"""
-    res = hybrid_search(conn, user, q, kinds=["provision"], as_of=as_of or date.today(), limit=20)
-    return {"items": res.hits}
+    as_of = as_of or date.today()
+    res = hybrid_search(conn, user, q, kinds=["provision"], as_of=as_of, limit=20)
+    exact = _exact_provisions(conn, user, q, as_of)
+    seen = {h["chunk_id"] for h in exact}
+    return {"items": exact + [h for h in res.hits if h.chunk_id not in seen]}
+
+
+def _exact_provisions(conn: Connection, user: User, q: str, as_of: date) -> list[dict]:
+    """ค้นด้วยเลขมาตรา/ข้อ (เช่น "มาตรา 11") → ทุกฉบับที่มีมาตรานั้น เรียงฉบับที่ชื่อตรงคำค้นก่อน แล้ว พ.ร.บ.พลังงาน → ระเบียบ กกพ. → อื่น ๆ"""
+    qn = normalize(q)
+    m = PROV_REF.search(qn)
+    if not m:
+        return []
+    perm, params = authz.search_filter_sql(user)
+    found = rows(conn, f"""
+        SELECT s.chunk_id, s.kind, s.ref_id, s.title, s.chunk_text, s.eli_id, s.version_no, s.valid_from, s.valid_to,
+               s.classification, i.title_th AS instrument_title, {INSTRUMENT_RANK_SQL.format(a="i.")} AS rank
+        FROM search_chunk s JOIN provision p ON p.eli_id = s.eli_id JOIN legal_instrument i USING (instrument_id)
+        WHERE s.kind = 'provision' AND p.provision_no = :pno AND i.is_demo = FALSE
+          AND s.valid_from <= :d AND (s.valid_to IS NULL OR :d <= s.valid_to) AND {{perm}}""".replace("{perm}", perm),
+        pno=f"{m.group(1)} {m.group(2)}", d=as_of, **params)
+    rest = content_terms(PROV_REF.sub(" ", qn))
+    for f in found:
+        f["title_overlap"] = len(rest & set(tokenize(f["instrument_title"]))) if rest else 0
+        f["exact_ref"] = True
+    found.sort(key=lambda f: (-f["title_overlap"], f["rank"], f["instrument_title"]))
+    return found
 
 
 @router.get("/provisions/{eli_id:path}")

@@ -135,7 +135,13 @@ function ProvisionView({ me, go, notify, route }) {
                 {hits.length === 0 && <p className="text-xs text-slate-500 p-4 text-center">ไม่พบตัวบทที่ตรงกับคำค้น</p>}
                 {hits.map((h) => (
                   <button key={h.chunk_id} onClick={() => setEli(h.eli_id)} className="w-full text-left px-4 py-3 hover:bg-slate-50">
-                    <div className="text-xs font-bold text-slate-900">{h.title}</div>
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      {h.exact_ref && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-semibold">ตรงเลข</span>
+                      )}
+                      <span>{h.title}</span>
+                    </div>
+                    {h.instrument_title && <div className="text-[11px] text-slate-600 mt-0.5">{h.instrument_title}</div>}
                     <div className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">{h.chunk_text}</div>
                   </button>
                 ))}
