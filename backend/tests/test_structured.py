@@ -78,3 +78,17 @@ def test_graph_expansion_adds_parent_section(client):
     """ค้นได้ข้อของระเบียบ → ดึงมาตราแม่บทใน พ.ร.บ. มาด้วย (ทะเบียนว่างในเทสต์นี้ จึงต้องไม่มีอะไรเพิ่มและไม่ล่ม)"""
     done, sents, srcs = ask(client, "การยื่นอุทธรณ์ด้วยวาจาต่อพนักงานของสำนักงาน")
     assert done["status"] == "ANSWERED" and all(s.get("via") is None for s in srcs)
+
+
+def test_section_search_prefers_energy_act(client):
+    """ค้น "มาตรา 11" → ทุกฉบับที่มีมาตรา 11 โดย พ.ร.บ.พลังงานมาก่อน เว้นแต่ระบุชื่อฉบับอื่นในคำค้น"""
+    items = client.get("/api/v1/laws/search", params={"q": "มาตรา 11"}, headers={"X-Demo-User": "pub"}).json()["items"]
+    exact = [h["eli_id"] for h in items if h.get("exact_ref")]
+    assert exact[0] == "eli/th/act/2550/energy-industry/sec-11"
+    assert "eli/th/act/2539/admin-procedure/sec-11" in exact
+    named = client.get("/api/v1/laws/search", params={"q": "มาตรา 11 วิธีปฏิบัติราชการทางปกครอง"},
+                       headers={"X-Demo-User": "pub"}).json()["items"]
+    assert named[0]["eli_id"] == "eli/th/act/2539/admin-procedure/sec-11"
+    order = [i["eli_id"] for i in client.get("/api/v1/laws/instruments").json()["items"]]
+    assert order[0] == "eli/th/act/2550/energy-industry"
+    assert order.index("eli/th/act/2539/admin-procedure") > order.index("eli/th/reg/erc/2552/appeal")
