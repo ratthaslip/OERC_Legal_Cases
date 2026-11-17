@@ -12,6 +12,7 @@ from sqlalchemy.engine import Connection
 from ..db import one, rows
 from .clocks import APPEAL_FILING_DAYS, SUBC_DAYS, SUBC_MAX_EXTENSION, legal_clocks, request_state, step_clocks
 from .sla import BusinessDays
+from .legal import CONSUMER_DECISION_DAYS, DEFAULT_GROUND, GROUNDS, ground
 from .workflow import BY_NO, STEPS, Step, WorkflowError, complete, new_steps, revert
 
 PREFIX = {"APPEAL": "อธ.", "COMPLAINT": "รร."}  # รูปแบบเลขรับ — ปรับตามที่ฝ่ายคดีใช้จริง
@@ -93,6 +94,8 @@ def _not_future(d: date, today: date, what: str) -> None:
 def register(conn: Connection, actor: str, data: dict, today: date) -> int:
     """ข้อ 5.1 รับเรื่องและลงทะเบียน (ขั้น 1 เริ่ม)"""
     ct = data["case_type"]
+    if ct == "APPEAL" and data.get("appeal_ground") and data["appeal_ground"] not in GROUNDS:
+        raise ServiceError("VALIDATION_FAILED", "ฐานการอุทธรณ์ไม่ถูกต้อง", 400)
     if ct not in PREFIX:
         raise ServiceError("VALIDATION_FAILED", "ประเภทเรื่องต้องเป็น APPEAL หรือ COMPLAINT", 400)
     received = data["received_date"]
@@ -107,18 +110,20 @@ def register(conn: Connection, actor: str, data: dict, today: date) -> int:
             n += 1
             no = f"{PREFIX[ct]} {n}/{year}"
     aid = conn.execute(text("""
-        INSERT INTO appeal (appeal_no, appeal_no_norm, case_type, complaint_basis, target_type, esarabun_no, filing_channel,
+        INSERT INTO appeal (appeal_no, appeal_no_norm, case_type, complaint_basis, appeal_ground, target_type, esarabun_no, filing_channel,
                             subject, summary, party_code, party_label, respondent, energy_sector, incident_date,
                             notice_date, received_date, sla_days, classification)
-        VALUES (:no, :norm, :ct, :basis, :target, :esarabun, :channel, :subject, :summary, :pcode, :plabel, :resp,
+        VALUES (:no, :norm, :ct, :basis, :ground, :target, :esarabun, :channel, :subject, :summary, :pcode, :plabel, :resp,
                 :sector, :incident, :notice, :received, :sla, :cls) RETURNING appeal_id"""), {
         "no": no, "norm": re.sub(r"[\s.]", "", no), "ct": ct, "basis": data.get("complaint_basis"),
+        "ground": (data.get("appeal_ground") or DEFAULT_GROUND) if ct == "APPEAL" else None,
         "target": data.get("target_type"), "esarabun": data.get("esarabun_no"), "channel": data.get("filing_channel"),
         "subject": data["subject"], "summary": data.get("summary") or data["subject"],
         "pcode": data["party_code"], "plabel": data.get("party_label") or f"คู่กรณี รหัส [{data['party_code']}]",
         "resp": data.get("respondent"), "sector": data["energy_sector"], "incident": data.get("incident_date"),
         "notice": data.get("notice_date"), "received": received,
-        "sla": 90 if ct == "APPEAL" else data.get("sla_days"), "cls": data.get("classification", "internal"),
+        "sla": 90 if ct == "APPEAL" else CONSUMER_DECISION_DAYS if data.get("complaint_basis") == "CONSUMER" else data.get("sla_days"),
+        "cls": data.get("classification", "internal"),
     }).scalar()
     for s in new_steps():
         conn.execute(text("INSERT INTO appeal_step (appeal_id, step_no, state, started_at) VALUES (:i, :n, :s, :d)"),
@@ -149,8 +154,9 @@ def _complete(steps: list[Step], step_no: int, **kw):
 def screen_result(a: dict, checks: dict) -> dict:
     """ประเมินผลตรวจขั้น 2 — ระยะเวลาคำนวณจากวันที่ ไม่ให้กรอกเอง"""
     timely = None
+    consumer = a["case_type"] == "COMPLAINT" and a.get("complaint_basis") == "CONSUMER"
     if a["case_type"] == "APPEAL" and a.get("notice_date") and a.get("received_date"):
-        timely = a["received_date"] <= a["notice_date"] + timedelta(days=APPEAL_FILING_DAYS)
+        timely = a["received_date"] <= a["notice_date"] + timedelta(days=ground(a.get("appeal_ground")).filing_days)
     elif a["case_type"] == "COMPLAINT":
         timely = checks.get("timely")  # กำหนดเวลาตามระเบียบ/ประกาศ/สัญญาแต่ละฉบับ → เจ้าหน้าที่ยืนยัน
     docs = {k: bool(checks.get("docs", {}).get(k)) for k, _ in REQUIRED_DOCS[a["case_type"]]}
@@ -158,6 +164,8 @@ def screen_result(a: dict, checks: dict) -> dict:
         "standing": bool(checks.get("standing")), "jurisdiction": bool(checks.get("jurisdiction")),
         "timely": timely, "docs": docs, "docs_complete": all(docs.values()),
         "prior_steps_done": checks.get("prior_steps_done") if a["case_type"] == "COMPLAINT" else None,
+        # ข้อ 16/1 ระเบียบร้องเรียน 2553: เรื่องที่ฟ้องคดีอยู่ในศาล หรือศาลมีคำพิพากษา/คำสั่งเสร็จเด็ดขาดแล้ว ไม่รับไว้พิจารณา
+        "no_court_case": (not checks.get("court_case")) if consumer else None,
         "note": checks.get("note"),
     }
 
@@ -178,7 +186,7 @@ def complete_step(conn: Connection, actor: str, appeal_id: int, step_no: int, on
         sc = screen_result(a, payload.get("checks", {}))
         result = payload.get("result")
         eligible = sc["standing"] and sc["jurisdiction"] and sc["timely"] is not False and \
-            (sc["prior_steps_done"] is not False)
+            (sc["prior_steps_done"] is not False) and (sc["no_court_case"] is not False)
         if result == "ACCEPTED" and not (eligible and sc["docs_complete"]):
             raise ServiceError("SCREENING_INCONSISTENT", "รับเรื่องได้เมื่อผ่านทุกข้อและเอกสารครบถ้วนเท่านั้น")
         if result == "NEED_CORRECTION" and (sc["docs_complete"] or not eligible):
@@ -349,11 +357,13 @@ def detail(conn: Connection, appeal_id: int, today: date, near_due_days: int) ->
                    i=appeal_id)
     return {
         "appeal": a,
-        "steps": step_clocks(steps, ms, today, cal),
+        "steps": step_clocks(steps, ms, today, cal, a),
         "clocks": legal_clocks(a, ms, today, near_due_days),
         "milestones": ms_rows,
         "requests": reqs,
         "required_docs": [{"key": k, "label": v} for k, v in REQUIRED_DOCS[a["case_type"]]],
+        "ground": ({"code": (g := ground(a.get("appeal_ground"))).code, "label": g.label, "filing_days": g.filing_days,
+                    "notify_days": g.notify_days} if a["case_type"] == "APPEAL" else None),
     }
 
 

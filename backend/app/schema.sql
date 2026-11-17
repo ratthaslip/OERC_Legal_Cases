@@ -161,7 +161,8 @@ CREATE TABLE IF NOT EXISTS appeal (
     appeal_no       VARCHAR(50) NOT NULL,
     appeal_no_norm  VARCHAR(50) NOT NULL UNIQUE,
     case_type       VARCHAR(10) NOT NULL DEFAULT 'APPEAL',  -- APPEAL (อุทธรณ์ ม.121) | COMPLAINT (เรื่องร้องเรียน)
-    complaint_basis VARCHAR(20),                 -- PROCUREMENT (ระเบียบจัดหา/ประกาศรับซื้อไฟฟ้า) | PPA (สัญญาซื้อขายไฟฟ้า)
+    complaint_basis VARCHAR(20),                 -- PROCUREMENT (ระเบียบจัดหา/ประกาศรับซื้อไฟฟ้า) | PPA (สัญญาซื้อขายไฟฟ้า) | CONSUMER (ผู้ใช้พลังงาน ระเบียบ 2553)
+    appeal_ground   VARCHAR(12),                 -- ฐานการอุทธรณ์ตามข้อ 9 ระเบียบอุทธรณ์ 2552 (appeals/legal.py GROUNDS)
     target_type     VARCHAR(10),                 -- ORDER (คำสั่ง) | RULE (ระเบียบ ข้อบังคับ ประกาศ ข้อกำหนด)
     esarabun_no     VARCHAR(50),                 -- เลขรับระบบ E-Sarabun
     register_no     VARCHAR(50),                 -- เลขทะเบียนคุมงาน FM-EFL-01
