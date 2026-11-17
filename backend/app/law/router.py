@@ -164,13 +164,13 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
     # อุทธรณ์/คดีที่อ้างมาตรานี้ แยกตามรุ่น — กรองสิทธิ์ที่ server และบอกจำนวนที่ถูกซ่อน
     cites = rows(conn, """
         SELECT c.cited_version_no, c.owner_type, c.owner_id, c.note,
-               a.appeal_no AS ref_no, a.subject, a.incident_date, a.decision_result AS result,
+               a.appeal_no AS ref_no, a.subject, a.incident_date, a.decision_result AS result, a.is_demo,
                a.classification, ARRAY(SELECT user_id FROM appeal_owner o WHERE o.appeal_id = a.appeal_id) AS owners
         FROM citation_link c JOIN appeal a ON c.owner_type = 'appeal' AND a.appeal_id = c.owner_id
         WHERE c.cited_eli_id = :eli AND c.state = 'verified'
         UNION ALL
         SELECT c.cited_version_no, c.owner_type, c.owner_id, c.note,
-               coalesce(k.red_no, k.black_no), k.subject, k.incident_date, k.result,
+               coalesce(k.red_no, k.black_no), k.subject, k.incident_date, k.result, k.is_demo,
                k.classification, ARRAY(SELECT user_id FROM court_case_owner o WHERE o.case_id = k.case_id)
         FROM citation_link c JOIN court_case k ON c.owner_type = 'court_case' AND k.case_id = c.owner_id
         WHERE c.cited_eli_id = :eli AND c.state = 'verified'

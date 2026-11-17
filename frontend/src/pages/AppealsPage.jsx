@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileText, Gavel, Mail, Plus, Search, Timer, UserCheck } from 'lucide-react';
 import { api } from '../api.js';
-import { Card, ClassBadge, ErrorBox, inputCls, Label, LockedPanel, OmittedNote, Spinner, thDate, useDebounced } from '../components/ui.jsx';
+import { Card, ClassBadge, ErrorBox, inputCls, Label, LockedPanel, OmittedNote, Spinner, thDate, useDebounced, DemoBadge } from '../components/ui.jsx';
 import AppealDetail from './appeals/AppealDetail.jsx';
 import RegisterDialog from './appeals/RegisterDialog.jsx';
 import { CASE_TYPE_SHORT, clockText, Pill, stepTimingText } from './appeals/parts.jsx';
@@ -202,6 +202,7 @@ function ListItem({ a, selected, onClick }) {
       <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
         <span className="flex items-center gap-1.5 whitespace-nowrap">
           <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-slate-900 text-white">{a.appeal_no}</span>
+          <DemoBadge show={a.is_demo} />
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${a.case_type === 'APPEAL' ? 'bg-amber-50 text-amber-800' : 'bg-violet-50 text-violet-800'}`}>
             {CASE_TYPE_SHORT[a.case_type]}
           </span>

@@ -146,3 +146,15 @@ export function Field({ k, v, strong }) {
     </div>
   );
 }
+
+/** ป้ายบอกว่าเรื่อง/คดีนี้เป็นข้อมูลสมมติที่สร้างเพื่อสาธิต (ไม่ใช่เรื่องจริงของสำนักงาน) */
+export function DemoBadge({ show, size = 'sm' }) {
+  if (!show) return null;
+  const cls = size === 'lg' ? 'px-2.5 py-1 rounded-lg text-xs' : 'px-1.5 py-0.5 rounded text-[10px]';
+  return (
+    <span title="ข้อมูลสมมติเพื่อสาธิตระบบ ไม่ใช่เรื่องจริงของสำนักงาน กกพ."
+      className={`${cls} font-semibold border border-dashed border-rose-300 bg-rose-50 text-rose-700 whitespace-nowrap`}>
+      ข้อมูลสาธิต
+    </span>
+  );
+}

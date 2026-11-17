@@ -17,7 +17,7 @@ def list_cases(q: str | None = None, court_level: str | None = None, sector: str
                user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     authz.require_internal(user)
     base = rows(conn, f"""
-        SELECT k.case_id, k.black_no, k.red_no, k.court_level, k.case_category, k.subject, k.energy_sector,
+        SELECT k.case_id, k.black_no, k.red_no, k.is_demo, k.court_level, k.case_category, k.subject, k.energy_sector,
                k.incident_date, k.status, k.stage_text, k.result, k.classification, a.appeal_no AS origin_appeal_no
         FROM court_case k LEFT JOIN appeal a ON a.appeal_id = k.appeal_id
         WHERE {ACCESS_SQL}

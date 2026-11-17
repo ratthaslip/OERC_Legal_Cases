@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, BookOpen, FileText, Calendar, Gavel, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
+import { AlertTriangle, BookOpen, FileText, Calendar, Gavel, Info, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
 import { askAssistant } from '../api.js';
-import { Card, thDate, todayIso } from '../components/ui.jsx';
+import { Card, thDate, todayIso, DemoBadge } from '../components/ui.jsx';
 
 const PRESETS = [
   'เปรียบเทียบแนววินิจฉัยชั้นอุทธรณ์และคำพิพากษาศาลปกครองสูงสุด เรื่องการยื่นอุทธรณ์ตามมาตรา 121',
@@ -288,6 +288,9 @@ function Turn({ t, onOpen }) {
                             มีผล {thDate(s.valid_from)} – {s.valid_to ? thDate(s.valid_to) : 'ปัจจุบัน'}
                           </span>
                         )}
+                        {s.is_demo && (
+                          <span className="block"><DemoBadge show /></span>
+                        )}
                         {s.via && (
                           <span className="block text-[10px] font-semibold text-indigo-700">↳ เชื่อมโยง: {s.via}</span>
                         )}
@@ -311,6 +314,12 @@ function Turn({ t, onOpen }) {
                     t.done.route}
                   ) — นับและแสดงครบตามข้อมูลในระบบ ไม่ผ่านการค้นหาความคล้าย
                 </span>
+              </div>
+            )}
+            {t.done.demo_excluded && (
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                <Info className="w-3.5 h-3.5 text-slate-400" />
+                ตอบจากตัวบทและทะเบียนกฎหมายจริงเท่านั้น — ไม่ใช้สำนวนอุทธรณ์/คดีสาธิตเป็นหลักฐาน
               </div>
             )}
             {t.done.restricted_omitted > 0 && (

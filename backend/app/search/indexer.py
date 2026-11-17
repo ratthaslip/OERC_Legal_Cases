@@ -18,11 +18,11 @@ def _insert(conn: Connection, chunks: list[dict]) -> None:
     for c, v in zip(chunks, vecs):
         conn.execute(text("""
             INSERT INTO search_chunk (kind, ref_id, eli_id, version_no, valid_from, valid_to, title, chunk_text,
-                                      tokens, embedding, classification, owners, energy_sector)
+                                      tokens, embedding, classification, owners, energy_sector, is_demo)
             VALUES (:kind, :ref_id, :eli_id, :version_no, :valid_from, :valid_to, :title, :chunk_text,
-                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector)"""),
+                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo)"""),
             {"eli_id": None, "version_no": None, "valid_from": None, "valid_to": None, "energy_sector": None,
-             "owners": [], **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v})
+             "owners": [], "is_demo": False, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v})
 
 
 def reindex_laws(conn: Connection) -> int:
@@ -58,8 +58,9 @@ def reindex_register(conn: Connection) -> int:
 
 
 def _case_chunks(kind: str, ref_id: int, title: str, body: str, docs: list[dict], cls: str, owners: list[str],
-                 sector: str) -> list[dict]:
-    base = {"kind": kind, "ref_id": ref_id, "classification": cls, "owners": owners, "energy_sector": sector}
+                 sector: str, is_demo: bool = False) -> list[dict]:
+    base = {"kind": kind, "ref_id": ref_id, "classification": cls, "owners": owners, "energy_sector": sector,
+            "is_demo": bool(is_demo)}
     out = [{**base, "title": title, "chunk_text": body}]
     for d in docs:
         out.append({**base, "title": f"{title} · {d['doc_type']}", "chunk_text": d["excerpt"]})
@@ -83,7 +84,7 @@ def reindex_cases(conn: Connection, only: tuple[str, int] | None = None) -> int:
         body = (f"{kind_th} เรื่อง {a['subject']}\nผู้อุทธรณ์/ผู้ร้องเรียน: {a['party_label']}\nสรุป: {a['summary']}\n"
                 f"ผลคำวินิจฉัย: {a['decision_result'] or 'อยู่ระหว่างพิจารณา'}")
         chunks += _case_chunks("appeal", a["appeal_id"], f"{kind_th} {a['appeal_no']}", body, docs,
-                               a["classification"], a["owners"], a["energy_sector"])
+                               a["classification"], a["owners"], a["energy_sector"], a["is_demo"])
     for k in rows(conn, """SELECT k.*, ARRAY(SELECT user_id FROM court_case_owner o WHERE o.case_id = k.case_id) AS owners
                            FROM court_case k WHERE (CAST(:k AS text) IS NULL OR (:k = 'court_case' AND k.case_id = :i))""",
                   k=kind_only, i=id_only):
@@ -93,6 +94,6 @@ def reindex_cases(conn: Connection, only: tuple[str, int] | None = None) -> int:
         body = (f"เรื่อง {k['subject']}\n{k['court_level']}\nผู้ฟ้องคดี: {k['party_label']}\nสรุป: {k['summary']}\n"
                 f"ผลคดี: {k['result'] or ''}")
         chunks += _case_chunks("court_case", k["case_id"], no, body, docs, k["classification"], k["owners"],
-                               k["energy_sector"])
+                               k["energy_sector"], k["is_demo"])
     _insert(conn, chunks)
     return len(chunks)
