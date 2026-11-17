@@ -22,18 +22,19 @@ const NAV = [
   { key: 'assistant', label: 'ระบบช่วยค้นคว้าอัจฉริยะ', icon: Sparkles, dot: true }
 ];
 
-// โลโก้สำนักงาน: วางไฟล์ทางการที่ frontend/public/brand/logo.png (หรือกำหนด VITE_BRAND_LOGO)
-// ถ้าโหลดไม่ได้ จะแสดงสัญลักษณ์ตาชั่งแทน — ไม่วาดหรือจำลองโลโก้เอง
-const LOGO_SRC = import.meta.env.VITE_BRAND_LOGO || '/brand/logo.png';
+// โลโก้: ค่าเริ่มต้นใช้สัญลักษณ์ตาชั่ง (ไม่โหลดรูป)
+// เมื่อได้ไฟล์โลโก้ทางการ: วางที่ frontend/public/brand/ แล้วตั้ง VITE_BRAND_LOGO=/brand/logo.png
+// ถ้าโหลดรูปไม่ได้ จะกลับมาแสดงตาชั่ง — ไม่วาดหรือจำลองโลโก้เอง
+const LOGO_SRC = import.meta.env.VITE_BRAND_LOGO || '';
 
 function BrandLogo() {
-  const [ok, setOk] = useState(true);
+  const [ok, setOk] = useState(Boolean(LOGO_SRC));
   return (
     <div className="h-12 min-w-12 px-1.5 rounded-xl bg-white flex items-center justify-center shadow-sm">
       {ok ? (
         <img src={LOGO_SRC} alt="ตราสำนักงานคณะกรรมการกำกับกิจการพลังงาน" className="h-10 w-auto object-contain" onError={() => setOk(false)} />
       ) : (
-        <Scale className="w-6 h-6 text-brand-700" />
+        <Scale className="w-7 h-7 text-brand-700" strokeWidth={1.75} aria-label="ตาชั่ง" />
       )}
     </div>
   );
