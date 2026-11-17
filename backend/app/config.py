@@ -44,6 +44,8 @@ class Settings:
         # ระดับ 1–2 ของการใช้ความสัมพันธ์ระหว่างกฎหมาย (ปิดได้เพื่อเทียบผล)
         self.rag_graph_expand = os.getenv("RAG_GRAPH_EXPAND", "true").lower() == "true"
         self.rag_structured = os.getenv("RAG_STRUCTURED", "true").lower() == "true"
+        # ที่เก็บไฟล์ต้นฉบับ (PDF ตัวบท, Excel ทะเบียน) — โฟลเดอร์ใน POC ดู app/storage.py
+        self.raw_store_dir = os.getenv("RAW_STORE_DIR", "/data/raw")
         self.assistant_enabled = os.getenv("ASSISTANT_ENABLED", "true").lower() == "true"
 
         self.cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")

@@ -29,6 +29,9 @@ def summary(conn: Connection) -> dict:
                (SELECT row_to_json(l) FROM (SELECT source_name, left(source_sha256, 12) AS sha, actor, imported_at
                   FROM law_import_log WHERE instrument_eli = i.eli_id ORDER BY imported_at DESC LIMIT 1) l) AS last_import,
                (SELECT count(*) FROM law_open_issue o WHERE o.instrument_eli = i.eli_id) AS open_issues,
+               (SELECT count(*) FROM raw_file_link l WHERE l.instrument_eli = i.eli_id) AS source_links,
+               (SELECT count(*) FROM raw_file_link l JOIN raw_file f USING (sha256)
+                 WHERE l.instrument_eli = i.eli_id) AS source_available,
                (SELECT p2.eli_id FROM provision p2 WHERE p2.instrument_id = i.instrument_id
                  ORDER BY p2.sort_order LIMIT 1) AS first_provision_eli
         FROM legal_instrument i
@@ -78,7 +81,17 @@ def summary(conn: Connection) -> dict:
     imports = rows(conn, """SELECT import_id, kind, source_name, left(source_sha256, 12) AS sha, instrument_eli, title_th,
                                    provisions, versions, rows_total, rows_linked, actor, imported_at
                             FROM law_import_log ORDER BY imported_at DESC, import_id DESC LIMIT 30""")
+    raw = {
+        "by_class": rows(conn, """SELECT classification AS key, count(*) AS files, coalesce(sum(size_bytes), 0) AS bytes
+                                  FROM raw_file GROUP BY 1 ORDER BY 1"""),
+        "instruments_with_source": sum(1 for i in instruments if i["source_available"] > 0),
+        "missing": rows(conn, """SELECT l.sha256, l.instrument_eli FROM raw_file_link l
+                                 LEFT JOIN raw_file f USING (sha256) WHERE f.sha256 IS NULL ORDER BY 2"""),
+        "unlinked_public": one(conn, """SELECT count(*) AS n FROM raw_file f WHERE classification = 'public'
+                                        AND NOT EXISTS (SELECT 1 FROM raw_file_link l WHERE l.sha256 = f.sha256)""")["n"],
+    }
     return {
+        "raw": raw,
         "laws": {"instruments": len(instruments), "by_type": by_type, "demo_instruments": demo,
                  "provisions": sum(i["provisions"] for i in instruments),
                  "versions": sum(i["versions"] for i in instruments),

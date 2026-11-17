@@ -32,6 +32,7 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./data:/data:ro        # ข้อมูลจริงของสำนักงาน (ไม่อยู่ใน git) เช่น register.xlsx
+      - ./data/raw:/data/raw   # ที่เก็บไฟล์ต้นฉบับ (เขียนได้) — สำรองโฟลเดอร์นี้พร้อมฐานข้อมูลเสมอ
 
   web:
     image: node:22-alpine

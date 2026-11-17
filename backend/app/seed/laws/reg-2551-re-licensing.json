@@ -162,6 +162,13 @@
      }
     ]
    }
+  ],
+  "sourceFiles": [
+   {
+    "sha256": "48981dbb196a4c6a9460badb66282076d7727512dcb6531ff846873fcce36981",
+    "name": "3.pdf",
+    "role": "text"
+   }
   ]
  }
 ]

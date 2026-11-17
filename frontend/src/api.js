@@ -105,3 +105,16 @@ export async function downloadRegisterExport(params = {}) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/** เปิดไฟล์ต้นฉบับ (PDF) ในแท็บใหม่ — ต้องส่ง header ผู้ใช้ จึงโหลดเป็น blob ก่อน */
+export async function openRawFile(sha) {
+  const win = window.open('', '_blank');
+  const res = await fetch(`/api/v1/raw/${sha}`, { headers: { 'X-Demo-User': currentUser } });
+  if (!res.ok) {
+    win?.close();
+    throw new ApiError(res.status, await res.json().catch(() => null));
+  }
+  const url = URL.createObjectURL(await res.blob());
+  if (win) win.location.href = url;
+  else window.location.href = url;
+}

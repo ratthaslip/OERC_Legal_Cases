@@ -436,6 +436,18 @@
     "effectiveDate": "2015-06-27",
     "source": "ราชกิจจานุเบกษา เล่ม ๑๓๒ ตอนพิเศษ ๑๔๗ ง วันที่ ๒๖ มิถุนายน ๒๕๕๘"
    }
+  ],
+  "sourceFiles": [
+   {
+    "sha256": "653e1140b1bfeb6f05a0a221001bfca09d6d9a740ca489c81c4e3b380267e0d5",
+    "name": "1842880.pdf",
+    "role": "text"
+   },
+   {
+    "sha256": "7aa864038564797b707005dc86c2b659e6d228d8d1d414950aade95a79a6ff99",
+    "name": "2044279.pdf",
+    "role": "amendment"
+   }
   ]
  }
 ]

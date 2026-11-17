@@ -9,6 +9,7 @@ from .. import audit, authz
 from ..auth import User, current_user
 from ..db import get_conn, one, rows
 from ..search.hybrid import hybrid_search
+from ..rawfiles import sources_of
 from . import coverage as law_coverage
 from .resolver import NotYetInForce, Repealed, resolve
 
@@ -160,6 +161,7 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
         "provision": prov, "as_of": as_of, "resolved_version_no": resolved, "problem": problem,
         "versions": versions, "citations": visible, "citations_hidden": hidden,
         "subordinate": subordinate, "parent_authority": parent_authority(conn, prov["instrument_eli"]),
+        "source_files": sources_of(conn, prov["instrument_eli"], user),
     }
 
 
