@@ -67,7 +67,7 @@ export default function RegisterDialog({ sectors, onClose, onCreated }) {
             ['APPEAL', 'อุทธรณ์ (ข้อ 9 ระเบียบอุทธรณ์ 2552)'],
             ['COMPLAINT', 'เรื่องร้องเรียน / ข้อพิพาทตามสัญญา']
           ].map(([k, v]) => (
-            <button key={k} onClick={() => setF({ ...f, case_type: k })} className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border ${f.case_type === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300'}`}>
+            <button key={k} onClick={() => setF({ ...f, case_type: k })} className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border ${f.case_type === k ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-300'}`}>
               {v}
             </button>
           ))}

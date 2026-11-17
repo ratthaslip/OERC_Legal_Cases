@@ -57,7 +57,7 @@ export function SubordinatePanel({ provisionNo, items, asOf, onOpenText, onOpenR
                 key={t || 'all'}
                 onClick={() => setType(t)}
                 className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${
-                  type === t ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  type === t ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 {label}
@@ -98,7 +98,7 @@ export function SubordinatePanel({ provisionNo, items, asOf, onOpenText, onOpenR
                 {i.first_provision_eli ? (
                   <button
                     onClick={() => onOpenText(i.first_provision_eli)}
-                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1"
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-brand-600 text-white hover:bg-brand-700 flex items-center gap-1"
                   >
                     <FileText className="w-3 h-3" /> ตัวบทเต็ม
                   </button>

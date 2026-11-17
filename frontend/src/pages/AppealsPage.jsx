@@ -201,7 +201,7 @@ function ListItem({ a, selected, onClick }) {
     >
       <div className="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
         <span className="flex items-center gap-1.5 whitespace-nowrap">
-          <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-slate-900 text-white">{a.appeal_no}</span>
+          <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-brand-600 text-white">{a.appeal_no}</span>
           <DemoBadge show={a.is_demo} />
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${a.case_type === 'APPEAL' ? 'bg-amber-50 text-amber-800' : 'bg-violet-50 text-violet-800'}`}>
             {CASE_TYPE_SHORT[a.case_type]}
