@@ -81,6 +81,35 @@ CREATE TABLE IF NOT EXISTS law_register (
 );
 CREATE INDEX IF NOT EXISTS law_register_group ON law_register (group_no);
 
+-- บันทึกการนำเข้าข้อมูลกฎหมาย: ทุกครั้งที่นำเข้าตัวบท (JSON) หรือทะเบียน (Excel) — ตอบได้ว่าข้อมูลมาจากต้นฉบับใด
+-- ใคร นำเข้าเมื่อไร ได้กี่มาตรา/รุ่น/แถว (source_sha256 ใช้ตรวจว่าไฟล์ต้นฉบับเปลี่ยนหรือไม่)
+CREATE TABLE IF NOT EXISTS law_import_log (
+    import_id       SERIAL PRIMARY KEY,
+    kind            VARCHAR(20) NOT NULL,              -- law_json | register
+    source_name     TEXT NOT NULL,
+    source_sha256   CHAR(64) NOT NULL,
+    instrument_eli  VARCHAR(200),
+    title_th        TEXT,
+    provisions      INT,
+    versions        INT,
+    rows_total      INT,
+    rows_linked     INT,
+    actor           VARCHAR(80) NOT NULL,
+    detail          JSONB NOT NULL DEFAULT '{}',
+    imported_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS law_import_log_time ON law_import_log (imported_at DESC);
+
+-- ประเด็นค้างของตัวบทที่ต้องให้นิติกรยืนยัน (วันใช้บังคับที่ประมาณ, ฉบับแก้ไขที่ยังไม่ได้รวม ฯลฯ)
+-- ที่มา: seed/law_review_notes.json — ปิดประเด็นด้วยการแก้ไฟล์แล้วนำเข้าใหม่
+CREATE TABLE IF NOT EXISTS law_open_issue (
+    issue_id        SERIAL PRIMARY KEY,
+    instrument_eli  VARCHAR(200) NOT NULL,
+    provision_eli   VARCHAR(200),
+    kind            VARCHAR(30) NOT NULL,              -- date_estimate | pending_amendment | placeholder_text | needs_confirmation
+    note            TEXT NOT NULL
+);
+
 -- ---------- appeals ----------
 -- ขั้นตอนตามคู่มือปฏิบัติงาน WI-EFL-04 (ข้อ 5 และตารางกำหนดระยะเวลาข้อ 6) — แก้ที่ตารางนี้ได้โดยไม่ต้องแก้โค้ด
 CREATE TABLE IF NOT EXISTS workflow_step_def (

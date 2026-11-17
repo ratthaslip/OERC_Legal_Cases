@@ -10,6 +10,8 @@
 """
 import collections
 import csv
+import hashlib
+import os
 import json
 import re
 import sys
@@ -35,8 +37,15 @@ def load_register(conn: Connection, path: str) -> dict:
                 :owner_unit, :effective_text, :effective_date, :review_text, :status, :status_text, :status_assumed, :note,
                 :hearing_text, CAST(:attachments AS jsonb), :issues, :source_file)"""),
             {**r.__dict__, "attachments": json.dumps(r.attachments), "source_file": Path(path).name})
-    link_instruments(conn)
+    linked = link_instruments(conn)
     n = reindex_register(conn)
+    conn.execute(text("""
+        INSERT INTO law_import_log (kind, source_name, source_sha256, rows_total, rows_linked, actor, detail)
+        VALUES ('register', :src, :sha, :rows, :linked, :actor, CAST(:detail AS jsonb))"""), {
+        "src": Path(path).name, "sha": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+        "rows": sum(1 for r in items if r.status != "GROUP"), "linked": linked,
+        "actor": os.environ.get("IMPORT_ACTOR") or "seed",
+        "detail": json.dumps({"sheet": sheet_title, "with_issues": sum(1 for r in items if r.issues)}, ensure_ascii=False)})
     return {"sheet": sheet_title, "rows": len(items), "indexed": n, "items": items}
 
 

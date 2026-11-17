@@ -198,3 +198,46 @@ def test_apply_amendments(tmp_path):
     assert out["ข้อ 3"]["versions"][0]["validTo"] == "2015-06-26"
     mod.main(str(bp), [str(ap)])  # นำไปใช้ซ้ำต้องไม่เปลี่ยนอะไร
     assert len(json.loads(bp.read_text())[0]["provisions"]) == 4
+
+
+def test_coverage_and_export(workbook):
+    """ความครอบคลุมข้อมูล + ส่งออกรายการที่ยังไม่มีตัวบท + บันทึกการนำเข้า (ใช้ทะเบียนจำลองชุดเดียวกับเทสต์ด้านบน)"""
+    import io
+    import os
+
+    from openpyxl import load_workbook
+    db = os.environ.get("TEST_DATABASE_URL")
+    if not db:
+        pytest.skip("ตั้ง TEST_DATABASE_URL เพื่อรันเทสต์ API")
+    os.environ.update(DATABASE_URL=db, REGISTER_XLSX=str(workbook), LLM_PROVIDER="extractive", EMBED_PROVIDER="hash")
+    from app.config import get_settings
+    get_settings.cache_clear()
+    from fastapi.testclient import TestClient
+
+    from app.db import get_engine
+    from app.main import app
+    from app.seed import seed
+    with get_engine().begin() as conn:
+        seed.run(conn)
+    os.environ.pop("REGISTER_XLSX", None)
+    c = TestClient(app)
+    assert c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "pub"}).status_code == 404  # เจ้าหน้าที่เท่านั้น
+    d = c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "lgl1"}).json()
+    assert d["laws"]["instruments"] == 13 and d["laws"]["demo_instruments"] == 0  # ลบฉบับสาธิตแล้ว
+    r = d["register"]
+    assert r["total"] == 3 and r["with_text"] == 0 and r["in_force_missing"] == 2
+    assert {s["key"]: s["total"] for s in r["by_section"]}[33] == 2
+    assert any(x["kind"] == "pending_amendment" for x in d["open_issues"])
+    assert len(d["open_issues"]) == len({x["note"] for x in d["open_issues"]})  # seed ซ้ำต้องไม่ซ้ำประเด็น
+    latest = [x for x in d["imports"] if x["imported_at"] == d["last_import"]]  # seed รอบล่าสุด (ประวัติรอบก่อนเก็บไว้)
+    kinds = [x["kind"] for x in latest]
+    assert kinds.count("law_json") == 13 and kinds.count("register") == 1
+    assert all(len(x["sha"]) == 12 for x in d["imports"])
+    # ตัวกรอง + ส่งออก
+    assert c.get("/api/v1/laws/register?has_text=true", headers={"X-Demo-User": "pub"}).json()["total"] == 0
+    assert c.get("/api/v1/laws/register?has_text=false", headers={"X-Demo-User": "pub"}).json()["total"] == 3
+    assert c.get("/api/v1/laws/register/export", headers={"X-Demo-User": "pub"}).status_code == 404
+    res = c.get("/api/v1/laws/register/export?status=IN_FORCE", headers={"X-Demo-User": "lgl1"})
+    assert res.status_code == 200 and "missing-text" in res.headers["content-disposition"]
+    ws = load_workbook(io.BytesIO(res.content))["รายการ"]
+    assert ws.max_row - 1 == 2 and ws["I2"].value == "ยังไม่มี"

@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, 
 import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
 import { ParentAuthority, SubordinatePanel } from './law/Subordinate.jsx';
+import CoveragePanel from './law/CoveragePanel.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
 
 const DEFAULT_ELI = 'eli/th/act/2550/energy-industry/sec-121';
@@ -436,9 +437,11 @@ export default function LawPage(props) {
   useEffect(() => {
     api.register({ limit: 1 }).then((r) => setCount(r.facets?.meta?.total || 0)).catch(() => setCount(0));
   }, []);
+  const internal = props.me?.role && props.me.role !== 'PUB';
   const tabs = [
     ['provision', 'ตัวบทรายมาตรา (ตรวจย้อนหลังตามวันที่)'],
-    ['register', `ทะเบียนกฎหมายลำดับรอง${count ? ` (${count})` : ''}`]
+    ['register', `ทะเบียนกฎหมายลำดับรอง${count ? ` (${count})` : ''}`],
+    ...(internal ? [['coverage', 'ความครอบคลุมข้อมูล']] : [])
   ];
   return (
     <div className="space-y-4">
@@ -455,7 +458,12 @@ export default function LawPage(props) {
           </button>
         ))}
       </div>
-      {tab === 'provision' ? <ProvisionView {...props} /> : <RegisterPanel me={props.me} initialId={route.reg} go={props.go} />}
+      {tab === 'provision' && <ProvisionView {...props} />}
+      {tab === 'register' && (
+        <RegisterPanel me={props.me} initialId={route.reg} go={props.go}
+          initialFilter={{ section: route.section, issues: route.issues, nonce: route.nonce }} />
+      )}
+      {tab === 'coverage' && internal && <CoveragePanel go={props.go} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, BookOpen, ChevronRight, FileText, Filter, Layers, Search, X } from 'lucide-react';
-import { api } from '../../api.js';
+import { AlertTriangle, BookOpen, ChevronRight, FileText, Filter, Layers, Download, Search, X } from 'lucide-react';
+import { api, downloadRegisterExport } from '../../api.js';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, useDebounced } from '../../components/ui.jsx';
 
 export const REG_STATUS = {
@@ -31,10 +31,25 @@ export function StatusPill({ status, assumed }) {
 }
 
 /** ทะเบียนคุมกฎหมายลำดับรอง (นำเข้าจาก Excel ฝ่ายกฎหมาย) */
-export default function RegisterPanel({ me, initialId, go }) {
+export default function RegisterPanel({ me, initialId, go, initialFilter }) {
   const internal = me.role !== 'PUB';
   const [query, setQuery] = useState('');
-  const [f, setF] = useState({ doc_type: '', status: '', section: '', unit: '', issues_only: false });
+  const [f, setF] = useState({ doc_type: '', status: '', section: '', unit: '', issues_only: false, has_text: '' });
+  const [exporting, setExporting] = useState(false);
+  useEffect(() => {
+    if (initialFilter?.section || initialFilter?.issues)
+      setF((x) => ({ ...x, section: initialFilter.section ? String(initialFilter.section) : x.section, issues_only: !!initialFilter.issues || x.issues_only }));
+  }, [initialFilter?.nonce]);
+  const doExport = async () => {
+    setExporting(true);
+    try {
+      await downloadRegisterExport({ doc_type: f.doc_type, status: f.status, section: f.section, has_text: f.has_text === '' ? 'false' : f.has_text });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setExporting(false);
+    }
+  };
   const [data, setData] = useState(null);
   const [limit, setLimit] = useState(PAGE);
   const [selected, setSelected] = useState(initialId || null);
@@ -45,7 +60,7 @@ export default function RegisterPanel({ me, initialId, go }) {
   useEffect(() => {
     setError(null);
     api
-      .register({ q, ...f, issues_only: f.issues_only || undefined, limit })
+      .register({ q, ...f, issues_only: f.issues_only || undefined, has_text: f.has_text || undefined, limit })
       .then(setData)
       .catch(setError);
   }, [q, f, limit]);
@@ -146,12 +161,29 @@ export default function RegisterPanel({ me, initialId, go }) {
             </div>
           )}
         </div>
-        {internal && (
-          <label className="inline-flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer">
-            <input type="checkbox" checked={f.issues_only} onChange={set('issues_only')} className="accent-amber-600" />
-            แสดงเฉพาะระเบียนที่ข้อมูลต้องตรวจ ({meta.with_issues})
-          </label>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-slate-500">ตัวบทเต็มในระบบ:</span>
+          {[['', `ทั้งหมด (${meta.total})`], ['true', `มีแล้ว (${meta.with_text})`], ['false', `ยังไม่มี (${meta.total - meta.with_text})`]].map(([v, label]) => (
+            <button key={v || 'all'} onClick={() => setF({ ...f, has_text: v })}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+                f.has_text === v ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
+              {label}
+            </button>
+          ))}
+          {internal && (
+            <label className="inline-flex items-center gap-2 text-[11px] text-slate-600 cursor-pointer ml-2">
+              <input type="checkbox" checked={f.issues_only} onChange={set('issues_only')} className="accent-amber-600" />
+              แสดงเฉพาะระเบียนที่ข้อมูลต้องตรวจ ({meta.with_issues})
+            </label>
+          )}
+          {internal && (
+            <button onClick={doExport} disabled={exporting}
+              className="ml-auto px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? 'กำลังสร้างไฟล์…' : f.has_text === 'true' ? 'ส่งออก Excel (ตามตัวกรอง)' : 'ส่งออกรายการที่ยังไม่มีตัวบท (Excel)'}
+            </button>
+          )}
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

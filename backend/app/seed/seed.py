@@ -9,6 +9,7 @@
 
 ใช้งาน: python -m app.seed.seed   (ล้างฐานแล้วสร้างใหม่ทั้งหมด)
 """
+import hashlib
 import json
 import os
 import random
@@ -86,6 +87,34 @@ def load_laws(conn: Connection, instruments: list[dict]) -> dict[str, list[Versi
                                          VALUES (:v, :t, :x)"""), {"v": vid, "t": rel["type"], "x": rel["target"]})
                 windows[p["id"]].append(VersionWindow(v["version"], vf, vt))
     return windows
+
+
+def import_actor() -> str:
+    return os.environ.get("IMPORT_ACTOR") or "seed"
+
+
+def log_law_file(conn: Connection, path: Path) -> None:
+    """บันทึกการนำเข้าตัวบท 1 แถวต่อ 1 ฉบับ พร้อม hash ของไฟล์ต้นฉบับ"""
+    raw = path.read_bytes()
+    sha = hashlib.sha256(raw).hexdigest()
+    for inst in json.loads(raw):
+        conn.execute(text("""
+            INSERT INTO law_import_log (kind, source_name, source_sha256, instrument_eli, title_th, provisions, versions,
+                                        actor, detail)
+            VALUES ('law_json', :src, :sha, :eli, :title, :np, :nv, :actor, CAST(:detail AS jsonb))"""), {
+            "src": f"seed/laws/{path.name}", "sha": sha, "eli": inst["id"], "title": inst["title"],
+            "np": len(inst["provisions"]), "nv": sum(len(p["versions"]) for p in inst["provisions"]),
+            "actor": import_actor(), "detail": json.dumps({"origin": inst.get("source")}, ensure_ascii=False)})
+
+
+def load_review_notes(conn: Connection) -> None:
+    path = HERE / "law_review_notes.json"
+    if not path.is_file():
+        return
+    for n in json.loads(path.read_text(encoding="utf-8")):
+        conn.execute(text("""INSERT INTO law_open_issue (instrument_eli, provision_eli, kind, note)
+                             VALUES (:i, :p, :k, :n)"""),
+                     {"i": n["instrument"], "p": n.get("provision"), "k": n["kind"], "n": n["note"]})
 
 
 # ---------------------------------------------------------------- appeals / cases helpers
@@ -191,14 +220,13 @@ def load_prototype_cases(conn: Connection, data: dict, appeal_ids: dict[str, int
 
 # ---------------------------------------------------------------- generated (สมมติ)
 ACT = "eli/th/act/2550/energy-industry"  # ตัวบทจริง (seed/laws/act-2550-energy-industry.json)
-SEC47, SEC121, SEC128 = f"{ACT}/sec-47", f"{ACT}/sec-121", f"{ACT}/sec-128"
-CL12 = "eli/th/reg/2565/clause-12"
-LABEL = {SEC47: "มาตรา 47", SEC121: "มาตรา 121", SEC128: "มาตรา 128", CL12: "ข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565"}
+SEC11, SEC47, SEC121, SEC128 = f"{ACT}/sec-11", f"{ACT}/sec-47", f"{ACT}/sec-121", f"{ACT}/sec-128"
+LABEL = {SEC11: "มาตรา 11", SEC47: "มาตรา 47", SEC121: "มาตรา 121", SEC128: "มาตรา 128"}
 
 TEMPLATES = [
-    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[SEC121, CL12, SEC47],
+    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[SEC121, SEC11, SEC47],
          subject="อุทธรณ์คำสั่งไม่รับคำขอขายไฟฟ้าโครงการ{tech}แบบ VSPP เนื่องจากจุดเชื่อมโยงเต็มศักยภาพ",
-         summary="ผู้อุทธรณ์โต้แย้งผลการประเมินความสามารถรองรับของสายป้อน (Feeder Capacity) ณ จุดเชื่อมโยงที่เสนอ ตามข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565 และยื่นอุทธรณ์ภายใน 30 วันตามมาตรา 121",
+         summary="ผู้อุทธรณ์โต้แย้งผลการประเมินความสามารถรองรับของสายป้อน (Feeder Capacity) ณ จุดเชื่อมโยงที่เสนอ ตามหลักเกณฑ์ในประกาศเชิญชวนการรับซื้อไฟฟ้าที่ออกตามมาตรา 11 และยื่นอุทธรณ์ภายใน 30 วันตามมาตรา 121",
          tech=["พลังงานแสงอาทิตย์บนหลังคา", "ชีวมวล", "ก๊าซชีวภาพ", "พลังงานแสงอาทิตย์ลอยน้ำ"]),
     dict(sector="กิจการไฟฟ้า", party=("ผู้รับใบอนุญาตผลิตไฟฟ้า", "EL-SPP"), cites=[SEC128, SEC47, SEC121],
          subject="อุทธรณ์คำสั่งปรับทางปกครองกรณีไม่ส่งรายงานคุณภาพไฟฟ้าตามเงื่อนไขท้ายใบอนุญาต{tech}",
@@ -220,9 +248,9 @@ TEMPLATES = [
          subject="อุทธรณ์คำสั่งไม่อนุญาตให้ขยายกำหนดวันเริ่มต้นซื้อขายไฟฟ้าเชิงพาณิชย์ (SCOD) โครงการ{tech}",
          summary="ผู้อุทธรณ์ขอให้ทบทวนคำสั่งไม่ขยายกำหนด SCOD โดยอ้างเหตุสุดวิสัยด้านการก่อสร้างระบบเชื่อมต่อ ประเด็นสำคัญคือการยื่นอุทธรณ์ภายในระยะเวลาตามมาตรา 121 ที่ใช้บังคับ ณ วันเกิดเหตุ",
          tech=["โรงไฟฟ้าชีวมวล", "โรงไฟฟ้าพลังงานลม", "โรงไฟฟ้าขยะชุมชน"]),
-    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[CL12, SEC121],
+    dict(sector="กิจการไฟฟ้า", party=("ผู้ยื่นขอผลิตไฟฟ้า", "EL-VSPP"), cites=[SEC11, SEC121],
          subject="อุทธรณ์คำสั่งถือว่าสละสิทธิเนื่องจากวางหลักประกันการยื่นขอผลิตไฟฟ้าไม่ครบถ้วน{tech}",
-         summary="ผู้อุทธรณ์โต้แย้งคำสั่งที่ถือว่าสละสิทธิในการพิจารณาคัดเลือก เนื่องจากวางหลักประกันตามอัตราเมกะวัตต์ไม่ครบภายในเวลาที่กำหนดตามข้อ 12 ของระเบียบ กกพ. พ.ศ. 2565",
+         summary="ผู้อุทธรณ์โต้แย้งคำสั่งที่ถือว่าสละสิทธิในการพิจารณาคัดเลือก เนื่องจากวางหลักประกันตามอัตราเมกะวัตต์ไม่ครบภายในเวลาที่กำหนดในประกาศเชิญชวนการรับซื้อไฟฟ้า",
          tech=["", " (โครงการพลังงานแสงอาทิตย์ร่วมกับระบบกักเก็บพลังงาน)"]),
 ]
 RESULTS = ["ยกอุทธรณ์ (ยืนตามคำสั่งสำนักงาน กกพ.)", "แก้คำสั่ง (ขยายระยะเวลาดำเนินการ)",
@@ -233,9 +261,9 @@ COMPLAINTS = [
     dict(basis="PPA", sector="กิจการไฟฟ้า", party=("คู่สัญญาซื้อขายไฟฟ้า", "EL-PPA"), cites=[SEC47],
          subject="ข้อพิพาทตามสัญญาซื้อขายไฟฟ้ากรณีการคำนวณค่าปรับจากการจ่ายไฟฟ้าเข้าระบบล่าช้า",
          summary="ผู้ร้องเรียนโต้แย้งการคำนวณค่าปรับตามสัญญาซื้อขายไฟฟ้า ซึ่งสัญญากำหนดให้ กกพ. เป็นผู้วินิจฉัยชี้ขาดข้อพิพาท"),
-    dict(basis="PROCUREMENT", sector="กิจการไฟฟ้า", party=("ผู้ยื่นข้อเสนอขายไฟฟ้า", "EL-RFP"), cites=[CL12],
+    dict(basis="PROCUREMENT", sector="กิจการไฟฟ้า", party=("ผู้ยื่นข้อเสนอขายไฟฟ้า", "EL-RFP"), cites=[SEC11],
          subject="ร้องเรียนผลการคัดเลือกตามประกาศเชิญชวนการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน",
-         summary="ผู้ร้องเรียนโต้แย้งผลการประเมินความพร้อมด้านระบบโครงข่ายตามข้อ 12 ของระเบียบ กกพ. ว่าด้วยการรับซื้อไฟฟ้าจากพลังงานหมุนเวียน พ.ศ. 2565"),
+         summary="ผู้ร้องเรียนโต้แย้งผลการประเมินความพร้อมด้านระบบโครงข่ายตามประกาศเชิญชวนการรับซื้อไฟฟ้าที่ออกตามมาตรา 11"),
     dict(basis="PPA", sector="กิจการระบบโครงข่ายพลังงาน", party=("คู่สัญญาซื้อขายไฟฟ้า", "EL-PPA"), cites=[SEC47],
          subject="ข้อพิพาทตามสัญญาซื้อขายไฟฟ้ากรณีการงดรับซื้อไฟฟ้าช่วงบำรุงรักษาระบบโครงข่าย",
          summary="ผู้ร้องเรียนเห็นว่าการงดรับซื้อไฟฟ้าไม่เป็นไปตามเงื่อนไขในสัญญาซื้อขายไฟฟ้า"),
@@ -404,8 +432,12 @@ def run(conn: Connection, today: date | None = None) -> dict:
                      {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
                       "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
     data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
-    real = [i for f in sorted((HERE / "laws").glob("*.json")) for i in json.loads(f.read_text(encoding="utf-8"))]
+    files = sorted((HERE / "laws").glob("*.json"))
+    real = [i for f in files for i in json.loads(f.read_text(encoding="utf-8"))]
     windows = load_laws(conn, real + data["instruments"])
+    for f in files:
+        log_law_file(conn, f)
+    load_review_notes(conn)
     proto_ids = load_prototype(conn, data, windows, today, rng)
     generated, extra = generate(conn, windows, today, rng)
     load_prototype_cases(conn, data, proto_ids, extra)
