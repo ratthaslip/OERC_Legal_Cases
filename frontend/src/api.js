@@ -29,6 +29,7 @@ export const api = {
   instruments: (category) => request('GET', '/laws/instruments', { params: { category } }),
   searchLaws: (q, as_of) => request('GET', '/laws/search', { params: { q, as_of } }),
   provision: (eli, as_of) => request('GET', `/laws/provisions/${eli}`, { params: { as_of } }),
+  appealWorkflow: () => request('GET', '/appeals/workflow'),
   register: (params) => request('GET', '/laws/register', { params }),
   registerItem: (id) => request('GET', `/laws/register/${id}`),
   appeals: (params) => request('GET', '/appeals', { params }),

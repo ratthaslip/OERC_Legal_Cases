@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { api } from '../../api.js';
 import { ErrorBox, todayIso } from '../../components/ui.jsx';
@@ -13,7 +13,7 @@ const RECEIVED_HINT = {
 /** ข้อ 5.1 รับเรื่องและลงทะเบียน */
 export default function RegisterDialog({ sectors, onClose, onCreated }) {
   const [f, setF] = useState({
-    case_type: 'APPEAL', target_type: 'ORDER', complaint_basis: 'PPA', filing_channel: 'ELECTRONIC', esarabun_no: '',
+    case_type: 'APPEAL', target_type: 'ORDER', appeal_ground: 'S121', complaint_basis: 'PPA', filing_channel: 'ELECTRONIC', esarabun_no: '',
     received_date: todayIso(), notice_date: '', incident_date: '', subject: '', summary: '', party_code: '', party_label: '',
     respondent: 'เลขาธิการสำนักงานคณะกรรมการกำกับกิจการพลังงาน', energy_sector: sectors[0] || 'กิจการไฟฟ้า',
     sla_days: '', classification: 'internal'
@@ -21,6 +21,11 @@ export default function RegisterDialog({ sectors, onClose, onCreated }) {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const [grounds, setGrounds] = useState([]);
+  useEffect(() => {
+    api.appealWorkflow().then((w) => setGrounds(w.grounds || [])).catch(() => {});
+  }, []);
+  const g = grounds.find((x) => x.code === f.appeal_ground);
   const isAppeal = f.case_type === 'APPEAL';
 
   const submit = async () => {
@@ -29,6 +34,7 @@ export default function RegisterDialog({ sectors, onClose, onCreated }) {
     const body = {
       ...f,
       target_type: isAppeal ? f.target_type : null,
+      appeal_ground: isAppeal ? f.appeal_ground : null,
       complaint_basis: isAppeal ? null : f.complaint_basis,
       notice_date: isAppeal && f.notice_date ? f.notice_date : null,
       incident_date: f.incident_date || null,
@@ -58,7 +64,7 @@ export default function RegisterDialog({ sectors, onClose, onCreated }) {
         </div>
         <div className="flex gap-2">
           {[
-            ['APPEAL', 'อุทธรณ์ ตาม ม.121'],
+            ['APPEAL', 'อุทธรณ์ (ข้อ 9 ระเบียบอุทธรณ์ 2552)'],
             ['COMPLAINT', 'เรื่องร้องเรียน / ข้อพิพาทตามสัญญา']
           ].map(([k, v]) => (
             <button key={k} onClick={() => setF({ ...f, case_type: k })} className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border ${f.case_type === k ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300'}`}>
@@ -66,6 +72,24 @@ export default function RegisterDialog({ sectors, onClose, onCreated }) {
             </button>
           ))}
         </div>
+        {isAppeal && (
+          <div>
+            <L hint="ข้อ 9 ระเบียบอุทธรณ์ 2552 กำหนดระยะเวลายื่นต่างกัน">ฐานการอุทธรณ์</L>
+            <select value={f.appeal_ground} onChange={set('appeal_ground')} className={smallInput}>
+              {grounds.map((x) => (
+                <option key={x.code} value={x.code}>
+                  {x.label} — ยื่นภายใน {x.filing_days} วัน{x.notify_days ? ` · แจ้งคำชี้ขาดภายใน ${x.notify_days} วัน` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {!isAppeal && f.complaint_basis === 'CONSUMER' && (
+          <div className="text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            ระเบียบร้องเรียน 2553: ไกล่เกลี่ยให้เสร็จภายใน 30 วัน (ข้อ 16) และวินิจฉัยภายใน 60 วันนับแต่รับเรื่อง (ข้อ 19) —
+            ระบบตั้งกรอบเวลาให้อัตโนมัติ; เรื่องที่อยู่ในศาลหรือศาลตัดสินแล้วไม่รับไว้พิจารณา (ข้อ 16/1)
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {isAppeal ? (
             <div>
@@ -106,8 +130,15 @@ export default function RegisterDialog({ sectors, onClose, onCreated }) {
           </div>
           {isAppeal ? (
             <div>
-              <L hint="ใช้ตรวจกำหนด 30 วัน">{f.target_type === 'RULE' ? 'วันที่กฎประกาศ/ใช้บังคับ' : 'วันที่ได้รับแจ้งคำสั่ง (ใบตอบรับไปรษณีย์)'}</L>
+              <L hint={`ใช้ตรวจกำหนด ${g?.filing_days || 30} วัน`}>
+                {f.appeal_ground === 'S121' ? (f.target_type === 'RULE' ? 'วันที่กฎประกาศ/ใช้บังคับ' : 'วันที่ได้รับแจ้งคำสั่ง (ใบตอบรับไปรษณีย์)') : g?.notice_label || 'วันที่ได้รับแจ้ง'}
+              </L>
               <input type="date" value={f.notice_date} max={todayIso()} onChange={set('notice_date')} className={smallInput} />
+            </div>
+          ) : f.complaint_basis === 'CONSUMER' ? (
+            <div>
+              <L>กรอบเวลาพิจารณา</L>
+              <div className={`${smallInput} bg-slate-50 text-slate-600`}>60 วัน (ข้อ 19 ระเบียบร้องเรียน 2553)</div>
             </div>
           ) : (
             <div>

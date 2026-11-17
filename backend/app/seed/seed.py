@@ -240,6 +240,26 @@ COMPLAINTS = [
          subject="ข้อพิพาทตามสัญญาซื้อขายไฟฟ้ากรณีการงดรับซื้อไฟฟ้าช่วงบำรุงรักษาระบบโครงข่าย",
          summary="ผู้ร้องเรียนเห็นว่าการงดรับซื้อไฟฟ้าไม่เป็นไปตามเงื่อนไขในสัญญาซื้อขายไฟฟ้า"),
 ]
+SUSPEND_ANN = "eli/th/ann/erc/2555/license-suspension"
+COMPLAINT_REG = "eli/th/reg/erc/2553/complaint"
+EXTRA_TEMPLATES = [
+    dict(ground="SUSPEND", sector="กิจการไฟฟ้า", party=("ผู้รับใบอนุญาตผลิตไฟฟ้า", "EL-SPP"),
+         cites=[f"{SUSPEND_ANN}/clause-13", SEC121],
+         subject="อุทธรณ์คำสั่งพักใช้ใบอนุญาตผลิตไฟฟ้า กรณีไม่ปฏิบัติตามเงื่อนไขด้านความปลอดภัยภายในกำหนด",
+         summary="ผู้อุทธรณ์โต้แย้งคำสั่งพักใช้ใบอนุญาตตามประกาศ กกพ. เรื่อง หลักเกณฑ์ วิธีการ และเงื่อนไขการพักใช้และเพิกถอนใบอนุญาตฯ "
+                 "พ.ศ. 2555 โดยอ้างว่าได้แก้ไขข้อบกพร่องแล้วก่อนวันที่มีคำสั่ง"),
+    dict(ground="S105", sector="กิจการระบบโครงข่ายพลังงาน", party=("เจ้าของที่ดินผู้ได้รับความเสียหาย", "LAND"),
+         cites=[f"{ACT}/sec-105"], max_notice_days=55,
+         subject="อุทธรณ์จำนวนเงินค่าทดแทนความเสียหายจากการเข้าสำรวจแนวระบบโครงข่ายไฟฟ้า",
+         summary="ผู้อุทธรณ์เห็นว่าจำนวนเงินค่าทดแทนที่ผู้รับใบอนุญาตกำหนดต่ำกว่าความเสียหายที่เกิดขึ้นจริงแก่พืชผลในที่ดิน"),
+    dict(basis="CONSUMER", sector="กิจการไฟฟ้า", party=("ผู้ใช้ไฟฟ้า", "USER"),
+         cites=[f"{COMPLAINT_REG}/clause-16", f"{ACT}/sec-100"],
+         subject="ร้องเรียนผู้รับใบอนุญาตจำหน่ายไฟฟ้ากรณีเรียกเก็บค่าไฟฟ้าย้อนหลังจากมิเตอร์ชำรุด",
+         summary="ผู้ร้องเรียนซึ่งเป็นผู้ใช้ไฟฟ้าประเภทบ้านอยู่อาศัยเห็นว่าการเรียกเก็บค่าไฟฟ้าย้อนหลังไม่เป็นธรรม"),
+]
+LABEL.update({f"{SUSPEND_ANN}/clause-13": "ข้อ 13 ของประกาศ กกพ. เรื่อง การพักใช้และเพิกถอนใบอนุญาตฯ พ.ศ. 2555",
+              f"{ACT}/sec-105": "มาตรา 105", f"{ACT}/sec-100": "มาตรา 100",
+              f"{COMPLAINT_REG}/clause-16": "ข้อ 16 ของระเบียบ กกพ. ว่าด้วยหลักเกณฑ์การยื่นเรื่องร้องเรียนฯ พ.ศ. 2553"})
 APPEAL_RESULTS = ["ยกอุทธรณ์ (ยืนตามคำสั่งสำนักงาน กกพ.)", "แก้คำสั่ง (ขยายระยะเวลาดำเนินการ)",
                   "เพิกถอนคำสั่งและให้พิจารณาใหม่"]
 COMPLAINT_RESULTS = ["ยกเรื่องร้องเรียน", "ให้คู่สัญญาปฏิบัติตามสัญญาซื้อขายไฟฟ้า"]
@@ -251,7 +271,7 @@ def generate(conn: Connection, windows, today: date, rng: random.Random) -> tupl
 
     def one_case(received: date, tpl: dict, plan: Plan, cls: str, case_type: str = "APPEAL",
                  appeal_no: str | None = None, late: bool = False) -> dict:
-        notice = received - timedelta(days=rng.randint(36, 50) if late else rng.randint(4, 27))
+        notice = received - timedelta(days=rng.randint(36, 50) if late else rng.randint(4, tpl.get("max_notice_days", 27)))
         incident = notice - timedelta(days=rng.randint(3, 20))
         code = f"{tpl['party'][1]}-{rng.randint(10, 499):03d}"
         cites = []
@@ -262,6 +282,7 @@ def generate(conn: Connection, windows, today: date, rng: random.Random) -> tupl
         tech = rng.choice(tpl.get("tech", [""]))
         data = {
             "case_type": case_type, "complaint_basis": tpl.get("basis"), "target_type": "ORDER" if case_type == "APPEAL" else None,
+            "appeal_ground": tpl.get("ground"),
             "filing_channel": rng.choice(["ELECTRONIC", "ELECTRONIC", "POST", "COUNTER"]),
             "esarabun_no": f"ES-{be(received)}/{rng.randint(10000, 99999)}", "appeal_no": appeal_no,
             "received_date": received, "notice_date": notice if case_type == "APPEAL" else None,
@@ -353,6 +374,16 @@ def generate(conn: Connection, windows, today: date, rng: random.Random) -> tupl
                        else rng.choice(COMPLAINT_RESULTS))
         plan.officer = "lgl1" if i % 2 == 0 else "lgl2"
         one_case(today - timedelta(days=days_ago), COMPLAINTS[i % len(COMPLAINTS)], plan, "internal", "COMPLAINT")
+    # ตัวอย่างฐานการอุทธรณ์/ร้องเรียนอื่นตามตัวบทจริง (rng แยก เพื่อไม่ให้ข้อมูลสาธิตเดิมเปลี่ยน)
+    main_rng = rng
+    rng = random.Random(2552)  # one_case อ่าน rng จาก scope นี้
+    for days_ago, tpl, plan, ct in [
+        (75, EXTRA_TEMPLATES[0], Plan(officer="lgl1", stop_at=8, route="DIRECT", route_reason="มีแนวคำวินิจฉัยเดิมแล้ว"), "APPEAL"),
+        (40, EXTRA_TEMPLATES[1], Plan(officer="lgl2", stop_at=5), "APPEAL"),
+        (12, EXTRA_TEMPLATES[2], Plan(officer="lgl1", stop_at=4), "COMPLAINT"),
+    ]:
+        one_case(today - timedelta(days=days_ago), tpl, plan, "internal", ct)
+    rng = main_rng
     return made, extra
 
 

@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { Card, ClassBadge, DocView, ErrorBox, Field, thDate, todayIso } from '../../components/ui.jsx';
 import StepActions, { RevertButton } from './StepActions.jsx';
 import {
-  CASE_TYPE, CHANNEL, ClockCard, COMPLAINT_BASIS, Pill, ROUTE, smallInput, stepTimingText, TARGET, TARGET_TYPE
+  CASE_TYPE, CHANNEL, ClockCard, COMPLAINT_BASIS, LawRefs, Pill, ROUTE, smallInput, stepTimingText, TARGET, TARGET_TYPE
 } from './parts.jsx';
 
 export default function AppealDetail({ d, go, run, error }) {
@@ -43,6 +43,7 @@ export default function AppealDetail({ d, go, run, error }) {
           <span>ทะเบียนคุมงาน FM-EFL-01: {a.register_no || 'ยังไม่ลงทะเบียน'}</span>
           <span>ช่องทาง: {CHANNEL[a.filing_channel] || '-'}</span>
           {a.case_type === 'APPEAL' ? <span>{TARGET[a.target_type] || ''}</span> : <span>{COMPLAINT_BASIS[a.complaint_basis] || ''}</span>}
+          {a.case_type === 'APPEAL' && d.ground && <span>ฐานการอุทธรณ์: {d.ground.label}</span>}
         </div>
       </div>
 
@@ -51,7 +52,7 @@ export default function AppealDetail({ d, go, run, error }) {
         <h4 className="text-xs font-bold text-slate-700 tracking-wider mb-2">กรอบเวลาตามกฎหมาย</h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
           {d.clocks.map((c) => (
-            <ClockCard key={c.key} c={c} />
+            <ClockCard key={c.key} c={c} go={go} asOf={a.incident_date || a.received_date} />
           ))}
         </div>
       </div>
@@ -88,12 +89,16 @@ export default function AppealDetail({ d, go, run, error }) {
                       {stepTimingText(s) && <Pill tone={s.state === 'current' ? s.timing : s.state === 'completed' ? s.timing || 'NOT_STARTED' : 'NOT_STARTED'}>{stepTimingText(s)}</Pill>}
                     </span>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">
-                    {s.limit_text}
+                  <div className="text-[10px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span>{s.limit_text}</span>
+                    <LawRefs refs={s.refs} go={go} asOf={a.incident_date || a.received_date} />
                     {s.state === 'skipped' && s.step_no === 5 && a.route === 'DIRECT' && ` · เหตุ: ${a.route_reason || 'เสนอ กกพ. โดยตรง'}`}
                     {s.state === 'skipped' && (s.step_no === 3 || s.step_no === 4) && a.admissibility === 'ACCEPTED' && s.step_no === 3 && ' · เอกสารครบถ้วนตั้งแต่ตรวจครั้งแรก'}
                     {s.state === 'skipped' && a.admissibility === 'REJECTED' && s.step_no !== 5 && ' · เสนอความเห็นไม่รับไว้พิจารณา'}
                   </div>
+                  {s.legal_note && s.state === 'current' && (
+                    <div className="mt-1 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">{s.legal_note}</div>
+                  )}
                   {s.note && s.state === 'completed' && <div className="text-[11px] text-slate-600 mt-0.5">บันทึก: {s.note}</div>}
                   {s.state === 'current' && (
                     <div className="mt-3">
