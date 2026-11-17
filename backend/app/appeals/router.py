@@ -13,6 +13,7 @@ from ..law.lookup import provision_labels
 from ..search.hybrid import hybrid_search
 from ..search.indexer import reindex_cases
 from . import service as svc
+from .legal import GROUNDS, STEP_NOTES, STEP_REFS, refs
 from .workflow import STEPS
 
 router = APIRouter(prefix="/api/v1/appeals", tags=["appeals"])
@@ -45,7 +46,11 @@ def _run(fn):
 @router.get("/workflow")
 def workflow_definition():
     """ขั้นตอนและกรอบเวลาตาม WI-EFL-04 (หน้าจอใช้แสดงคำอธิบาย)"""
-    return {"steps": [s.__dict__ for s in STEPS], "officers": [
+    return {"steps": [{**s.__dict__, "refs": refs(*STEP_REFS.get(s.code, ())), "legal_note": STEP_NOTES.get(s.code)}
+                      for s in STEPS],
+            "grounds": [{"code": g.code, "label": g.label, "filing_days": g.filing_days, "notice_label": g.notice_label,
+                         "notify_days": g.notify_days, "refs": refs(*g.refs)} for g in GROUNDS.values()],
+            "officers": [
         {"user_id": u.user_id, "name": u.name} for u in DEMO_USERS.values() if u.role == "LGL"]}
 
 
@@ -178,7 +183,8 @@ def _require_edit(conn: Connection, user: User, appeal_id: int) -> None:
 
 class RegisterIn(BaseModel):
     case_type: str = Field(pattern="^(APPEAL|COMPLAINT)$")
-    complaint_basis: str | None = Field(default=None, pattern="^(PROCUREMENT|PPA)$")
+    complaint_basis: str | None = Field(default=None, pattern="^(PROCUREMENT|PPA|CONSUMER)$")
+    appeal_ground: str | None = Field(default=None, max_length=12)
     target_type: str | None = Field(default=None, pattern="^(ORDER|RULE)$")
     filing_channel: str = Field(pattern="^(COUNTER|POST|ELECTRONIC)$")
     esarabun_no: str | None = None
