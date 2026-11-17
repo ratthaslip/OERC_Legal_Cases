@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Database, Download, FileText, History, Layers } from 'lucide-react';
+import { AlertTriangle, Database, Download, FileText, History, Layers, Paperclip } from 'lucide-react';
 import { api, downloadRegisterExport } from '../../api.js';
 import { Card, ErrorBox, Spinner, thDate } from '../../components/ui.jsx';
 
@@ -97,7 +97,7 @@ export default function CoveragePanel({ go }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Tile icon={FileText} label="กฎหมายที่มีตัวบทเต็มในระบบ" value={`${laws.instruments} ฉบับ`} sub={types} />
         <Tile
           icon={Layers}
@@ -111,12 +111,23 @@ export default function CoveragePanel({ go }) {
           </div>
         </Tile>
         <Tile
+          icon={Paperclip}
+          label="ตัวบทที่มีไฟล์ต้นฉบับในที่เก็บ"
+          value={`${d.raw.instruments_with_source} / ${laws.instruments}`}
+          sub={d.raw.by_class.map((c) => `${c.key === 'public' ? 'สาธารณะ' : 'ภายใน'} ${c.files} ไฟล์ (${(c.bytes / 1048576).toFixed(1)} MB)`).join(' · ') || 'ยังไม่มีไฟล์'}
+        />
+        <Tile
           icon={AlertTriangle}
           label="ใช้บังคับแต่ยังไม่มีตัวบท"
           value={`${r.in_force_missing} ฉบับ`}
           sub={`ฝ่ายกฎหมายมีไฟล์แนบตามทะเบียน ${r.with_files} ฉบับ (Word ${r.with_word})`}
         />
       </div>
+      {d.raw.missing.length > 0 && (
+        <p className="text-[11px] text-rose-700">
+          ไฟล์ต้นฉบับที่ตัวบทอ้างถึงแต่ยังไม่อยู่ในที่เก็บ {d.raw.missing.length} ไฟล์: {d.raw.missing.map((m) => m.instrument_eli.split('/').slice(-1)[0]).join(', ')}
+        </p>
+      )}
       {laws.demo_instruments > 0 && (
         <p className="text-[11px] text-rose-700">มีตัวบทสาธิต {laws.demo_instruments} ฉบับในระบบ (ไม่นับรวมข้างต้น)</p>
       )}
@@ -195,6 +206,7 @@ export default function CoveragePanel({ go }) {
                 <th className="py-1.5 pr-3 font-semibold text-right">มาตรา/ข้อ</th>
                 <th className="py-1.5 pr-3 font-semibold text-right">รุ่น</th>
                 <th className="py-1.5 pr-3 font-semibold">ทะเบียน</th>
+                <th className="py-1.5 pr-3 font-semibold">ต้นฉบับ PDF</th>
                 <th className="py-1.5 pr-3 font-semibold">นำเข้าจาก</th>
                 <th className="py-1.5 font-semibold text-right">ประเด็นค้าง</th>
               </tr>
@@ -207,6 +219,11 @@ export default function CoveragePanel({ go }) {
                   <td className="py-1.5 pr-3 text-right tabular-nums">{i.provisions}</td>
                   <td className="py-1.5 pr-3 text-right tabular-nums">{i.versions}</td>
                   <td className="py-1.5 pr-3 font-mono text-[11px] text-slate-500">{i.register_no ? `#${i.register_no}` : '—'}</td>
+                  <td className="py-1.5 pr-3 text-[11px] whitespace-nowrap">
+                    {i.source_links === 0 ? <span className="text-slate-400">ไม่ได้ระบุ</span>
+                      : i.source_available === i.source_links ? <span className="text-slate-700">มี {i.source_available} ไฟล์</span>
+                      : <span className="text-rose-700">ขาด {i.source_links - i.source_available} ไฟล์</span>}
+                  </td>
                   <td className="py-1.5 pr-3 text-[11px] text-slate-500 whitespace-nowrap">
                     {i.last_import ? <>{i.last_import.source_name.split('/').pop()} <span className="font-mono">{i.last_import.sha}</span></> : '—'}
                   </td>

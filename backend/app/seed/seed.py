@@ -104,7 +104,14 @@ def log_law_file(conn: Connection, path: Path) -> None:
             VALUES ('law_json', :src, :sha, :eli, :title, :np, :nv, :actor, CAST(:detail AS jsonb))"""), {
             "src": f"seed/laws/{path.name}", "sha": sha, "eli": inst["id"], "title": inst["title"],
             "np": len(inst["provisions"]), "nv": sum(len(p["versions"]) for p in inst["provisions"]),
-            "actor": import_actor(), "detail": json.dumps({"origin": inst.get("source")}, ensure_ascii=False)})
+            "actor": import_actor(), "detail": json.dumps({
+                "origin": inst.get("source"),
+                "source_files": [{"sha256": f["sha256"], "name": f["name"], "role": f["role"]}
+                                 for f in inst.get("sourceFiles", [])]}, ensure_ascii=False)})
+        for f in inst.get("sourceFiles", []):
+            conn.execute(text("""INSERT INTO raw_file_link (sha256, instrument_eli, role, pages)
+                                 VALUES (:s, :e, :r, :p) ON CONFLICT DO NOTHING"""),
+                         {"s": f["sha256"], "e": inst["id"], "r": f["role"], "p": f.get("pages")})
 
 
 def load_review_notes(conn: Connection) -> None:

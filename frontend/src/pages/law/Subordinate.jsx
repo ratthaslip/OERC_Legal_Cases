@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, FileText, Layers, Search } from 'lucide-react';
+import { ArrowRight, FileText, Layers, Paperclip, Search } from 'lucide-react';
+import { openRawFile } from '../../api.js';
 import { StatusPill } from './RegisterPanel.jsx';
 import { thDate } from '../../components/ui.jsx';
 
@@ -141,6 +142,37 @@ export function ParentAuthority({ pa, onOpenText, onOpenRegister }) {
       <button onClick={() => onOpenRegister(pa.register_id)} className="ml-auto text-[11px] font-semibold text-indigo-700 hover:underline">
         ทะเบียน #{pa.reg_no} →
       </button>
+    </div>
+  );
+}
+
+/** ไฟล์ต้นฉบับที่ใช้ทำตัวบทฉบับนี้ (PDF ราชกิจจานุเบกษา / ฉบับรวม) */
+export function SourceFiles({ files }) {
+  if (!files?.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+      <Paperclip className="w-3.5 h-3.5 text-slate-400" />
+      <span>ต้นฉบับ:</span>
+      {files.map((f) =>
+        f.available ? (
+          <button
+            key={f.sha256}
+            onClick={() => openRawFile(f.sha256).catch(() => alert('เปิดไฟล์ไม่สำเร็จ'))}
+            title={`SHA-256 ${f.sha256}`}
+            className="px-2 py-0.5 rounded border border-slate-300 bg-white hover:bg-slate-50 font-medium text-slate-800"
+          >
+            {f.role === 'amendment' ? 'ฉบับแก้ไข: ' : ''}
+            {f.name}
+            <span className="text-slate-500 font-normal">
+              {' '}· {f.source}{f.page_count ? ` · ${f.page_count} หน้า` : ''}{f.pages ? ` (${f.pages})` : ''}
+            </span>
+          </button>
+        ) : (
+          <span key={f.sha256} title={`SHA-256 ${f.sha256}`} className="px-2 py-0.5 rounded border border-dashed border-slate-300 text-slate-500">
+            {f.name} — ยังไม่มีไฟล์ในที่เก็บ
+          </span>
+        )
+      )}
     </div>
   );
 }

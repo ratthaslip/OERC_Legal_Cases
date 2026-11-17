@@ -16,6 +16,7 @@ from .cases.router import router as cases_router
 from .config import get_settings
 from .db import get_conn, rows
 from .law.router import router as law_router
+from .rawfiles import router as raw_router
 
 app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins, allow_methods=["*"],
@@ -36,7 +37,7 @@ async def validation_problem(request: Request, exc: RequestValidationError):
                         content={"status": 400, "code": "VALIDATION_FAILED", "detail": exc.errors()[:3]})
 
 
-for r in (law_router, appeals_router, cases_router, assistant_router):
+for r in (law_router, appeals_router, cases_router, assistant_router, raw_router):
     app.include_router(r)
 
 

@@ -38,6 +38,7 @@ def load_register(conn: Connection, path: str) -> dict:
                 :hearing_text, CAST(:attachments AS jsonb), :issues, :source_file)"""),
             {**r.__dict__, "attachments": json.dumps(r.attachments), "source_file": Path(path).name})
     linked = link_instruments(conn)
+    archived = archive_source(conn, Path(path))
     n = reindex_register(conn)
     conn.execute(text("""
         INSERT INTO law_import_log (kind, source_name, source_sha256, rows_total, rows_linked, actor, detail)
@@ -45,8 +46,21 @@ def load_register(conn: Connection, path: str) -> dict:
         "src": Path(path).name, "sha": hashlib.sha256(Path(path).read_bytes()).hexdigest(),
         "rows": sum(1 for r in items if r.status != "GROUP"), "linked": linked,
         "actor": os.environ.get("IMPORT_ACTOR") or "seed",
-        "detail": json.dumps({"sheet": sheet_title, "with_issues": sum(1 for r in items if r.issues)}, ensure_ascii=False)})
+        "detail": json.dumps({"sheet": sheet_title, "with_issues": sum(1 for r in items if r.issues),
+                              "archived": archived}, ensure_ascii=False)})
     return {"sheet": sheet_title, "rows": len(items), "indexed": n, "items": items}
+
+
+def archive_source(conn: Connection, path: Path) -> str | None:
+    """เก็บสำเนาไฟล์ทะเบียนที่นำเข้าไว้ในที่เก็บไฟล์ต้นฉบับ (internal) — ย้อนดูได้ว่านำเข้าจากไฟล์รุ่นไหน"""
+    from .raw_files import add_file
+    try:
+        res = add_file(conn, path, "internal", source="ฝ่ายกฎหมาย สำนักงาน กกพ. (ทะเบียนกฎหมายลำดับรอง)",
+                       received_from=os.environ.get("IMPORT_ACTOR") or None)
+        return res["stored"]
+    except OSError as e:  # ที่เก็บไฟล์ยังไม่ได้เมานต์/เขียนไม่ได้ — นำเข้าทะเบียนต่อได้ แต่บันทึกไว้
+        print(f"คำเตือน: เก็บสำเนาทะเบียนไม่สำเร็จ ({e})")
+        return None
 
 
 def _title_key(t: str) -> str:

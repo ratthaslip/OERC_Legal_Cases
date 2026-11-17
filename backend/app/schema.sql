@@ -100,6 +100,32 @@ CREATE TABLE IF NOT EXISTS law_import_log (
 );
 CREATE INDEX IF NOT EXISTS law_import_log_time ON law_import_log (imported_at DESC);
 
+-- ไฟล์ต้นฉบับ (เก็บใน RAW_STORE_DIR ด้วย SHA-256) — ตารางนี้ไม่ถูกล้างเมื่อ seed ใหม่ เพราะเป็นทะเบียนของไฟล์จริง
+CREATE TABLE IF NOT EXISTS raw_file (
+    sha256          CHAR(64) PRIMARY KEY,
+    classification  VARCHAR(10) NOT NULL CHECK (classification IN ('public', 'internal')),
+    original_name   TEXT NOT NULL,
+    mime            VARCHAR(100) NOT NULL,
+    size_bytes      BIGINT NOT NULL,
+    pages           INT,
+    stored_path     TEXT NOT NULL,                     -- path สัมพัทธ์ใน RAW_STORE_DIR (= key ใน object storage)
+    source          TEXT,                              -- แหล่ง เช่น ราชกิจจานุเบกษา, สำนักงานคณะกรรมการกฤษฎีกา, ฝ่ายกฎหมาย กกพ.
+    received_from   TEXT,                              -- ผู้ส่ง/ช่องทาง
+    received_at     DATE,
+    note            TEXT,
+    added_by        VARCHAR(80) NOT NULL,
+    added_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ไฟล์ต้นฉบับใดใช้ทำตัวบทฉบับใด (สร้างจาก "sourceFiles" ใน seed/laws/*.json ทุกครั้งที่ seed)
+CREATE TABLE IF NOT EXISTS raw_file_link (
+    sha256          CHAR(64) NOT NULL,
+    instrument_eli  VARCHAR(200) NOT NULL,
+    role            VARCHAR(20) NOT NULL,              -- text = ตัวบทหลัก | amendment = ฉบับแก้ไขที่รวมเข้า
+    pages           TEXT,                              -- หน้าที่ใช้ (เช่น "1-22" ในหนังสือรวมกฎหมาย)
+    PRIMARY KEY (sha256, instrument_eli)
+);
+
 -- ประเด็นค้างของตัวบทที่ต้องให้นิติกรยืนยัน (วันใช้บังคับที่ประมาณ, ฉบับแก้ไขที่ยังไม่ได้รวม ฯลฯ)
 -- ที่มา: seed/law_review_notes.json — ปิดประเด็นด้วยการแก้ไฟล์แล้วนำเข้าใหม่
 CREATE TABLE IF NOT EXISTS law_open_issue (

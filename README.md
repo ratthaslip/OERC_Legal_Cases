@@ -223,3 +223,20 @@ docker compose exec api python -m eval.compare eval/results_none.json eval/resul
 ```
 
 ถ้า image CPU รุ่นใหม่โหลดโมเดลไม่ขึ้น ให้ลอง `RERANK_IMAGE=ghcr.io/huggingface/text-embeddings-inference:cpu-1.4`
+
+## ไฟล์ต้นฉบับ (PDF ตัวบท, Excel ทะเบียน)
+
+เก็บในโฟลเดอร์ `./data/raw` (เมานต์เป็น `/data/raw` ในคอนเทนเนอร์ ไม่อยู่ใน git) แยก `public/` (ตัวบทกฎหมาย) และ `internal/`
+(ทะเบียน, คู่มือภายใน) ชื่อไฟล์คือ SHA-256 ของเนื้อไฟล์ เขียนครั้งเดียวและตั้งเป็นอ่านอย่างเดียว ตาราง `raw_file` เก็บชื่อเดิม แหล่งที่มา
+ผู้ส่ง และวันที่รับ ส่วน `sourceFiles` ใน `seed/laws/*.json` บอกว่าตัวบทแต่ละฉบับดึงข้อความมาจากไฟล์ใด (ผูกด้วย hash)
+
+```bash
+mkdir -p data/raw data/raw-inbox          # วางไฟล์ + manifest.csv ใน data/raw-inbox
+docker compose up -d api
+docker compose exec api python -m app.seed.raw_files manifest /data/raw-inbox/manifest.csv --dir /data/raw-inbox
+docker compose exec api python -m app.seed.raw_files add /data/raw-inbox/<ไฟล์>.pdf --class internal --source "..."
+docker compose exec api python -m app.seed.raw_files verify   # ไฟล์ครบและ hash ตรงทุกไฟล์
+```
+
+ทะเบียน Excel ที่นำเข้าจะถูกเก็บสำเนาใน `internal/` ให้อัตโนมัติ · สำรอง `data/raw` พร้อมฐานข้อมูลเสมอ ·
+ย้ายไป object storage ภายหลังได้โดยใช้ key เดียวกัน (`{public|internal}/{sha[:2]}/{sha}.ext`)

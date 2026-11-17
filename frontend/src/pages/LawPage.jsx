@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
-import { ParentAuthority, SubordinatePanel } from './law/Subordinate.jsx';
+import { ParentAuthority, SourceFiles, SubordinatePanel } from './law/Subordinate.jsx';
 import CoveragePanel from './law/CoveragePanel.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced } from '../components/ui.jsx';
 
@@ -259,6 +259,7 @@ function ProvisionView({ me, go, notify, route }) {
                   </div>
                 )}
 
+                <SourceFiles files={detail.source_files} />
                 <ParentAuthority
                   pa={detail.parent_authority}
                   onOpenText={(e) => { setEli(e); setCompare(false); }}
