@@ -31,6 +31,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/app:/app/app
+      - ./backend/eval:/app/eval   # ชุดคำถามทดสอบ: docker compose exec api python -m eval.run_eval --inproc --baseline eval/baseline.json
       - ./data:/data:ro        # ข้อมูลจริงของสำนักงาน (ไม่อยู่ใน git) เช่น register.xlsx
       - ./data/raw:/data/raw   # ที่เก็บไฟล์ต้นฉบับ (เขียนได้) — สำรองโฟลเดอร์นี้พร้อมฐานข้อมูลเสมอ
 
