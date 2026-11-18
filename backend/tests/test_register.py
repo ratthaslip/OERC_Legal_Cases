@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from sqlalchemy import text as sql_text
 """ตัวนำเข้าทะเบียนกฎหมายลำดับรอง — ใช้ workbook สังเคราะห์ (ไม่ใช้ข้อมูลจริงของสำนักงาน)"""
@@ -223,15 +224,16 @@ def test_coverage_and_export(workbook):
     c = TestClient(app)
     assert c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "pub"}).status_code == 404  # เจ้าหน้าที่เท่านั้น
     d = c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "lgl1"}).json()
-    assert d["laws"]["instruments"] == 13 and d["laws"]["demo_instruments"] == 0  # ลบฉบับสาธิตแล้ว
+    n_files = len(list((Path(__file__).parents[1] / "app" / "seed" / "laws").glob("*.json")))  # 1 ไฟล์ = 1 ฉบับ
+    assert d["laws"]["instruments"] == n_files and d["laws"]["demo_instruments"] == 0  # ลบฉบับสาธิตแล้ว
     r = d["register"]
     assert r["total"] == 3 and r["with_text"] == 0 and r["in_force_missing"] == 2
     assert {s["key"]: s["total"] for s in r["by_section"]}[33] == 2
-    assert any(x["kind"] == "pending_amendment" for x in d["open_issues"])
+    assert any(x["kind"] == "verify_consolidation" for x in d["open_issues"])
     assert len(d["open_issues"]) == len({x["note"] for x in d["open_issues"]})  # seed ซ้ำต้องไม่ซ้ำประเด็น
     latest = [x for x in d["imports"] if x["imported_at"] == d["last_import"]]  # seed รอบล่าสุด (ประวัติรอบก่อนเก็บไว้)
     kinds = [x["kind"] for x in latest]
-    assert kinds.count("law_json") == 13 and kinds.count("register") == 1
+    assert kinds.count("law_json") == n_files and kinds.count("register") == 1
     assert all(len(x["sha"]) == 12 for x in d["imports"])
     # ตัวกรอง + ส่งออก
     assert c.get("/api/v1/laws/register?has_text=true", headers={"X-Demo-User": "pub"}).json()["total"] == 0

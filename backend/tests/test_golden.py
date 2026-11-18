@@ -9,7 +9,7 @@ GOLDEN = Path(__file__).parents[1] / "eval" / "golden_set.json"
 
 def test_golden_set_unique_items():
     items = build()
-    assert len(items) == 78
+    assert len(items) == 79
     assert len({i["id"] for i in items}) == len(items)
     assert len({i["question"] for i in items}) == len(items)
 
