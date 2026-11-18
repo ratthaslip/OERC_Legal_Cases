@@ -3,26 +3,34 @@
 ระบบจริงจะเรียก reindex_* จาก event (law.version_approved, appeal.updated, case.access_changed)
 ใน POC เรียกหลัง seed และหลังแก้ข้อมูลที่กระทบ index
 """
+import hashlib
+
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..db import rows
-from .embeddings import embed
+from .embeddings import hash_embed
 from .thai import to_document
 
 
 def _insert(conn: Connection, chunks: list[dict]) -> None:
     if not chunks:
         return
-    vecs = embed([c["title"] + "\n" + c["chunk_text"] for c in chunks])
-    for c, v in zip(chunks, vecs):
+    texts = [c["title"] + "\n" + c["chunk_text"] for c in chunks]
+    vecs = hash_embed(texts)  # เวกเตอร์จากโมเดลอยู่ใน embedding_vec (ผูกด้วย content_sha) — สร้างแยกตามสิทธิ์ส่งข้อมูล
+    for c, v, t in zip(chunks, vecs, texts):
         conn.execute(text("""
             INSERT INTO search_chunk (kind, ref_id, eli_id, version_no, valid_from, valid_to, title, chunk_text,
-                                      tokens, embedding, classification, owners, energy_sector, is_demo, weight)
+                                      tokens, embedding, classification, owners, energy_sector, is_demo, weight, content_sha)
             VALUES (:kind, :ref_id, :eli_id, :version_no, :valid_from, :valid_to, :title, :chunk_text,
-                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo, :weight)"""),
+                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo, :weight, :sha)"""),
             {"eli_id": None, "version_no": None, "valid_from": None, "valid_to": None, "energy_sector": None,
-             "owners": [], "is_demo": False, "weight": 1.0, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v})
+             "owners": [], "is_demo": False, "weight": 1.0, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v,
+             "sha": content_sha(t)})
+
+
+def content_sha(t: str) -> str:
+    return hashlib.sha256(t.encode("utf-8")).hexdigest()
 
 
 def reindex_laws(conn: Connection) -> int:

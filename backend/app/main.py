@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -19,7 +20,20 @@ from .law.router import router as law_router
 from .rawfiles import router as raw_router
 from .admin.router import router as admin_router
 
-app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_app):
+    # งานสร้าง embedding index ที่ค้างจาก process เดิมถือว่าถูกขัดจังหวะ (ผู้ดูแลกดอัปเดตเพื่อทำต่อ)
+    from .db import get_engine
+    from .search import vector_index
+    try:
+        with get_engine().begin() as c:
+            vector_index.mark_interrupted(c)
+    except Exception:  # noqa: BLE001 — ฐานข้อมูลยังไม่พร้อม/ยังไม่ได้ seed
+        pass
+    yield
+
+
+app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins, allow_methods=["*"],
                    allow_headers=["*"], expose_headers=["X-Request-Id"])
 

@@ -506,3 +506,7 @@ def run(conn: Connection, today: date | None = None) -> dict:
 if __name__ == "__main__":
     with get_engine().begin() as c:
         print(run(c))
+    # embedding index จากโมเดลที่ active: สร้างเวกเตอร์เฉพาะเนื้อหาใหม่ (เวกเตอร์เดิมผูกกับ content_sha จึงใช้ต่อได้)
+    if os.environ.get("SEED_SKIP_EMBED") != "1":
+        from ..search.vector_index import update_active_cli
+        update_active_cli()
