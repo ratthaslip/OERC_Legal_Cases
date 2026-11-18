@@ -12,6 +12,7 @@ from ..search.hybrid import hybrid_search
 from ..search.thai import content_terms, normalize, tokenize
 from ..rawfiles import sources_of
 from . import coverage as law_coverage
+from . import fragments, relations
 from .resolver import NotYetInForce, Repealed, resolve
 
 STATUS_TH = {"IN_FORCE": "ใช้บังคับ", "REPEALED": "ยกเลิก", "UNKNOWN": "ไม่ระบุ", "GROUP": "หัวกลุ่ม"}
@@ -36,13 +37,11 @@ def _parent_section(eli: str) -> int | None:
 
 
 def _subordinate_counts(conn: Connection) -> dict[int, int]:
-    return {r["sec"]: r["n"] for r in rows(conn, """
-        SELECT s AS sec, count(*) AS n FROM law_register, unnest(authority_secs) s
-        WHERE status <> 'GROUP' GROUP BY s""")}
+    return {_parent_section(e): n for e, n in relations.subordinate_counts(conn).items() if _parent_section(e)}
 
 
 def subordinate_of(conn: Connection, sec: int) -> list[dict]:
-    """กฎหมายลำดับรองที่ออกโดยอาศัยอำนาจตามมาตรา sec (จากทะเบียน) พร้อมลิงก์ตัวบทเต็มถ้าโหลดแล้ว"""
+    """กฎหมายลำดับรองที่ออกโดยอาศัยอำนาจตามมาตรา sec (เส้น authorizes ใน law_relation) พร้อมลิงก์ตัวบทเต็มถ้าโหลดแล้ว"""
     return rows(conn, """
         SELECT r.register_id, r.reg_no, r.doc_type, r.title_th, r.authority_text, r.effective_text, r.effective_date,
                r.status, r.status_assumed, r.instrument_eli, g.title_th AS group_title,
@@ -50,22 +49,36 @@ def subordinate_of(conn: Connection, sec: int) -> list[dict]:
                  WHERE i.eli_id = r.instrument_eli ORDER BY p.sort_order LIMIT 1) AS first_provision_eli
         FROM law_register r
         LEFT JOIN law_register g ON g.group_no = r.group_no AND g.status = 'GROUP'
-        WHERE :sec = ANY(r.authority_secs) AND r.status <> 'GROUP'
-        ORDER BY (r.status = 'REPEALED'), r.effective_date DESC NULLS LAST, r.sheet_row""", sec=sec)
+        WHERE r.register_id IN (SELECT dst_register_id FROM law_relation
+                                WHERE rel_type = 'authorizes' AND src_eli = :s)
+        ORDER BY (r.status = 'REPEALED'), r.effective_date DESC NULLS LAST, r.sheet_row""", s=relations.section_eli(sec))
 
 
 def parent_authority(conn: Connection, instrument_eli: str) -> dict | None:
-    """บทอาศัยอำนาจของตราสารลำดับรอง (จากทะเบียน) → ลิงก์ไปมาตราของ พ.ร.บ.แม่บท"""
-    r = one(conn, """SELECT register_id, reg_no, authority_text, authority_secs FROM law_register
+    """บทอาศัยอำนาจของตราสารลำดับรอง (เส้น authorizes) → ลิงก์ไปมาตราของ พ.ร.บ.แม่บท"""
+    r = one(conn, """SELECT register_id, reg_no, authority_text FROM law_register
                      WHERE instrument_eli = :e AND status <> 'GROUP' ORDER BY sheet_row LIMIT 1""", e=instrument_eli)
     if not r:
         return None
-    secs = r["authority_secs"] or []
-    loaded = {x["eli_id"] for x in rows(conn, "SELECT eli_id FROM provision WHERE eli_id = ANY(:e)",
-                                        e=[f"{PARENT_ACT}/sec-{n}" for n in secs])}
+    srcs = relations.authority_sections(conn, register_id=r["register_id"])
+    loaded = {x["eli_id"] for x in rows(conn, "SELECT eli_id FROM provision WHERE eli_id = ANY(:e)", e=srcs)}
     return {"register_id": r["register_id"], "reg_no": r["reg_no"], "authority_text": r["authority_text"],
-            "sections": [{"no": n, "eli": f"{PARENT_ACT}/sec-{n}" if f"{PARENT_ACT}/sec-{n}" in loaded else None}
-                         for n in secs]}
+            "sections": [{"no": _parent_section(e), "eli": e if e in loaded else None} for e in srcs]}
+
+
+@router.get("/relations")
+def get_relations(eli: str, conn: Connection = Depends(get_conn)):
+    """เส้นความสัมพันธ์เข้า/ออกของมาตรา/ข้อหรือตราสาร (อ้างถึง / แก้ไข / ยกเลิก / ช่องทางเยียวยา)"""
+    return relations.edges_of(conn, eli)
+
+
+@router.get("/relations/walk")
+def walk_relations(eli: str, types: str = "remedy", depth: int = Query(default=4, ge=1, le=6),
+                   conn: Connection = Depends(get_conn)):
+    """เดินตามเส้นหลายทอด เฉพาะเส้นที่อนุมัติแล้ว (ระดับ 3)"""
+    allowed = set(relations.TYPE_TH)
+    ts = tuple(t for t in types.split(",") if t in allowed) or ("remedy",)
+    return {"items": relations.walk(conn, eli, ts, depth)}
 
 
 @router.get("/instruments")
@@ -92,8 +105,8 @@ def list_instruments(category: str | None = None, conn: Connection = Depends(get
         by_inst.setdefault(p.pop("instrument_id"), []).append(p)
     for i in insts:
         i["provisions"] = by_inst.get(i["instrument_id"], [])
-        i["subordinate_total"] = one(conn, """SELECT count(*) AS n FROM law_register
-                                              WHERE cardinality(authority_secs) > 0 AND status <> 'GROUP'""")["n"] \
+        i["subordinate_total"] = one(conn, """SELECT count(DISTINCT dst_register_id) AS n FROM law_relation
+                                              WHERE rel_type = 'authorizes' AND dst_register_id IS NOT NULL""")["n"] \
             if i["eli_id"] == PARENT_ACT else 0
     categories = [r["category"] for r in rows(conn, "SELECT DISTINCT category FROM legal_instrument ORDER BY 1")]
     return {"items": insts, "categories": categories}
@@ -150,6 +163,7 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
     versions = [v for v in versions if authz.can_read_law_version(user, v["status"])]
     for v in versions:
         v["is_current"] = v["valid_to"] is None
+        v["fragments"] = [f.public() for f in fragments.split(v["body_text"])]
         v["relations"] = rows(conn, """SELECT relation_type, target_text, target_eli_id FROM legal_relation
                                        WHERE version_id = :vid""", vid=v["version_id"])
 
@@ -195,6 +209,7 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
         "versions": versions, "citations": visible, "citations_hidden": hidden,
         "subordinate": subordinate, "parent_authority": parent_authority(conn, prov["instrument_eli"]),
         "source_files": sources_of(conn, prov["instrument_eli"], user),
+        "relations": relations.edges_of(conn, eli_id),
     }
 
 

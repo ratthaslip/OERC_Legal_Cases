@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
-import { ParentAuthority, SourceFiles, SubordinatePanel } from './law/Subordinate.jsx';
+import { ParentAuthority, RelationsPanel, SourceFiles, SubordinatePanel } from './law/Subordinate.jsx';
 import CoveragePanel from './law/CoveragePanel.jsx';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, todayIso, useDebounced, DemoBadge } from '../components/ui.jsx';
 
@@ -19,12 +19,20 @@ function ProvisionView({ me, go, notify, route }) {
   const [detail, setDetail] = useState(null);
   const [compare, setCompare] = useState(false);
   const [error, setError] = useState(null);
+  const [frag, setFrag] = useState(route.frag || null);
   const q = useDebounced(query);
 
   useEffect(() => {
     if (route.eli) setEli(route.eli);
     if (route.asOf) setAsOf(route.asOf);
+    setFrag(route.frag || null);
   }, [route.nonce]);
+
+  useEffect(() => {
+    if (!frag || !detail) return;
+    const el = document.getElementById(`frag-${frag}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [frag, detail]);
 
   useEffect(() => {
     api.instruments(category || undefined).then((r) => {
@@ -277,21 +285,31 @@ function ProvisionView({ me, go, notify, route }) {
                     <div className="mt-5">
                       <div className="p-5 rounded-r-xl bg-brand-50/60 border border-brand-100 border-l-4 border-l-amber-500 text-slate-900 text-sm sm:text-base leading-relaxed whitespace-pre-line">
                         <span className="font-bold text-slate-950 mr-2">{detail.provision.provision_no}</span>
-                        {active.body_text}
+                        {active.fragments?.length > 1 ? (
+                          active.fragments.map((f, i) => (
+                            <span
+                              key={f.id}
+                              id={`frag-${f.id}`}
+                              className={`group ${i ? 'block mt-1.5' : ''} ${f.id.includes('/') ? 'pl-5' : ''} ${frag === f.id ? 'bg-amber-100/80 rounded px-1 -mx-1' : ''}`}
+                            >
+                              {f.text}
+                              <button
+                                onClick={() => {
+                                  setFrag(f.id);
+                                  navigator.clipboard?.writeText(`${detail.provision.eli_id}/v${active.version_no}#${f.id}`).then(() => notify(`คัดลอกรหัสอ้างอิง ${detail.provision.provision_no} ${f.label}`)).catch(() => {});
+                                }}
+                                title="คัดลอกรหัสอ้างอิงระดับวรรค"
+                                className="ml-1.5 align-middle opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-semibold text-brand-700 bg-white border border-brand-200 rounded px-1.5 py-0.5 whitespace-nowrap"
+                              >
+                                {f.label}
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          active.body_text
+                        )}
                       </div>
-                      {active.relations.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-slate-100">
-                          <h4 className="text-xs font-bold text-slate-600 tracking-wider mb-2">ความสัมพันธ์ทางกฎหมายและลำดับศักดิ์</h4>
-                          <div className="space-y-1.5">
-                            {active.relations.map((r, i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs text-slate-700 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200/60">
-                                <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-semibold text-[11px] shrink-0">{r.relation_type}</span>
-                                <span>{r.target_text}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <RelationsPanel rel={detail.relations} onOpenText={(e) => { setEli(e); setCompare(false); }} />
                     </div>
                   )
                 ) : (

@@ -22,6 +22,9 @@ class Checked:
     reason: str | None = None
 
 
+PARA_RE = re.compile(r"วรรค(?:หนึ่ง|สอง|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ(?:เอ็ด|สอง|สาม|สี่|ห้า)?)(?![ก-๙])")
+
+
 def check_sentence(line: str, sources: dict[str, str]) -> Checked:
     """sources: key → ข้อความเต็มของแหล่ง (title + text)"""
     line = normalize(line).strip().lstrip("-*•· ").strip()
@@ -37,6 +40,9 @@ def check_sentence(line: str, sources: dict[str, str]) -> Checked:
     for kind, num in SECTION_RE.findall(clean):
         if not re.search(rf"{kind}\s*{num}(?!\d)", cited_text):
             return Checked(clean, keys, False, f"{kind} {num} ไม่อยู่ในแหล่งที่อ้าง")
+    for para in PARA_RE.findall(clean):  # "วรรคสี่" ต้องมีวรรคนั้นจริงในแหล่ง (แหล่งตัวบทมีป้าย [วรรค…] กำกับ)
+        if para not in cited_text:
+            return Checked(clean, keys, False, f"{para} ไม่อยู่ในแหล่งที่อ้าง")
     cited_refs = {normalize_ref_no(m.group(0)) for m in REF_RE.finditer(cited_text)}
     for m in REF_RE.finditer(clean):
         if normalize_ref_no(m.group(0)) not in cited_refs:

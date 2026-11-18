@@ -14,6 +14,7 @@
 ความถูกต้องของเนื้อคำตอบ (เทียบ reference_answer) ให้นิติกรรับรองในไฟล์ golden-qa-60.xlsx
 """
 import argparse
+import sys
 import json
 import time
 from pathlib import Path
@@ -110,9 +111,18 @@ def main():
     ap.add_argument("--only", help="รหัสข้อคั่นด้วย , เช่น G01,G05")
     ap.add_argument("--timeout", type=float, default=180)
     ap.add_argument("--out", default=str(HERE / "results.json"))
+    ap.add_argument("--mode", choices=["auto", "public", "full"], default="auto",
+                    help="public = ไม่มีทะเบียนจริง (CI) ข้ามข้อที่ต้องใช้ทะเบียน; auto = ตรวจจากฐานข้อมูล (เฉพาะ --inproc)")
+    ap.add_argument("--baseline", help="ไฟล์ baseline.json — ล้มเหลว (exit 1) ถ้าข้อที่เคยผ่านกลับไม่ผ่าน")
+    ap.add_argument("--write-baseline", action="store_true", help="บันทึกข้อที่ผ่านรอบนี้ลง --baseline ตามโหมด")
     args = ap.parse_args()
 
     items = json.loads((HERE / "golden_set.json").read_text(encoding="utf-8"))
+    mode = resolve_mode(args)
+    if mode == "public":
+        skipped = [i["id"] for i in items if i.get("data") == "register"]
+        items = [i for i in items if i.get("data") != "register"]
+        print(f"โหมด public: ข้าม {len(skipped)} ข้อที่ต้องใช้ทะเบียนจริง")
     if args.only:
         keep = set(args.only.split(","))
         items = [i for i in items if i["id"] in keep]
@@ -128,8 +138,45 @@ def main():
         print(f"{flag} {it['id']} {res['status']:<12} hit@5={res.get('source_hit@5', '-')!s:<5} "
               f"cited={res.get('cited_hit', '-')!s:<5} {it['question'][:60]}")
     summ = summarize(rows)
+    summ["mode"] = mode
     Path(args.out).write_text(json.dumps({"summary": summ, "rows": rows}, ensure_ascii=False, indent=1), encoding="utf-8")
     print(json.dumps(summ, ensure_ascii=False))
+    if args.baseline:
+        sys.exit(check_baseline(Path(args.baseline), mode, rows, write=args.write_baseline))
+
+
+def resolve_mode(args) -> str:
+    if args.mode != "auto":
+        return args.mode
+    if not args.inproc:
+        return "full"
+    from app.db import get_engine
+    from sqlalchemy import text
+    with get_engine().connect() as conn:
+        n = conn.execute(text("SELECT count(*) FROM law_register")).scalar()
+    return "full" if n else "public"
+
+
+def check_baseline(path: Path, mode: str, rows: list[dict], write: bool = False) -> int:
+    """ข้อที่ผ่านใน baseline ต้องยังผ่าน (ข้อใหม่ที่ผ่านเพิ่มไม่ถือว่าผิด) — ใช้กันคะแนนถอยหลังใน CI"""
+    base = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    now = sorted(r["id"] for r in rows if passed(r))
+    if write:
+        base[mode] = now
+        path.write_text(json.dumps(base, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        print(f"บันทึก baseline โหมด {mode}: ผ่าน {len(now)} ข้อ → {path}")
+        return 0
+    expected = set(base.get(mode, []))
+    ran = {r["id"] for r in rows}
+    regressed = sorted((expected & ran) - set(now))
+    improved = sorted(set(now) - expected)
+    print(f"เทียบ baseline โหมด {mode}: เคยผ่าน {len(expected & ran)} ข้อ, ตอนนี้ผ่าน {len(now)} ข้อ")
+    if improved:
+        print("ผ่านเพิ่ม (อัปเดต baseline ด้วย --write-baseline):", ", ".join(improved))
+    if regressed:
+        print("❌ คะแนนถอยหลัง — ข้อที่เคยผ่านแต่ตอนนี้ไม่ผ่าน:", ", ".join(regressed))
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

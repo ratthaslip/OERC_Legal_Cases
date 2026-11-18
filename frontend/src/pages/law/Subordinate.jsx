@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, FileText, Layers, Paperclip, Search } from 'lucide-react';
+import { ArrowRight, FileText, GitBranch, Layers, Paperclip, Search } from 'lucide-react';
 import { openRawFile } from '../../api.js';
 import { StatusPill } from './RegisterPanel.jsx';
 import { thDate } from '../../components/ui.jsx';
@@ -173,6 +173,53 @@ export function SourceFiles({ files }) {
           </span>
         )
       )}
+    </div>
+  );
+}
+
+const REL = {
+  out: { refers_to: 'อ้างถึง', amends: 'แก้ไข/เพิ่มเติม', repeals: 'ยกเลิก', remedy: 'ช่องทางต่อไป' },
+  in: { refers_to: 'ถูกอ้างโดย', amends: 'ถูกแก้ไข/เพิ่มโดย', repeals: 'ถูกยกเลิกโดย', remedy: 'มาจากขั้นตอน' }
+};
+const ORDER = ['amends', 'repeals', 'remedy', 'refers_to'];
+
+/** เส้นความสัมพันธ์ของมาตรา/ข้อนี้จากตาราง law_relation (อ้างถึง / แก้ไข / ยกเลิก / ช่องทางเยียวยา) */
+export function RelationsPanel({ rel, onOpenText }) {
+  if (!rel) return null;
+  const groups = [];
+  for (const dir of ['in', 'out']) {
+    const items = dir === 'in' ? rel.incoming : rel.outgoing;
+    for (const t of ORDER) {
+      const xs = items.filter((x) => x.rel_type === t);
+      if (xs.length) groups.push({ key: `${dir}-${t}`, label: REL[dir][t], auto: xs.every((x) => x.status === 'auto'), xs, dir });
+    }
+  }
+  if (!groups.length) return null;
+  return (
+    <div className="mt-4 pt-4 border-t border-slate-100">
+      <h4 className="text-xs font-bold text-slate-600 tracking-wider mb-2 flex items-center gap-1.5">
+        <GitBranch className="w-3.5 h-3.5 text-brand-600" /> ความสัมพันธ์กับบทบัญญัติอื่น
+      </h4>
+      <div className="space-y-1.5">
+        {groups.map((g) => (
+          <div key={g.key} className="flex flex-wrap items-center gap-1.5 text-xs text-slate-700 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200/60">
+            <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-800 font-semibold text-[11px] shrink-0">{g.label}</span>
+            {g.xs.map((x, i) => {
+              const target = g.dir === 'in' ? x.src_eli : x.dst_eli;
+              const isProv = target && /\/(sec|clause|item)-/.test(target);
+              return isProv ? (
+                <button key={i} onClick={() => onOpenText(target)} title={x.note || ''}
+                  className="px-2 py-0.5 rounded bg-white border border-slate-300 hover:border-brand-400 hover:text-brand-700">
+                  {x.label}
+                </button>
+              ) : (
+                <span key={i} className="px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600" title={x.note || ''}>{x.label}</span>
+              );
+            })}
+            {g.auto && <span className="text-[10px] text-slate-400 ml-auto">สกัดจากถ้อยคำอัตโนมัติ</span>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

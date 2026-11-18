@@ -22,6 +22,7 @@ from sqlalchemy.engine import Connection
 
 from ..db import get_engine
 from ..law.register import read_workbook
+from ..law import relations
 from ..search.indexer import reindex_register
 
 
@@ -38,6 +39,7 @@ def load_register(conn: Connection, path: str) -> dict:
                 :hearing_text, CAST(:attachments AS jsonb), :issues, :source_file)"""),
             {**r.__dict__, "attachments": json.dumps(r.attachments), "source_file": Path(path).name})
     linked = link_instruments(conn)
+    relations.rebuild(conn)  # เส้น authorizes มาจากทะเบียน
     archived = archive_source(conn, Path(path))
     n = reindex_register(conn)
     conn.execute(text("""
