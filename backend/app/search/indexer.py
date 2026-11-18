@@ -33,13 +33,19 @@ def content_sha(t: str) -> str:
     return hashlib.sha256(t.encode("utf-8")).hexdigest()
 
 
-def reindex_laws(conn: Connection) -> int:
-    conn.execute(text("DELETE FROM search_chunk WHERE kind = 'provision'"))
+def reindex_laws(conn: Connection, only_eli: str | None = None) -> int:
+    """only_eli: index ใหม่เฉพาะตราสารเดียว (เช่น หลังอนุมัติเอกสารที่นำเข้าจากหน้าเว็บ)"""
+    if only_eli:
+        conn.execute(text("""DELETE FROM search_chunk WHERE kind = 'provision' AND ref_id IN (
+                               SELECT pv.version_id FROM provision_version pv JOIN provision p USING (provision_id)
+                               JOIN legal_instrument i USING (instrument_id) WHERE i.eli_id = :e)"""), {"e": only_eli})
+    else:
+        conn.execute(text("DELETE FROM search_chunk WHERE kind = 'provision'"))
     data = rows(conn, """
         SELECT pv.version_id, pv.version_no, pv.body_text, pv.summary, pv.valid_from, pv.valid_to,
                p.eli_id, p.provision_no, i.title_th, i.short_title, i.category, i.classification
         FROM provision_version pv JOIN provision p USING (provision_id) JOIN legal_instrument i USING (instrument_id)
-        WHERE pv.status = 'approved'""")
+        WHERE pv.status = 'approved' AND (CAST(:e AS text) IS NULL OR i.eli_id = :e)""", e=only_eli)
     chunks = []
     for d in data:
         base = {"kind": "provision", "ref_id": d["version_id"], "eli_id": d["eli_id"], "version_no": d["version_no"],

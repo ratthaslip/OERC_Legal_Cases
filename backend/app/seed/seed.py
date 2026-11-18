@@ -481,6 +481,8 @@ def run(conn: Connection, today: date | None = None) -> dict:
     windows = load_laws(conn, real + data["instruments"])
     for f in files:
         log_law_file(conn, f)
+    from ..law.uploads import load_approved
+    load_approved(conn)  # เอกสารที่อนุมัติจากหน้านำเข้าบนเว็บ (ร่างเก็บใน law_upload ซึ่ง seed ไม่ล้าง)
     load_review_notes(conn)
     relations.rebuild(conn)
     proto_ids = load_prototype(conn, data, windows, today, rng)
