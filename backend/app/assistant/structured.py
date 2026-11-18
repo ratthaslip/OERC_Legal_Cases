@@ -211,9 +211,9 @@ def route_amendments(conn: Connection, user: User, q: str, as_of: date) -> Struc
     if not m or not AMEND_Q.search(q) or SUB_Q.search(q) and LIST_Q.search(q):
         return None
     pno = f"{m.group(1)} {m.group(2)}"
-    cands = rows(conn, """SELECT p.provision_id, p.eli_id, p.provision_no, i.title_th, i.eli_id AS instrument_eli
-                          FROM provision p JOIN legal_instrument i USING (instrument_id) WHERE p.provision_no = :n""",
-                 n=pno)
+    cands = rows(conn, f"""SELECT p.provision_id, p.eli_id, p.provision_no, i.title_th, i.eli_id AS instrument_eli
+                          FROM provision p JOIN legal_instrument i USING (instrument_id)
+                          WHERE p.provision_no = :n AND {authz.law_filter_sql(user)}""", n=pno)
     # ตัดคำที่ถามเรื่องการแก้ไขออกก่อนจับคู่ชื่อฉบับ ("แก้ไข" ไม่ใช่ชื่อเรื่อง แต่ตรงกับชื่อฉบับแก้ไขเพิ่มเติมได้)
     target = _pick_instrument(cands, AMEND_Q.sub(" ", PROV_REF.sub(" ", q)))
     if not target:
@@ -246,7 +246,7 @@ def route_amendments(conn: Connection, user: User, q: str, as_of: date) -> Struc
 def route_definition(conn: Connection, user: User, q: str, as_of: date) -> StructuredAnswer | None:
     if not DEF_Q.search(q):
         return None
-    perm, params = authz.search_filter_sql(user)
+    perm, params = authz.search_filter_sql(user, "s")
     chunks = rows(conn, f"""
         SELECT s.chunk_id, s.kind, s.ref_id, s.title, s.chunk_text, s.eli_id, s.version_no, s.valid_from, s.valid_to,
                s.classification, pv.body_text, i.title_th AS instrument_title, i.eli_id AS instrument_eli,

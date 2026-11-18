@@ -82,12 +82,14 @@ def walk_relations(eli: str, types: str = "remedy", depth: int = Query(default=4
 
 
 @router.get("/instruments")
-def list_instruments(category: str | None = None, conn: Connection = Depends(get_conn)):
-    """สารบัญตราสารและรายมาตรา พร้อมสรุปของรุ่นปัจจุบัน"""
-    insts = rows(conn, """SELECT instrument_id, eli_id, instrument_type, title_th, short_title, issuer, category,
-                                 promulgated_date, effective_date, is_demo
+def list_instruments(category: str | None = None, user: User = Depends(current_user),
+                     conn: Connection = Depends(get_conn)):
+    """สารบัญตราสารและรายมาตรา พร้อมสรุปของรุ่นปัจจุบัน (ตราสารภายในเห็นเฉพาะเจ้าหน้าที่)"""
+    visible = authz.law_filter_sql(user, "legal_instrument")
+    insts = rows(conn, f"""SELECT instrument_id, eli_id, instrument_type, title_th, short_title, issuer, category,
+                                 promulgated_date, effective_date, is_demo, classification
                           FROM legal_instrument
-                          WHERE (CAST(:cat AS text) IS NULL OR category = :cat)
+                          WHERE (CAST(:cat AS text) IS NULL OR category = :cat) AND {visible}
                           ORDER BY """ + INSTRUMENT_RANK_SQL.format(a="") + """, promulgated_date""", cat=category)
     provs = rows(conn, """
         SELECT p.instrument_id, p.eli_id, p.provision_no, p.part_heading,
@@ -108,7 +110,7 @@ def list_instruments(category: str | None = None, conn: Connection = Depends(get
         i["subordinate_total"] = one(conn, """SELECT count(DISTINCT dst_register_id) AS n FROM law_relation
                                               WHERE rel_type = 'authorizes' AND dst_register_id IS NOT NULL""")["n"] \
             if i["eli_id"] == PARENT_ACT else 0
-    categories = [r["category"] for r in rows(conn, "SELECT DISTINCT category FROM legal_instrument ORDER BY 1")]
+    categories = [r["category"] for r in rows(conn, f"SELECT DISTINCT category FROM legal_instrument WHERE {visible} ORDER BY 1")]
     return {"items": insts, "categories": categories}
 
 
@@ -129,12 +131,12 @@ def _exact_provisions(conn: Connection, user: User, q: str, as_of: date) -> list
     m = PROV_REF.search(qn)
     if not m:
         return []
-    perm, params = authz.search_filter_sql(user)
+    perm, params = authz.search_filter_sql(user, "s")
     found = rows(conn, f"""
         SELECT s.chunk_id, s.kind, s.ref_id, s.title, s.chunk_text, s.eli_id, s.version_no, s.valid_from, s.valid_to,
                s.classification, i.title_th AS instrument_title, {INSTRUMENT_RANK_SQL.format(a="i.")} AS rank
         FROM search_chunk s JOIN provision p ON p.eli_id = s.eli_id JOIN legal_instrument i USING (instrument_id)
-        WHERE s.kind = 'provision' AND p.provision_no = :pno AND i.is_demo = FALSE
+        WHERE s.kind = 'provision' AND p.provision_no = :pno AND i.is_demo = FALSE AND {authz.law_filter_sql(user)}
           AND s.valid_from <= :d AND (s.valid_to IS NULL OR :d <= s.valid_to) AND {{perm}}""".replace("{perm}", perm),
         pno=f"{m.group(1)} {m.group(2)}", d=as_of, **params)
     rest = content_terms(PROV_REF.sub(" ", qn))
@@ -151,9 +153,11 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
     as_of = as_of or date.today()
     prov = one(conn, """SELECT p.provision_id, p.eli_id, p.provision_no, p.part_heading,
                                i.eli_id AS instrument_eli, i.title_th AS instrument_title, i.instrument_type,
-                               i.short_title, i.is_demo
+                               i.short_title, i.is_demo, i.classification
                         FROM provision p JOIN legal_instrument i USING (instrument_id) WHERE p.eli_id = :eli""",
                eli=eli_id)
+    if prov and not authz.can_read_law(user, prov["classification"]):
+        prov = None  # ไม่มีสิทธิ์ = ตอบเหมือนไม่มี
     if not prov:
         raise HTTPException(404, detail={"code": "NOT_FOUND", "detail": "ไม่พบมาตรานี้"})
 

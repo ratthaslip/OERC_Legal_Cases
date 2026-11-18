@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS legal_instrument (
     effective_date  DATE,
     gazette_ref     VARCHAR(200),
     is_demo         BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE = ข้อความสาธิต ไม่ใช่ตัวบทจริง
-    register_title  TEXT                            -- ชื่อตามทะเบียนกฎหมายลำดับรอง (ใช้ผูกทะเบียน ↔ ตัวบท)
+    register_title  TEXT,                           -- ชื่อตามทะเบียนกฎหมายลำดับรอง (ใช้ผูกทะเบียน ↔ ตัวบท)
+    classification  VARCHAR(20) NOT NULL DEFAULT 'public'  -- public | internal (ระเบียบบริหารภายใน: เห็นเฉพาะเจ้าหน้าที่)
 );
 ALTER TABLE legal_instrument ADD COLUMN IF NOT EXISTS register_title TEXT;
+ALTER TABLE legal_instrument ADD COLUMN IF NOT EXISTS classification VARCHAR(20) NOT NULL DEFAULT 'public';
 
 CREATE TABLE IF NOT EXISTS provision (
     provision_id  SERIAL PRIMARY KEY,

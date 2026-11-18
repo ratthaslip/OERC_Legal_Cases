@@ -14,6 +14,16 @@ def can_read_law_version(user: User, status: str) -> bool:
     return status == "approved" or user.role == "LGL"
 
 
+def can_read_law(user: User, classification: str) -> bool:
+    """R1b: ตัวบทสาธารณะทุกคนอ่านได้; ตราสารภายใน (ระเบียบบริหารงานของสำนักงาน) เฉพาะเจ้าหน้าที่"""
+    return classification != "internal" or user.role in INTERNAL_ROLES
+
+
+def law_filter_sql(user: User, alias: str = "i") -> str:
+    """เงื่อนไข SQL บน legal_instrument (alias) ตามสิทธิ์อ่านตัวบท"""
+    return "TRUE" if user.role in INTERNAL_ROLES else f"{alias}.classification = 'public'"
+
+
 def can_read_case(user: User, classification: str, owners: list[str]) -> bool:
     """R2: เจ้าหน้าที่ภายใน + (internal หรือเป็นเจ้าของเรื่อง)"""
     if user.role not in INTERNAL_ROLES:
@@ -37,14 +47,16 @@ def can_register(user: User) -> bool:
     return user.role in {"STF", "LGL", "DIR"}
 
 
-def search_filter_sql(user: User) -> tuple[str, dict]:
-    """filter ที่ใส่ใน query ก่อนจัดอันดับ (ไม่กรองหลังได้ผล) — คืน (SQL fragment, params)"""
+def search_filter_sql(user: User, alias: str = "") -> tuple[str, dict]:
+    """filter ที่ใส่ใน query ก่อนจัดอันดับ (ไม่กรองหลังได้ผล) — คืน (SQL fragment, params)
+    alias: ชื่อย่อของ search_chunk เมื่อ query join ตารางอื่นที่มีคอลัมน์ชื่อซ้ำ (เช่น legal_instrument.classification)"""
+    a = f"{alias}." if alias else ""
     if user.role not in INTERNAL_ROLES:
-        return "(kind IN ('provision', 'register'))", {}
+        return f"({a}kind = 'register' OR ({a}kind = 'provision' AND {a}classification = 'public'))", {}
     if user.role == "DIR":
         return "(TRUE)", {}
     return (
-        "(kind IN ('provision', 'register') OR classification = 'internal' OR :uid = ANY(owners))",
+        f"({a}kind IN ('provision', 'register') OR {a}classification = 'internal' OR :uid = ANY({a}owners))",
         {"uid": user.user_id},
     )
 
