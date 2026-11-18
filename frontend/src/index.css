@@ -2,5 +2,5 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { background: #f1f5f9; color: #1e293b; }
-button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #d97706; outline-offset: 2px; }
+html, body { background: #f3f6fb; color: #0f1f33; }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #ff8a1f; outline-offset: 2px; }

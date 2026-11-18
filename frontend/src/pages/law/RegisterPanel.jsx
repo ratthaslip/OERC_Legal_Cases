@@ -103,7 +103,7 @@ export default function RegisterPanel({ me, initialId, go, initialFilter }) {
                 key={s.key}
                 onClick={() => setF({ ...f, status: f.status === s.key ? '' : s.key })}
                 className={`px-2.5 py-1 rounded-full border text-[11px] font-semibold ${
-                  f.status === s.key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                  f.status === s.key ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 {(REG_STATUS[s.key] || REG_STATUS.UNKNOWN).label} {s.n}
@@ -166,7 +166,7 @@ export default function RegisterPanel({ me, initialId, go, initialFilter }) {
           {[['', `ทั้งหมด (${meta.total})`], ['true', `มีแล้ว (${meta.with_text})`], ['false', `ยังไม่มี (${meta.total - meta.with_text})`]].map(([v, label]) => (
             <button key={v || 'all'} onClick={() => setF({ ...f, has_text: v })}
               className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${
-                f.has_text === v ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
+                f.has_text === v ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
               {label}
             </button>
           ))}
@@ -326,7 +326,7 @@ function RegisterDetail({ id, internal, go, onSelect, onClose }) {
             <span>มีตัวบทเต็มในระบบ (นำเข้าจากราชกิจจานุเบกษา)</span>
             <button
               onClick={() => go('law', { tab: 'provision', eli: d.first_provision_eli })}
-              className="px-3 py-1 rounded-lg text-[11px] font-semibold bg-slate-900 text-white hover:bg-slate-800"
+              className="px-3 py-1 rounded-lg text-[11px] font-semibold bg-brand-600 text-white hover:bg-brand-700"
             >
               เปิดตัวบทเต็ม
             </button>

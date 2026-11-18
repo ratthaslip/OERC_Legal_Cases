@@ -65,6 +65,8 @@ def audit_events(limit: int = 50, user: User = Depends(current_user), conn: Conn
 _dist = Path(os.getenv("WEB_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))
 if (_dist / "index.html").exists():
     app.mount("/assets", StaticFiles(directory=_dist / "assets"), name="assets")
+    if (_dist / "brand").is_dir():  # โลโก้สำนักงาน (frontend/public/brand)
+        app.mount("/brand", StaticFiles(directory=_dist / "brand"), name="brand")
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str):

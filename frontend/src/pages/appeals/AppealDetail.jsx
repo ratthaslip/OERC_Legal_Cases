@@ -19,7 +19,7 @@ export default function AppealDetail({ d, go, run, error }) {
       <div className="border-b border-slate-200 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white">เลขรับ {a.appeal_no}</span>
+            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-brand-600 text-white">เลขรับ {a.appeal_no}</span>
             <DemoBadge show={a.is_demo} size="lg" />
             <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${a.case_type === 'APPEAL' ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-violet-50 text-violet-900 border-violet-200'}`}>
               {CASE_TYPE[a.case_type]}
@@ -194,7 +194,7 @@ export default function AppealDetail({ d, go, run, error }) {
                 <button
                   key={x.document_id}
                   onClick={() => setDocIdx(i)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${docIdx === i ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${docIdx === i ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                 >
                   {x.doc_type.length > 36 ? x.doc_type.slice(0, 36) + '…' : x.doc_type}
                 </button>
@@ -255,7 +255,7 @@ function Requests({ d, run }) {
                       <div className="mt-1 flex gap-1">
                         <input type="date" value={date} max={todayIso()} onChange={(e) => setDate(e.target.value)} className={`${smallInput} w-32`} />
                         <button
-                          className="px-2 rounded bg-slate-900 text-white text-[11px]"
+                          className="px-2 rounded bg-brand-600 text-white text-[11px]"
                           onClick={() => run('บันทึกการได้รับคำตอบแล้ว', (v) => api.respondRequest(d.appeal.appeal_id, v, r.request_id, { date })).then(() => setRespond(null))}
                         >
                           บันทึก

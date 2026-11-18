@@ -113,7 +113,7 @@ function ProvisionView({ me, go, notify, route }) {
               <button
                 onClick={() => setAsOf(todayIso())}
                 className={`px-2.5 py-2 rounded-lg text-xs font-medium border ${
-                  asOf === todayIso() ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                  asOf === todayIso() ? 'bg-brand-600 text-white border-brand-600' : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
                 }`}
               >
                 ปัจจุบัน
@@ -228,7 +228,7 @@ function ProvisionView({ me, go, notify, route }) {
                       <button
                         onClick={() => setCompare(!compare)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border ${
-                          compare ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                          compare ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                         }`}
                       >
                         <History className="w-3.5 h-3.5" />
@@ -275,7 +275,7 @@ function ProvisionView({ me, go, notify, route }) {
                 {!compare ? (
                   active && (
                     <div className="mt-5">
-                      <div className="p-5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-900 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+                      <div className="p-5 rounded-r-xl bg-brand-50/60 border border-brand-100 border-l-4 border-l-amber-500 text-slate-900 text-sm sm:text-base leading-relaxed whitespace-pre-line">
                         <span className="font-bold text-slate-950 mr-2">{detail.provision.provision_no}</span>
                         {active.body_text}
                       </div>
@@ -351,7 +351,7 @@ function ProvisionView({ me, go, notify, route }) {
                             unit="เรื่อง"
                             empty="ไม่มีสำนวนอุทธรณ์ที่อ้างอิงมาตรารุ่นนี้"
                             tag="bg-amber-100 text-amber-900"
-                            btn="bg-slate-900 hover:bg-slate-800"
+                            btn="bg-brand-600 hover:bg-brand-700"
                             btnLabel="เปิดดูในระบบงานอุทธรณ์"
                             onOpen={(c) => go('appeal', { id: c.owner_id })}
                           />

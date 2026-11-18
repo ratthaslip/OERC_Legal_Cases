@@ -88,7 +88,7 @@ export default function CasesPage({ me, go, route, switchUser }) {
             >
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white">{c.black_no}</span>
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-600 text-white">{c.black_no}</span>
                   <DemoBadge show={c.is_demo} />
                   {c.red_no && <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-rose-600 text-white">{c.red_no}</span>}
                   <ClassBadge classification={c.classification} />
@@ -115,7 +115,7 @@ export default function CasesPage({ me, go, route, switchUser }) {
               <div className="border-b border-slate-200 pb-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white">คดีดำที่ {k.black_no}</span>
+                    <span className="px-3 py-1 rounded-lg text-xs font-bold bg-brand-600 text-white">คดีดำที่ {k.black_no}</span>
                     <DemoBadge show={k.is_demo} size="lg" />
                     {k.red_no && <span className="px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white">คดีแดงที่ {k.red_no}</span>}
                     <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-800 border border-indigo-200">{k.court_level}</span>
@@ -208,7 +208,7 @@ export default function CasesPage({ me, go, route, switchUser }) {
                         <button
                           key={x.document_id}
                           onClick={() => setDocIdx(i)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${docIdx === i ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${docIdx === i ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                         >
                           {x.doc_type.length > 40 ? x.doc_type.slice(0, 40) + '…' : x.doc_type}
                         </button>

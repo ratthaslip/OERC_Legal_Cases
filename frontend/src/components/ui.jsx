@@ -49,7 +49,7 @@ export function ClassBadge({ classification }) {
 }
 
 export function Card({ className = '', children }) {
-  return <div className={`bg-white rounded-xl shadow-xs border border-slate-200 ${className}`}>{children}</div>;
+  return <div className={`bg-white rounded-[14px] shadow-card border border-slate-200/70 ${className}`}>{children}</div>;
 }
 
 export function Label({ children }) {
@@ -104,7 +104,7 @@ export function LockedPanel({ title, onLogin, onBack, color = 'amber' }) {
         บัญชีผู้ใช้งานปัจจุบันของคุณคือ <strong>บุคคลภายนอก</strong> จึงใช้งานได้เฉพาะระบบสืบค้นกฎหมายพลังงานสาธารณะ
       </p>
       <div className="flex flex-wrap justify-center gap-3">
-        <button onClick={onLogin} className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800">
+        <button onClick={onLogin} className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-brand-600 text-white hover:bg-brand-700">
           สลับเป็นบัญชีนิติกร
         </button>
         <button onClick={onBack} className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
@@ -126,7 +126,7 @@ export function useDebounced(value, ms = 350) {
 
 export function DocView({ doc }) {
   return (
-    <div className="p-4 rounded-xl bg-slate-900 text-slate-100 space-y-2">
+    <div className="p-4 rounded-xl bg-brand-600 text-slate-100 space-y-2">
       <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
         <span>
           {doc.doc_type} • ลงวันที่ {thDate(doc.doc_date)}

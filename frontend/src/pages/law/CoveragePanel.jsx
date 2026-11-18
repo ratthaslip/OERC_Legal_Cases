@@ -91,7 +91,7 @@ export default function CoveragePanel({ go }) {
         <button
           onClick={exportMissing}
           disabled={busy}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 flex items-center gap-1.5"
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50 flex items-center gap-1.5"
         >
           <Download className="w-3.5 h-3.5" /> {busy ? 'กำลังสร้างไฟล์…' : `ส่งออกรายการที่ยังไม่มีตัวบท (${r.total - r.with_text})`}
         </button>

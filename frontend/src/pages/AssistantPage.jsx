@@ -152,7 +152,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
               <Power className="w-10 h-10 text-rose-500 mb-3" />
               <h3 className="text-base font-bold text-slate-900 mb-1">ระบบช่วยค้นคว้าถูกระงับการใช้งานชั่วคราวโดยผู้ดูแลระบบ</h3>
               <p className="text-xs text-slate-600 max-w-md mb-5">เมนูสืบค้นกฎหมาย งานอุทธรณ์ และงานคดี ยังใช้งานได้ตามปกติ</p>
-              <button onClick={() => go('law')} className="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-900 text-white">
+              <button onClick={() => go('law')} className="px-4 py-2 rounded-lg text-xs font-semibold bg-brand-600 text-white">
                 ไปที่หน้าสืบค้นกฎหมาย
               </button>
             </div>
@@ -180,7 +180,7 @@ export default function AssistantPage({ me, go, enabled, llm }) {
                   placeholder="พิมพ์คำถามข้อกฎหมาย แนวคำวินิจฉัยอุทธรณ์ หรือคำพิพากษา (เช่น มาตรา 121, อธ. 14/2562)"
                   className="flex-1 px-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
-                <button disabled={busy || !input.trim()} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50">
+                <button disabled={busy || !input.trim()} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50">
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className={`w-4 h-4 animate-spin ${busy ? '' : 'hidden'}`} />
                     <span>ค้นคว้าและสรุปคำตอบ</span>
@@ -203,7 +203,7 @@ function Turn({ t, onOpen }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl rounded-tr-xs max-w-xl text-xs sm:text-sm">
+        <div className="bg-brand-600 text-white px-4 py-3 rounded-2xl rounded-tr-xs max-w-xl text-xs sm:text-sm">
           {t.question}
           <div className="text-[10px] text-slate-400 mt-1">ตัวบท ณ วันที่ {thDate(t.asOf)}</div>
         </div>
