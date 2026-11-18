@@ -1596,7 +1596,7 @@
   "id": "G72",
   "category": "ประวัติการแก้ไข",
   "question": "ข้อ 7 ของระเบียบการขอรับใบอนุญาตประกอบกิจการพลังงานมีกี่รุ่น",
-  "reference_answer": "2 รุ่น: ตัวบทตั้งต้น (มีผล 9 ม.ค. 2552) และรุ่นที่แก้ไขโดยระเบียบฯ (ฉบับที่ 3) พ.ศ. 2560 (มีผล 21 ต.ค. 2560)",
+  "reference_answer": "3 รุ่น: ตัวบทตั้งต้น (มีผล 9 ม.ค. 2552), รุ่นที่แก้ไขโดยระเบียบฯ (ฉบับที่ 2) พ.ศ. 2557 (มีผล 28 พ.ค. 2557) และรุ่นที่แก้ไขโดยระเบียบฯ (ฉบับที่ 3) พ.ศ. 2560 (มีผล 21 ต.ค. 2560)",
   "expected_sources": [
    "eli/th/reg/erc/2551/licensing/clause-7"
   ],
@@ -1608,7 +1608,7 @@
   "must_not_kinds": [],
   "expected_title_contains": null,
   "must_include": [
-   "2 รุ่น"
+   "3 รุ่น"
   ],
   "require_all": false,
   "data": "law"
@@ -1757,6 +1757,29 @@
   "expected_title_contains": null,
   "must_include": [],
   "require_all": true,
+  "data": "law"
+ },
+ {
+  "id": "G79",
+  "category": "ประวัติการแก้ไข",
+  "question": "ระยะเวลาพิจารณาออกใบอนุญาตประกอบกิจการพลังงาน นับรวมระยะเวลารับฟังความคิดเห็นของประชาชนด้วยหรือไม่",
+  "reference_answer": "ไม่นับรวม — ข้อ 8 (3) วรรคสอง ที่เพิ่มโดยระเบียบฯ (ฉบับที่ 2) พ.ศ. 2557 (มีผล 28 พ.ค. 2557)",
+  "expected_sources": [
+   "eli/th/reg/erc/2551/licensing/clause-8"
+  ],
+  "evidence": {
+   "eli/th/reg/erc/2551/licensing/clause-8": [
+    "ไม่นับรวมระยะเวลาตามกระบวนการรับฟังความคิดเห็นของประชาชน"
+   ]
+  },
+  "user": "lgl1",
+  "as_of": null,
+  "expected_status": "ANSWERED",
+  "must_not_cite": [],
+  "must_not_kinds": [],
+  "expected_title_contains": null,
+  "must_include": [],
+  "require_all": false,
   "data": "law"
  }
 ]
