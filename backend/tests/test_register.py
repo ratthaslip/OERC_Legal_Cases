@@ -229,7 +229,7 @@ def test_coverage_and_export(workbook):
     r = d["register"]
     assert r["total"] == 3 and r["with_text"] == 0 and r["in_force_missing"] == 2
     assert {s["key"]: s["total"] for s in r["by_section"]}[33] == 2
-    assert any(x["kind"] == "pending_amendment" for x in d["open_issues"])
+    assert any(x["kind"] == "verify_consolidation" for x in d["open_issues"])
     assert len(d["open_issues"]) == len({x["note"] for x in d["open_issues"]})  # seed ซ้ำต้องไม่ซ้ำประเด็น
     latest = [x for x in d["imports"] if x["imported_at"] == d["last_import"]]  # seed รอบล่าสุด (ประวัติรอบก่อนเก็บไว้)
     kinds = [x["kind"] for x in latest]
