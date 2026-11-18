@@ -26,7 +26,8 @@ class Question(BaseModel):
 def status():
     s = get_settings()
     return {"enabled": s.assistant_enabled, "provider": s.llm_provider,
-            "model": None if s.llm_provider == "extractive" else s.llm_model}
+            "model": None if s.llm_provider == "extractive" else s.llm_model,
+            "external": s.llm_external}  # True = ส่งให้ LLM เฉพาะตัวบทสาธารณะ
 
 
 @router.post("/answers")

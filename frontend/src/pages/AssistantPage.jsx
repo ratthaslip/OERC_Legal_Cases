@@ -329,6 +329,12 @@ function Turn({ t, onOpen }) {
                 ตอบจากตัวบทและทะเบียนกฎหมายจริงเท่านั้น — ไม่ใช้สำนวนอุทธรณ์/คดีสาธิตเป็นหลักฐาน
               </div>
             )}
+            {t.done.withheld_from_llm > 0 && (
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                ข้อมูลภายใน {t.done.withheld_from_llm} แหล่ง (ทะเบียน/ตราสารภายใน/สำนวน) ไม่ได้ส่งให้ LLM ภายนอก — แสดงเป็นข้อความยกจากต้นฉบับ
+              </div>
+            )}
             {t.done.restricted_omitted > 0 && (
               <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
                 <Lock className="w-3.5 h-3.5 text-slate-400" />

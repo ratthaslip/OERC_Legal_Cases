@@ -2,6 +2,7 @@
 
 ลำดับ: kill switch → ค้นแบบกรองสิทธิ์ → เกณฑ์หลักฐาน → prompt → LLM → ตรวจ citation ทีละประโยค → audit
 """
+import itertools
 import logging
 import re
 import uuid
@@ -162,8 +163,16 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
     yield "sources", {"sources": [src.public() for src in sources]}
 
     source_text = {src.key: src.full_text() for src in sources}
-    deltas = (extractive_answer(sources) if s.llm_provider == "extractive"
-              else stream_chat(SYSTEM_PROMPT, build_user_prompt(question, sources, as_of)))
+    withheld: list[Source] = []
+    if s.llm_provider == "extractive":
+        deltas = extractive_answer(sources)
+    else:
+        # LLM ภายนอก: ส่งเฉพาะตัวบทสาธารณะ — ข้อมูลทะเบียน ตราสารภายใน และสำนวน ตอบด้วยการยกข้อความ (ไม่ออกนอกระบบ)
+        send = [x for x in sources if shareable_with_external(x)] if s.llm_external else sources
+        withheld = [x for x in sources if x not in send]
+        deltas = itertools.chain(
+            stream_chat(SYSTEM_PROMPT, build_user_prompt(question, send, as_of)) if send else iter(()),
+            extractive_answer(withheld) if withheld else iter(()))
     buffer, passed, dropped, used = "", 0, 0, []
     status = "ANSWERED"
     try:
@@ -198,10 +207,17 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
     audit.record(conn, user, "assistant.answer", f"answer/{answer_id}", detail={
         "status": status, "sources": [src.public()["title"] for src in sources if src.key in used],
         "sentences": passed, "dropped": dropped, "provider": s.llm_provider, "model": s.llm_model,
+        "llm_external": s.llm_external, "withheld_from_llm": len(withheld),
     })
     yield "done", {"answer_id": answer_id, "status": status, "used_sources": used, "dropped_sentences": dropped,
                    "restricted_omitted": res.restricted_omitted, "demo_excluded": exclude_demo and "appeal" in kinds,
-                   "disclaimer": DISCLAIMER}
+                   "withheld_from_llm": len(withheld), "disclaimer": DISCLAIMER}
+
+
+def shareable_with_external(src: "Source") -> bool:
+    """ส่งให้ LLM ภายนอกได้เฉพาะตัวบทกฎหมายสาธารณะ (ไม่ใช่ทะเบียนซึ่งมาจากไฟล์ภายใน ไม่ใช่ตราสารภายใน ไม่ใช่สำนวน)"""
+    h = src.hit
+    return h.kind == "provision" and h.classification == "public" and not h.is_demo
 
 
 def _structured(conn: Connection, user: User, sa: StructuredAnswer, answer_id: str,
