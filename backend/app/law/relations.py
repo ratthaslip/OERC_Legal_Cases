@@ -79,6 +79,66 @@ def _from_register(conn: Connection) -> int:
         WHERE r.status <> 'GROUP'""")).rowcount
 
 
+_EDITION = re.compile(r"\(?\s*(?:แก้ไขเพิ่มเติม\s*)?ฉบับที่\s*([2-9]|\d{2})\s*\)?")
+PENDING_NOTE = "ฉบับแก้ไขตามทะเบียน — ยังไม่ได้ประกอบเข้าตัวบทฉบับหลัก"
+
+
+def _stem(title: str) -> str:
+    """ชื่อเรื่องไม่รวม (ฉบับที่ N) และ พ.ศ. — ใช้จับคู่ฉบับแก้ไขกับฉบับหลัก"""
+    t = _clean(title).replace("คณะกรรมการกำกับกิจการพลังงาน", "กกพ.")
+    t = _EDITION.sub(" ", t)
+    t = re.sub(r"พ\s*\.\s*ศ\s*\.\s*\d{4}", " ", t)
+    return re.sub(r"[\s.]", "", t)
+
+
+def _amendment_families(conn: Connection) -> int:
+    """ฉบับแก้ไข (ฉบับที่ 2, 3, …) → ฉบับหลักชื่อเดียวกัน ระดับตราสาร จากทะเบียน (เฉพาะฉบับที่มีตัวบทในระบบทั้งคู่)"""
+    regs = rows(conn, """SELECT DISTINCT ON (instrument_eli) instrument_eli, title_th, effective_date, reg_no
+                         FROM law_register WHERE instrument_eli IS NOT NULL AND status <> 'GROUP'
+                         ORDER BY instrument_eli, sheet_row""")
+    base: dict[str, dict] = {}
+    for r in regs:
+        if not _EDITION.search(_clean(r["title_th"])):
+            base.setdefault(_stem(r["title_th"]), r)
+    n = 0
+    for r in regs:
+        m = _EDITION.search(_clean(r["title_th"]))
+        b = base.get(_stem(r["title_th"])) if m else None
+        if not b or b["instrument_eli"] == r["instrument_eli"]:
+            continue
+        done = one(conn, """SELECT 1 AS x FROM law_relation WHERE source = 'law_json'
+                            AND src_eli LIKE :s AND dst_eli LIKE :d LIMIT 1""",
+                   s=r["instrument_eli"] + "/%", d=b["instrument_eli"] + "/%")
+        conn.execute(text("""INSERT INTO law_relation (rel_type, src_eli, dst_eli, valid_from, status, source, source_ref, note)
+                             VALUES ('amends', :s, :d, :vf, 'auto', 'register', :ref, :note)"""),
+                     {"s": r["instrument_eli"], "d": b["instrument_eli"], "vf": r["effective_date"],
+                      "ref": f"ทะเบียน #{r['reg_no']} (ฉบับที่ {m.group(1)})",
+                      "note": "ประกอบเข้าตัวบทแล้ว" if done else PENDING_NOTE})
+        n += 1
+    return n
+
+
+def pending_amendments(conn: Connection, instrument_eli: str) -> list[dict]:
+    """ฉบับแก้ไขของตราสารนี้ที่ยังไม่ได้ประกอบเข้าตัวบท — ถ้อยคำที่แสดงอาจไม่เป็นปัจจุบัน"""
+    return rows(conn, """
+        SELECT r.src_eli AS eli, i.title_th AS title, r.valid_from,
+               (SELECT p.eli_id FROM provision p WHERE p.instrument_id = i.instrument_id ORDER BY p.sort_order LIMIT 1)
+                 AS first_provision_eli
+        FROM law_relation r JOIN legal_instrument i ON i.eli_id = r.src_eli
+        WHERE r.rel_type = 'amends' AND r.dst_eli = :e AND r.source = 'register' AND r.note = :n
+        ORDER BY r.valid_from""", e=instrument_eli, n=PENDING_NOTE)
+
+
+def amends_target(conn: Connection, instrument_eli: str) -> dict | None:
+    """ตราสารนี้เป็นฉบับแก้ไขของฉบับใด"""
+    return one(conn, """
+        SELECT r.dst_eli AS eli, i.title_th AS title, r.note,
+               (SELECT p.eli_id FROM provision p WHERE p.instrument_id = i.instrument_id ORDER BY p.sort_order LIMIT 1)
+                 AS first_provision_eli
+        FROM law_relation r JOIN legal_instrument i ON i.eli_id = r.dst_eli
+        WHERE r.rel_type = 'amends' AND r.src_eli = :e AND r.source = 'register' LIMIT 1""", e=instrument_eli)
+
+
 def _from_law_json(conn: Connection, idx: _Index) -> int:
     """legal_relation (ข้อความตามตัวบท) → เส้นมาตรฐาน; ประเภทที่ลงท้าย 'โดย' เป็นรูปถูกกระทำ (อีกฝ่ายเป็นต้นทาง)"""
     n = 0
@@ -174,8 +234,10 @@ def rebuild(conn: Connection) -> dict[str, int]:
     """สร้าง law_relation ใหม่จากทุกแหล่ง — เรียกหลังนำเข้าตัวบทหรือทะเบียนทุกครั้ง"""
     conn.execute(text("DELETE FROM law_relation"))
     idx = _Index(conn)
-    return {"authorizes": _from_register(conn), "law_json": _from_law_json(conn, idx),
-            "refers_to": _from_text(conn, idx), "manual": _from_files(conn)}
+    out = {"authorizes": _from_register(conn), "law_json": _from_law_json(conn, idx),
+           "refers_to": _from_text(conn, idx), "manual": _from_files(conn)}
+    out["families"] = _amendment_families(conn)  # หลัง law_json เพื่อรู้ว่าฉบับไหนประกอบตัวบทแล้ว
+    return out
 
 
 # ---------------------------------------------------------------- queries

@@ -68,3 +68,35 @@ def test_raw_api_permissions(tmp_path):
     cov = c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "lgl1"}).json()["raw"]
     assert {x["key"]: x["files"] for x in cov["by_class"]} == {"internal": 1, "public": 1}
     assert cov["missing"]  # ตัวบทอ้างไฟล์ที่ยังไม่ได้วางในที่เก็บ → แสดงเป็นรายการขาด
+
+
+def test_add_zip_decodes_thai_names_without_extracting(tmp_path):
+    """zip จาก Google Drive: ชื่อไทยไม่ติดธง UTF-8 และอาจยาวเกินระบบไฟล์ — เก็บได้โดยไม่แตกลงดิสก์ด้วยชื่อเดิม"""
+    db = os.environ.get("TEST_DATABASE_URL")
+    if not db:
+        pytest.skip("ตั้ง TEST_DATABASE_URL เพื่อรันเทสต์ API")
+    import zipfile
+
+    os.environ.update(DATABASE_URL=db, RAW_STORE_DIR=str(tmp_path / "raw"))
+    from app.config import get_settings
+    get_settings.cache_clear()
+    from sqlalchemy import text
+
+    from app.db import get_engine
+    from app.seed.raw_files import add_zip
+    long_name = "01.1-01.52/1.40.3/" + "ประกาศ กกพ รับซื้อไฟฟ้า ฉุกเฉิน " * 6 + "65ฉบับ4.pdf"
+    zp = tmp_path / "drive.zip"
+    class DriveInfo(zipfile.ZipInfo):  # แบบที่ Drive เขียน: ชื่อเป็นไบต์ UTF-8 แต่ไม่ตั้งธง UTF-8
+        def _encodeFilenameFlags(self):
+            return self.filename.encode("utf-8"), self.flag_bits & ~0x800
+
+    with zipfile.ZipFile(zp, "w") as z:
+        z.writestr(DriveInfo(long_name), b"%PDF test")
+        z.writestr("notes.txt", b"ignored")
+    with get_engine().begin() as conn:
+        conn.execute(text("DELETE FROM raw_file"))
+        res = add_zip(conn, zp, "public", received_from="ฝ่ายกฎหมาย")
+        again = add_zip(conn, zp, "public")
+        row = conn.execute(text("SELECT original_name, note FROM raw_file")).mappings().one()
+    assert len(res) == 1 and res[0]["new_file"] and not again[0]["new_file"]
+    assert row["original_name"].endswith("65ฉบับ4.pdf") and "1.40.3" in row["note"]

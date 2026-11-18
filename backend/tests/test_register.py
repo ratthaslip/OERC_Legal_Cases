@@ -157,7 +157,7 @@ def test_register_api_permissions(workbook):
         r = conn.execute(sql_text("""SELECT chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from,
                                             valid_to, classification FROM search_chunk
                                      WHERE kind = 'provision' AND eli_id = 'eli/th/act/2550/energy-industry/sec-11'
-                                     AND valid_to IS NULL""")).mappings().one()
+                                     AND valid_to IS NULL ORDER BY chunk_id LIMIT 1""")).mappings().one()  # มาตรายาวมีหลายท่อน
         seed_hit = Hit(**dict(r), score=1.0)
         out = expand(conn, DEMO_USERS["pub"], [seed_hit], "ระเบียบ กกพ. ว่าด้วยเรื่องทดสอบ", date.today())
         added = [h for h in out if h.via]
@@ -224,16 +224,18 @@ def test_coverage_and_export(workbook):
     c = TestClient(app)
     assert c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "pub"}).status_code == 404  # เจ้าหน้าที่เท่านั้น
     d = c.get("/api/v1/laws/coverage", headers={"X-Demo-User": "lgl1"}).json()
-    n_files = len(list((Path(__file__).parents[1] / "app" / "seed" / "laws").glob("*.json")))  # 1 ไฟล์ = 1 ฉบับ
+    n_files = len(list((Path(__file__).parents[1] / "app" / "seed" / "laws").rglob("*.json")))  # 1 ไฟล์ = 1 ฉบับ
     assert d["laws"]["instruments"] == n_files and d["laws"]["demo_instruments"] == 0  # ลบฉบับสาธิตแล้ว
     r = d["register"]
     assert r["total"] == 3 and r["with_text"] == 0 and r["in_force_missing"] == 2
     assert {s["key"]: s["total"] for s in r["by_section"]}[33] == 2
     assert any(x["kind"] == "verify_consolidation" for x in d["open_issues"])
-    assert len(d["open_issues"]) == len({x["note"] for x in d["open_issues"]})  # seed ซ้ำต้องไม่ซ้ำประเด็น
+    keys = [(x["instrument_eli"], x["note"]) for x in d["open_issues"]]
+    assert len(keys) == len(set(keys))  # seed ซ้ำต้องไม่ซ้ำประเด็น (ข้อความเดียวกันต่างฉบับได้)
     latest = [x for x in d["imports"] if x["imported_at"] == d["last_import"]]  # seed รอบล่าสุด (ประวัติรอบก่อนเก็บไว้)
     kinds = [x["kind"] for x in latest]
-    assert kinds.count("law_json") == n_files and kinds.count("register") == 1
+    # หน้าครอบคลุมแสดงการนำเข้าล่าสุด 30 รายการ — ไฟล์ตัวบทมีมากกว่านั้นได้
+    assert kinds.count("law_json") == min(n_files, 30 - kinds.count("register")) and kinds.count("register") == 1
     assert all(len(x["sha"]) == 12 for x in d["imports"])
     # ตัวกรอง + ส่งออก
     assert c.get("/api/v1/laws/register?has_text=true", headers={"X-Demo-User": "pub"}).json()["total"] == 0

@@ -14,8 +14,10 @@ CREATE TABLE IF NOT EXISTS legal_instrument (
     promulgated_date DATE,
     effective_date  DATE,
     gazette_ref     VARCHAR(200),
-    is_demo         BOOLEAN NOT NULL DEFAULT FALSE  -- TRUE = ข้อความสาธิต ไม่ใช่ตัวบทจริง
+    is_demo         BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE = ข้อความสาธิต ไม่ใช่ตัวบทจริง
+    register_title  TEXT                            -- ชื่อตามทะเบียนกฎหมายลำดับรอง (ใช้ผูกทะเบียน ↔ ตัวบท)
 );
+ALTER TABLE legal_instrument ADD COLUMN IF NOT EXISTS register_title TEXT;
 
 CREATE TABLE IF NOT EXISTS provision (
     provision_id  SERIAL PRIMARY KEY,
@@ -341,8 +343,10 @@ CREATE TABLE IF NOT EXISTS search_chunk (
     classification VARCHAR(20) NOT NULL DEFAULT 'public',
     owners         TEXT[] NOT NULL DEFAULT '{}',
     energy_sector  VARCHAR(40),
-    is_demo        BOOLEAN NOT NULL DEFAULT FALSE   -- มาจากเรื่อง/คดีสาธิต (ผู้ช่วย AI ไม่ใช้เป็นหลักฐานโดยค่าเริ่มต้น)
+    is_demo        BOOLEAN NOT NULL DEFAULT FALSE,  -- มาจากเรื่อง/คดีสาธิต (ผู้ช่วย AI ไม่ใช้เป็นหลักฐานโดยค่าเริ่มต้น)
+    weight         REAL NOT NULL DEFAULT 1.0        -- น้ำหนักแหล่ง (ลำดับศักดิ์กฎหมาย/กลุ่มผู้ใช้) — indexer.source_weight
 );
+ALTER TABLE search_chunk ADD COLUMN IF NOT EXISTS weight REAL NOT NULL DEFAULT 1.0;
 CREATE INDEX IF NOT EXISTS search_chunk_tokens ON search_chunk USING gin (tokens);
 CREATE INDEX IF NOT EXISTS search_chunk_kind ON search_chunk (kind, ref_id);
 

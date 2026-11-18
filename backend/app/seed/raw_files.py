@@ -2,6 +2,7 @@
 
   python -m app.seed.raw_files add <ไฟล์> --class public --source "ราชกิจจานุเบกษา" [--from "ฝ่ายกฎหมาย"] [--received 2026-11-17] [--note ...]
   python -m app.seed.raw_files manifest <manifest.csv> --dir <โฟลเดอร์ไฟล์>     # นำเข้าเป็นชุดตาม manifest
+  python -m app.seed.raw_files zip <ไฟล์.zip> --class public --from "ฝ่ายกฎหมาย"  # zip จาก Google Drive: ไม่ต้องแตกไฟล์
   python -m app.seed.raw_files verify                                          # ตรวจว่าไฟล์ครบและ hash ตรงทุกไฟล์
   python -m app.seed.raw_files list
 
@@ -50,6 +51,34 @@ def add_file(conn: Connection, src: Path, classification: str, source: str | Non
     return {"sha256": st.sha256, "stored": st.rel_path, "new_file": st.created, "name": name}
 
 
+def add_zip(conn: Connection, zip_path: Path, classification: str, source: str | None = None,
+            received_from: str | None = None, received_at: date | None = None) -> list[dict]:
+    """เก็บทุกไฟล์ใน zip เข้าที่เก็บไฟล์ — ชื่อไทยใน zip จาก Google Drive ไม่ติดธง UTF-8 จึงถอดเอง
+    และไม่แตกลงดิสก์ด้วยชื่อเดิม (ชื่อไทยยาวเกินขีดจำกัดของระบบไฟล์ได้) — ชื่อเดิมพร้อมโฟลเดอร์เก็บใน note"""
+    import tempfile
+    import zipfile
+    out = []
+    with zipfile.ZipFile(zip_path) as z, tempfile.TemporaryDirectory() as tmp:
+        for info in z.infolist():
+            if info.is_dir():
+                continue
+            name = info.filename
+            if not info.flag_bits & 0x800:
+                try:
+                    name = name.encode("cp437").decode("utf-8")
+                except UnicodeError:
+                    pass
+            ext = Path(name).suffix.lower()
+            if ext not in (".pdf", ".doc", ".docx", ".xlsx", ".xls"):
+                continue
+            tmp_file = Path(tmp) / f"member{ext}"
+            tmp_file.write_bytes(z.read(info))
+            res = add_file(conn, tmp_file, classification, source, received_from, received_at,
+                           note=f"{zip_path.name}: {name}", original_name=Path(name).name)
+            out.append(res)
+    return out
+
+
 def verify_all(conn: Connection, store: RawStore | None = None) -> list[dict]:
     store = store or RawStore()
     out = []
@@ -72,6 +101,12 @@ def main(argv: list[str]) -> None:
     m = sub.add_parser("manifest")
     m.add_argument("csv")
     m.add_argument("--dir", required=True)
+    zp = sub.add_parser("zip")
+    zp.add_argument("zip", nargs="+")
+    zp.add_argument("--class", dest="cls", choices=["public", "internal"], required=True)
+    zp.add_argument("--source")
+    zp.add_argument("--from", dest="frm")
+    zp.add_argument("--received", type=date.fromisoformat)
     sub.add_parser("verify")
     sub.add_parser("list")
     args = ap.parse_args(argv)
@@ -86,6 +121,11 @@ def main(argv: list[str]) -> None:
                                    date.fromisoformat(r["received_at"]) if r.get("received_at") else None,
                                    r.get("note") or None, r.get("original_name") or None)
                     print(("+ " if res["new_file"] else "= ") + f"{res['sha256'][:12]} {res['name']}")
+        elif args.cmd == "zip":
+            for zf in args.zip:
+                res = add_zip(conn, Path(zf), args.cls, args.source, args.frm, args.received)
+                new = sum(r["new_file"] for r in res)
+                print(f"{Path(zf).name}: {len(res)} ไฟล์ (ใหม่ {new}, มีอยู่แล้ว {len(res) - new})")
         elif args.cmd == "verify":
             bad = 0
             for r in verify_all(conn):

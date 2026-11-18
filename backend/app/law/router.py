@@ -210,6 +210,8 @@ def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: U
         "subordinate": subordinate, "parent_authority": parent_authority(conn, prov["instrument_eli"]),
         "source_files": sources_of(conn, prov["instrument_eli"], user),
         "relations": relations.edges_of(conn, eli_id),
+        "pending_amendments": relations.pending_amendments(conn, prov["instrument_eli"]),
+        "amends_instrument": relations.amends_target(conn, prov["instrument_eli"]),
     }
 
 

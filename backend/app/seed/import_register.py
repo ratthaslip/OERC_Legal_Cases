@@ -76,8 +76,12 @@ def _title_key(t: str) -> str:
 
 def link_instruments(conn: Connection) -> int:
     """ผูกระเบียนทะเบียนกับตัวบทเต็มที่นำเข้าแล้ว (ตัวบทจริงเท่านั้น) โดยเทียบชื่อหลังปรับรูปแบบ"""
-    insts = {_title_key(r[1]): (r[0], r[2]) for r in conn.execute(
-        text("SELECT eli_id, title_th, effective_date FROM legal_instrument WHERE is_demo = FALSE"))}
+    insts = {}
+    for eli, title, eff, reg_title in conn.execute(text(
+            "SELECT eli_id, title_th, effective_date, register_title FROM legal_instrument WHERE is_demo = FALSE")):
+        insts.setdefault(_title_key(title), (eli, eff))
+        if reg_title:  # ไฟล์จากฝ่ายกฎหมายระบุชื่อตามทะเบียนไว้ — ผูกได้แม้ชื่อทางการเขียนต่างจากทะเบียน
+            insts[_title_key(reg_title)] = (eli, eff)
     n = 0
     for rid, title, eff in conn.execute(text("SELECT register_id, title_th, effective_date FROM law_register")).all():
         hit = insts.get(_title_key(title))
