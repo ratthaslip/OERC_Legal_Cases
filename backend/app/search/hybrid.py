@@ -42,6 +42,7 @@ class Hit:
     exact_ref: bool = False
     via: str | None = None  # มาจากการขยายตามเส้นความสัมพันธ์ (search/graph.py)
     is_demo: bool = False   # มาจากเรื่อง/คดีสาธิต
+    weight: float = 1.0     # น้ำหนักแหล่ง (indexer.source_weight)
 
 
 @dataclass
@@ -71,7 +72,8 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
     q = expand_query(q)
     tsq = to_query(q)
     where, params = _base_where(user, kinds, as_of, sector, exclude_demo)
-    cols = ("chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification, is_demo")
+    cols = ("chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification, is_demo, "
+            "weight")
 
     # 1) lexical (กรองสิทธิ์ใน WHERE ก่อนจัดอันดับ)
     lexical: list[dict] = []
@@ -116,11 +118,18 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
         h = hit_of(r)
         h.rrf += 1.0 / (RRF_K + rank + 1)
         h.cosine = sim
+    # ผู้สมัครชุดที่ 3: ความครอบคลุมคำสำคัญถ่วง IDF (ไม่เอียงไปทางเอกสารยาวแบบ ts_rank และให้น้ำหนักคำหายาก เช่น "ทุเลา")
+    #   จำเป็นเมื่อคลังใหญ่ขึ้น: คำทั่วไปจากคำย่อ (กกพ. → คณะกรรมการกำกับกิจการพลังงาน) ทำให้ ts_rank ดึงแต่เอกสารยาว
+    by_cov = sorted((c for c in cand if cov.get(c["chunk_id"], 0) > 0), key=lambda c: -cov[c["chunk_id"]])[:50]
+    for rank, r in enumerate(by_cov):
+        h = hit_of(r)
+        h.rrf += 1.0 / (RRF_K + rank + 1)
+        h.lexical = True
     # คะแนนชุดแรก: ความครอบคลุมคำสำคัญ + อันดับ RRF
     max_rrf = max((h.rrf for h in fused.values()), default=1.0) or 1.0
     for h in fused.values():
         h.coverage = cov.get(h.chunk_id, 0.0)
-        h.score = 0.65 * h.coverage + 0.35 * (h.rrf / max_rrf)
+        h.score = (0.65 * h.coverage + 0.35 * (h.rrf / max_rrf)) * h.weight
 
     # 3b) rerank ผู้สมัครอันดับต้น (search/rerank.py: legal features และ/หรือ cross-encoder)
     ref = normalize_ref_no(q)

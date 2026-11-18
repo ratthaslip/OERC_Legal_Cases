@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, History, Lock, Scale, Search, Timer } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, GitBranch, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
 import { ParentAuthority, RelationsPanel, SourceFiles, SubordinatePanel } from './law/Subordinate.jsx';
@@ -274,6 +274,31 @@ function ProvisionView({ me, go, notify, route }) {
                 )}
 
                 <SourceFiles files={detail.source_files} />
+                {detail.pending_amendments?.length > 0 && (
+                  <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900">
+                    <div className="font-semibold mb-1 flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4" /> ฉบับนี้มีฉบับแก้ไขเพิ่มเติม {detail.pending_amendments.length} ฉบับที่ยังไม่ได้ประกอบเข้าตัวบท — ถ้อยคำที่แสดงอาจไม่เป็นปัจจุบัน
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {detail.pending_amendments.map((a) => (
+                        <button key={a.eli} onClick={() => { setEli(a.first_provision_eli); setCompare(false); }}
+                          className="px-2 py-0.5 rounded bg-white border border-amber-300 hover:border-brand-400 hover:text-brand-700 text-left">
+                          {a.title}{a.valid_from ? ` (มีผล ${thDate(a.valid_from)})` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {detail.amends_instrument && (
+                  <div className="mb-4 p-3 rounded-lg bg-brand-50 border border-brand-100 text-xs text-brand-900 flex flex-wrap items-center gap-1.5">
+                    <GitBranch className="w-3.5 h-3.5" /> เป็นฉบับแก้ไขเพิ่มเติมของ
+                    <button onClick={() => { setEli(detail.amends_instrument.first_provision_eli); setCompare(false); }}
+                      className="px-2 py-0.5 rounded bg-white border border-brand-200 hover:border-brand-400 text-left">
+                      {detail.amends_instrument.title}
+                    </button>
+                    {detail.amends_instrument.note && <span className="text-[11px] text-slate-500">({detail.amends_instrument.note})</span>}
+                  </div>
+                )}
                 <ParentAuthority
                   pa={detail.parent_authority}
                   onOpenText={(e) => { setEli(e); setCompare(false); }}

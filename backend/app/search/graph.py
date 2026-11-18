@@ -84,19 +84,20 @@ def _instrument_of(eli: str | None) -> str | None:
 
 def expand(conn: Connection, user: User, hits: list[Hit], question: str, as_of: date) -> list[Hit]:
     q_terms = content_terms(question)
-    have = {h.chunk_id: h for h in hits}
+    have = {(h.kind, h.ref_id): h for h in hits}  # บทบัญญัติยาวมีหลายท่อน (chunk) — นับเป็นรายการเดียว
     added: list[Hit] = []
 
     def add(r: dict, parent: Hit, via: str) -> Hit | None:
         if len(added) >= MAX_ADD:
             return None
-        if r["chunk_id"] in have:
-            h = have[r["chunk_id"]]
+        key = (r["kind"], r["ref_id"])
+        if key in have:
+            h = have[key]
             if h.score < parent.score * DECAY:      # มีอยู่แล้วแต่อันดับต่ำ → ดันขึ้นมาใกล้ต้นทาง
                 h.score, h.via = parent.score * DECAY, via
             return None
         h = _to_hit(r, parent, via)
-        have[h.chunk_id] = h
+        have[key] = h
         added.append(h)
         return h
 

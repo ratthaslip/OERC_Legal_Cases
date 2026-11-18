@@ -15,7 +15,8 @@ from . import relations
 TYPE_TH = {"act": "พระราชบัญญัติ", "regulation": "ระเบียบ", "announcement": "ประกาศ"}
 STATUS_TH = {"IN_FORCE": "ใช้บังคับ", "REPEALED": "ยกเลิก", "UNKNOWN": "ไม่ระบุ"}
 ISSUE_TH = {"date_estimate": "วันใช้บังคับเป็นค่าประมาณ", "pending_amendment": "ฉบับแก้ไขที่ยังไม่ได้รวม",
-            "placeholder_text": "ถ้อยคำยังไม่ครบ", "needs_confirmation": "ต้องยืนยันความเป็นปัจจุบัน"}
+            "placeholder_text": "ถ้อยคำยังไม่ครบ", "needs_confirmation": "ต้องยืนยันความเป็นปัจจุบัน",
+            "verify_consolidation": "ขอตรวจการประกอบตัวบท", "import_note": "ข้อสังเกตจากการแปลงไฟล์"}
 
 _HAS_TEXT = "(instrument_eli IS NOT NULL)"
 

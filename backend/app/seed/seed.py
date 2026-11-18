@@ -64,8 +64,9 @@ def load_laws(conn: Connection, instruments: list[dict]) -> dict[str, list[Versi
     for inst in instruments:
         iid = conn.execute(text("""
             INSERT INTO legal_instrument (eli_id, instrument_type, title_th, short_title, issuer, category,
-                                          promulgated_date, effective_date, is_demo)
-            VALUES (:eli, :t, :title, :short, :issuer, :cat, :pub, :eff, :demo) RETURNING instrument_id"""), {
+                                          promulgated_date, effective_date, is_demo, gazette_ref, register_title)
+            VALUES (:eli, :t, :title, :short, :issuer, :cat, :pub, :eff, :demo, :gaz, :regt) RETURNING instrument_id"""), {
+            "gaz": (inst.get("source") or "")[:200] or None, "regt": inst.get("registerTitle"),
             "eli": inst["id"], "t": inst["type"], "title": inst["title"], "short": inst["code"],
             "issuer": inst["issuer"], "cat": inst["category"], "pub": parse_iso(inst["publishedDate"]),
             "eff": parse_iso(inst["effectiveDate"]), "demo": inst.get("isDemo", True)}).scalar()
@@ -103,12 +104,15 @@ def log_law_file(conn: Connection, path: Path) -> None:
             INSERT INTO law_import_log (kind, source_name, source_sha256, instrument_eli, title_th, provisions, versions,
                                         actor, detail)
             VALUES ('law_json', :src, :sha, :eli, :title, :np, :nv, :actor, CAST(:detail AS jsonb))"""), {
-            "src": f"seed/laws/{path.name}", "sha": sha, "eli": inst["id"], "title": inst["title"],
+            "src": f"seed/{path.relative_to(HERE).as_posix()}", "sha": sha, "eli": inst["id"], "title": inst["title"],
             "np": len(inst["provisions"]), "nv": sum(len(p["versions"]) for p in inst["provisions"]),
             "actor": import_actor(), "detail": json.dumps({
                 "origin": inst.get("source"),
                 "source_files": [{"sha256": f["sha256"], "name": f["name"], "role": f["role"]}
                                  for f in inst.get("sourceFiles", [])]}, ensure_ascii=False)})
+        for note in inst.get("importNotes", []):  # ข้อสังเกตจากการแปลงไฟล์อัตโนมัติ → ประเด็นรอตรวจ
+            conn.execute(text("""INSERT INTO law_open_issue (instrument_eli, kind, note) VALUES (:i, 'import_note', :n)"""),
+                         {"i": inst["id"], "n": note})
         for f in inst.get("sourceFiles", []):
             conn.execute(text("""INSERT INTO raw_file_link (sha256, instrument_eli, role, pages)
                                  VALUES (:s, :e, :r, :p) ON CONFLICT DO NOTHING"""),
@@ -471,7 +475,7 @@ def run(conn: Connection, today: date | None = None) -> dict:
                      {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
                       "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
     data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
-    files = sorted((HERE / "laws").glob("*.json"))
+    files = sorted((HERE / "laws").rglob("*.json"))  # laws/*.json + laws/legal-team/*.json (ไฟล์จากฝ่ายกฎหมาย)
     real = [i for f in files for i in json.loads(f.read_text(encoding="utf-8"))]
     windows = load_laws(conn, real + data["instruments"])
     for f in files:

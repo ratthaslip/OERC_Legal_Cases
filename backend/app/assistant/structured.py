@@ -93,13 +93,17 @@ def _overlap(q_terms: set[str], title: str) -> float:
     return len(q_terms & t) / (len(q_terms) or 1)
 
 
-def _phrase_score(q: str, title: str) -> tuple[float, int]:
+def _phrase_score(q: str, title: str) -> tuple[float, int, float]:
     """(สัดส่วนคำที่ตรง, จำนวนคู่คำติดกันที่ตรง) — คู่คำแยกชื่อฉบับที่มีคำเหมือนกันแต่เรียงต่างกันได้
     เช่น "ข้อพิพาทระหว่างผู้รับใบอนุญาต" vs "ข้อพิพาทระหว่างผู้ใช้พลังงานกับผู้รับใบอนุญาต"
     """
+    title = re.split(r"\s*(?:ตามมาตรา|แห่งพระราชบัญญัติ)", title)[0]  # ส่วนอ้าง พ.ร.บ. แม่บทไม่ใช่ชื่อเรื่อง
+    title = re.sub(r"พ\s*\.\s*ศ\s*\.\s*[๐-๙\d]{4}", " ", title)
     qt, tt = tokenize(q), tokenize(title)
     qb, tb = set(zip(qt, qt[1:])), set(zip(tt, tt[1:]))
-    return _overlap(content_terms(q), title), len(qb & tb)
+    t_terms = content_terms(title)
+    precision = len(t_terms & set(qt)) / len(t_terms) if t_terms else 0.0  # ชื่อที่ไม่มีคำเกินจากคำถามได้เปรียบ
+    return _overlap(content_terms(q), title), len(qb & tb), round(precision, 2)
 
 
 # ---------------------------------------------------------------- subordinate
@@ -198,7 +202,7 @@ def _pick_instrument(cands: list[dict], q: str) -> dict | None:
     if not scored or scored[0][0][0] == 0:
         return None
     if len(scored) > 1 and scored[0][:2] == scored[1][:2]:
-        return None  # กำกวม ไม่เดา
+        return None  # กำกวม ไม่เดา (คะแนน + ฉบับหลัก/ฉบับแก้ไข เท่ากันทุกส่วน)
     return scored[0][2]
 
 
@@ -210,7 +214,8 @@ def route_amendments(conn: Connection, user: User, q: str, as_of: date) -> Struc
     cands = rows(conn, """SELECT p.provision_id, p.eli_id, p.provision_no, i.title_th, i.eli_id AS instrument_eli
                           FROM provision p JOIN legal_instrument i USING (instrument_id) WHERE p.provision_no = :n""",
                  n=pno)
-    target = _pick_instrument(cands, PROV_REF.sub(" ", q))
+    # ตัดคำที่ถามเรื่องการแก้ไขออกก่อนจับคู่ชื่อฉบับ ("แก้ไข" ไม่ใช่ชื่อเรื่อง แต่ตรงกับชื่อฉบับแก้ไขเพิ่มเติมได้)
+    target = _pick_instrument(cands, AMEND_Q.sub(" ", PROV_REF.sub(" ", q)))
     if not target:
         return None
     vers = [v for v in rows(conn, """SELECT version_id, version_no, body_text, valid_from, valid_to, status, amended_by
@@ -249,7 +254,9 @@ def route_definition(conn: Connection, user: User, q: str, as_of: date) -> Struc
         FROM search_chunk s JOIN provision_version pv ON s.kind = 'provision' AND pv.version_id = s.ref_id
         JOIN provision p USING (provision_id) JOIN legal_instrument i USING (instrument_id)
         WHERE pv.body_text LIKE '%%หมายความว่า%%' AND s.valid_from <= :d AND (s.valid_to IS NULL OR :d <= s.valid_to)
-          AND {perm}""", d=as_of, **params)
+          AND {perm}
+          AND s.chunk_id = (SELECT min(chunk_id) FROM search_chunk s2 WHERE s2.kind = 'provision' AND s2.ref_id = s.ref_id)
+        """, d=as_of, **params)  # 1 แถวต่อรุ่น (บทนิยามยาวมีหลายท่อน แต่ใช้ถ้อยคำเต็มจาก body_text อยู่แล้ว)
     defs = []  # (term, definition, chunk)
     for c in chunks:
         if AMENDING.search(c["body_text"]) or "amend" in c["instrument_eli"]:

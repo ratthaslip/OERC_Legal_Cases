@@ -18,28 +18,70 @@ def _insert(conn: Connection, chunks: list[dict]) -> None:
     for c, v in zip(chunks, vecs):
         conn.execute(text("""
             INSERT INTO search_chunk (kind, ref_id, eli_id, version_no, valid_from, valid_to, title, chunk_text,
-                                      tokens, embedding, classification, owners, energy_sector, is_demo)
+                                      tokens, embedding, classification, owners, energy_sector, is_demo, weight)
             VALUES (:kind, :ref_id, :eli_id, :version_no, :valid_from, :valid_to, :title, :chunk_text,
-                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo)"""),
+                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo, :weight)"""),
             {"eli_id": None, "version_no": None, "valid_from": None, "valid_to": None, "energy_sector": None,
-             "owners": [], "is_demo": False, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v})
+             "owners": [], "is_demo": False, "weight": 1.0, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v})
 
 
 def reindex_laws(conn: Connection) -> int:
     conn.execute(text("DELETE FROM search_chunk WHERE kind = 'provision'"))
     data = rows(conn, """
         SELECT pv.version_id, pv.version_no, pv.body_text, pv.summary, pv.valid_from, pv.valid_to,
-               p.eli_id, p.provision_no, i.title_th, i.short_title
+               p.eli_id, p.provision_no, i.title_th, i.short_title, i.category
         FROM provision_version pv JOIN provision p USING (provision_id) JOIN legal_instrument i USING (instrument_id)
         WHERE pv.status = 'approved'""")
-    chunks = [{
-        "kind": "provision", "ref_id": d["version_id"], "eli_id": d["eli_id"], "version_no": d["version_no"],
-        "valid_from": d["valid_from"], "valid_to": d["valid_to"], "classification": "public",
-        "title": f"{d['provision_no']} {d['title_th']} (รุ่นที่ {d['version_no']})",
-        "chunk_text": f"{d['provision_no']} {d['body_text']}\nสาระสำคัญ: {d['summary'] or ''}",
-    } for d in data]
+    chunks = []
+    for d in data:
+        base = {"kind": "provision", "ref_id": d["version_id"], "eli_id": d["eli_id"], "version_no": d["version_no"],
+                "valid_from": d["valid_from"], "valid_to": d["valid_to"], "classification": "public",
+                "title": f"{d['provision_no']} {d['title_th']} (รุ่นที่ {d['version_no']})",
+                "weight": source_weight(d["eli_id"], d["provision_no"], d["category"])}
+        for part in split_long(d["body_text"]):
+            chunks.append({**base, "chunk_text": f"{d['provision_no']} {part}\nสาระสำคัญ: {d['summary'] or ''}"})
     _insert(conn, chunks)
     return len(chunks)
+
+
+# น้ำหนักแหล่ง (คูณคะแนนค้นหา): พ.ร.บ. มีศักดิ์สูงกว่าและเป็นคำตอบหลักของคำถามทั่วไป; ระเบียบบริหารภายในสำนักงาน
+# (โครงสร้าง/บุคลากร/การเงิน) และเอกสารแนบท้ายยาว ๆ มีคำกว้างจนติดผลค้นหาทุกเรื่อง จึงลดน้ำหนักลง
+WEIGHT_ACT, WEIGHT_ADMIN, WEIGHT_ANNEX, WEIGHT_WHOLE = 1.15, 0.8, 0.85, 0.9
+WEIGHT_REGISTER_WITH_TEXT = 0.85
+
+
+def source_weight(eli: str, provision_no: str, category: str | None) -> float:
+    w = WEIGHT_ACT if "/act/" in eli else 1.0
+    if category == "การบริหารองค์กร":
+        w *= WEIGHT_ADMIN
+    if provision_no == "แนบท้าย":
+        w *= WEIGHT_ANNEX
+    elif provision_no == "ทั้งฉบับ":
+        w *= WEIGHT_WHOLE
+    return round(w, 3)
+
+
+CHUNK_CHARS = 900  # ข้อความยาว (บัญชีแนบท้าย, ประกาศที่ไม่แบ่งข้อ) แบ่งเป็นท่อน — กันเอกสารยาวชนะเพราะมีทุกคำ
+
+
+def split_long(body: str, size: int = CHUNK_CHARS) -> list[str]:
+    """แบ่งตามย่อหน้าให้แต่ละท่อนยาวไม่เกิน ~size อักษร ท่อนติดกันซ้อน 1 ย่อหน้า (ผลค้นหารวมเป็นบทบัญญัติเดียว)"""
+    if len(body) <= size * 1.5:
+        return [body]
+    paras = [p for p in body.split("\n") if p.strip()]
+    out, cur = [], []
+    for p in paras:
+        while len(p) > size * 1.5:          # ย่อหน้าเดียวยาวมาก (ตาราง) → ตัดตามความยาว
+            if cur:
+                out.append("\n".join(cur)); cur = []
+            out.append(p[:size]); p = p[size:]
+        if cur and sum(len(x) for x in cur) + len(p) > size:
+            out.append("\n".join(cur))
+            cur = [cur[-1]] if len(cur[-1]) < size // 2 else []
+        cur.append(p)
+    if cur:
+        out.append("\n".join(cur))
+    return out
 
 
 def reindex_register(conn: Connection) -> int:
@@ -52,7 +94,9 @@ def reindex_register(conn: Connection) -> int:
         title, body = chunk_text(r)
         chunks.append({"kind": "register", "ref_id": r["register_id"], "eli_id": r["instrument_eli"],
                        "valid_from": r["effective_date"], "classification": "public", "title": title,
-                       "chunk_text": body})
+                       "chunk_text": body,
+                       # มีตัวบทเต็มแล้ว → ตัวบทเป็นหลักฐานที่ดีกว่าแถวทะเบียน (แถวทะเบียนไว้สำหรับฉบับที่ยังไม่มีตัวบท)
+                       "weight": WEIGHT_REGISTER_WITH_TEXT if r["instrument_eli"] else 1.0})
     _insert(conn, chunks)
     return len(chunks)
 
