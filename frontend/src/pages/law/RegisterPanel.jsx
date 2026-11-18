@@ -94,7 +94,7 @@ export default function RegisterPanel({ me, initialId, go, initialFilter }) {
           <div>
             <div className="text-sm font-bold text-slate-900">ทะเบียนคุมกฎหมายลำดับรองที่ออกโดยอาศัยอำนาจ พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550</div>
             <div className="text-[11px] text-slate-500">
-              {meta.total} ระเบียน · {meta.groups} กลุ่มเรื่อง · นำเข้าจาก {meta.source_file} เมื่อ {thDate(meta.imported_at?.slice(0, 10))} · ยังไม่มีตัวบทเต็ม
+              {meta.total} ระเบียน · {meta.groups} กลุ่มเรื่อง · นำเข้าจาก {meta.source_file} เมื่อ {thDate(meta.imported_at?.slice(0, 10))} · มีตัวบทเต็มในระบบ {meta.with_text} ระเบียน
             </div>
           </div>
           <div className="flex flex-wrap gap-1.5">
