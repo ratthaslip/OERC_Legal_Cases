@@ -94,9 +94,21 @@ def unjustify(line: str) -> str:
 
 
 def pdf_paragraphs(path: str) -> list[str]:
-    txt = subprocess.run(["pdftotext", "-q", "-layout", path, "-"], capture_output=True, text=True).stdout
+    return layout_paragraphs(subprocess.run(["pdftotext", "-q", "-layout", path, "-"], capture_output=True, text=True).stdout)
+
+
+OCR_DIR = WORK / "ocr"   # ผลจาก ocr.py (ข้อความที่รักษาการเยื้องบรรทัด)
+
+
+def ocr_text(f: dict) -> str | None:
+    p = OCR_DIR / f"{f['sha256']}.txt"
+    return p.read_text(encoding="utf-8") if f["ext"] == ".pdf" and p.exists() else None
+
+
+def layout_paragraphs(txt: str) -> list[str]:
+    """ข้อความที่รักษาตำแหน่งบรรทัด (pdftotext -layout หรือ ocr.py) → ย่อหน้า: บรรทัดเยื้อง/ขึ้นต้นด้วยข้อ มาตรา (๑) = ย่อหน้าใหม่"""
     paras: list[str] = []
-    for raw in txt.splitlines():
+    for raw in txt.replace("\f", "\n").splitlines():
         if not raw.strip() or HEADER_RE.search(bare(fix_chars(raw))):
             continue
         indent = len(raw) - len(raw.lstrip(" "))
@@ -133,17 +145,32 @@ def doc_paragraphs(path: str) -> list[str]:
     return docx_paragraphs(str(f)) if f.exists() else []
 
 
-def best_file(files: list[dict]) -> dict | None:
+def best_file(files: list[dict], use_ocr: bool = False) -> dict | None:
     for ext in (".docx", ".doc"):
         c = [f for f in files if f["ext"] == ext and f["thai_chars"] > 300]
         if c:
             return max(c, key=lambda f: f["thai_chars"])
     c = [f for f in files if f["ext"] == ".pdf" and not f["scanned"] and f["thai_chars"] > 300]
-    return max(c, key=lambda f: f["thai_chars"]) if c else None
+    if c:
+        return max(c, key=lambda f: f["thai_chars"])
+    return ocr_file(files) if use_ocr else None
+
+
+def ocr_file(files: list[dict]) -> dict | None:
+    """PDF ที่มีผล OCR แล้ว (ฉบับที่ได้อักษรไทยมากสุด) — ใช้เมื่อไม่มีไฟล์ข้อความ หรือข้อความจาก PDF เพี้ยน"""
+    c = [(f, len(THAI_RE.findall(t))) for f in files for t in [ocr_text(f)] if t]
+    c = [x for x in c if x[1] > 300]
+    return {**max(c, key=lambda x: x[1])[0], "ocr": True} if c else None
+
+
+THAI_RE = re.compile(r"[ก-๙]")
 
 
 def paragraphs(f: dict) -> list[str]:
-    ps = {".docx": docx_paragraphs, ".doc": doc_paragraphs}.get(f["ext"], pdf_paragraphs)(f["disk"])
+    if f.get("ocr"):
+        ps = layout_paragraphs(ocr_text(f))
+    else:
+        ps = {".docx": docx_paragraphs, ".doc": doc_paragraphs}.get(f["ext"], pdf_paragraphs)(f["disk"])
     joined = fix_lost_am("\n".join(ps))
     return joined.split("\n")
 
@@ -193,7 +220,12 @@ def category_of(title: str) -> str:
     return "กิจการพลังงานทั่วไป"
 
 
-def parse(paras: list[str], kind: str, reg_title: str):
+OCR_CLAUSE = re.compile(r"^(?:ข้อ|มาตรา)\s*([^\s.]{1,3})\s+(.*)$")
+
+
+def parse(paras: list[str], kind: str, reg_title: str, ocr: bool = False, renumbered: list | None = None):
+    """ocr=True: เลขข้อที่ OCR อ่านผิด (๔↔๕↔๖, "of") ในย่อหน้าที่ขึ้นต้นด้วย "ข้อ" → กำหนดเป็นข้อถัดไปตามลำดับ
+    (บันทึกใน renumbered เพื่อแจ้งในประเด็นรอตรวจ)"""
     # ชื่อเรื่อง: ตั้งแต่ต้นจนบรรทัด "พ.ศ. ๒๕xx" (ภายใน 8 ย่อหน้าแรก)
     title, start = None, 0
     for i, p in enumerate(paras[:8]):
@@ -214,7 +246,8 @@ def parse(paras: list[str], kind: str, reg_title: str):
             annex = paras[i + 3:]
             tail = len(annex)
             break
-        m = cls.match(p) if depth == 0 else None
+        # OCR อ่านเครื่องหมายคำพูดปิด (”) ผิดบ่อย จนนับความลึกค้าง — โหมด OCR ไม่ใช้ความลึกกั้นการขึ้นข้อใหม่
+        m = cls.match(p) if depth == 0 or ocr else None
         if m:
             no = th2ar(m.group(1))
             major = int(no.split("/")[0])
@@ -226,6 +259,16 @@ def parse(paras: list[str], kind: str, reg_title: str):
                 depth = max(0, p.count("“") - p.count("”"))
                 i += 1
                 continue
+        g = OCR_CLAUSE.match(p) if ocr and last is not None and p.startswith(kind) else None
+        if g and (not m or not ok):
+            no = str(last[0] + 1)
+            if renumbered is not None:
+                renumbered.append(f"{g.group(1)}→{no}")
+            provs.append({"no": no, "lines": [g.group(2)], "part": part})
+            last = (last[0] + 1, no)
+            depth = max(0, p.count("“") - p.count("”"))
+            i += 1
+            continue
         if depth == 0 and PART_RE.match(p) and len(p) < 120:
             part = p
         elif provs:
@@ -255,7 +298,7 @@ def main() -> None:
             why = "ไม่มีไฟล์"
         elif len({re.sub(r"^\d+\s*\.\s*", "", f["name"].rsplit(".", 1)[0]) for f in r["files"]}) > 1:
             why = "มีมากกว่า 1 เอกสารในแถว — รอตรวจการจับคู่"
-        f = best_file(r["files"]) if not why else None
+        f = best_file(r["files"], use_ocr=True) if not why else None
         if not why and not f:
             why = "มีแต่ PDF สแกน (รอ OCR)"
         if why:
@@ -268,11 +311,14 @@ def main() -> None:
         done_sha[f["sha256"]] = f"ทะเบียน {r['reg_key']}"
         kind = "มาตรา" if r["doc_type"] in ("พระราชกฤษฎีกา", "พระราชบัญญัติ") else "ข้อ"
         paras = paragraphs(f)
+        if tone_ratio("\n".join(paras)) < 0.06 and not f.get("ocr") and (g := ocr_file(r["files"])):
+            f, paras = g, paragraphs(g)   # ข้อความจาก PDF เพี้ยน (ฟอนต์เก่า) → ใช้ผล OCR
         if tone_ratio("\n".join(paras)) < 0.06:
             rep["skipped"].append({"reg": r["reg_key"], "group": r["group_no"], "why": "ข้อความจาก PDF เพี้ยน (รอ OCR)",
                                    "title": r["title_th"][:90]})
             continue
-        title, pre, provs, signed, tail, annex = parse(paras, kind, r["title_th"])
+        renum: list[str] = []
+        title, pre, provs, signed, tail, annex = parse(paras, kind, r["title_th"], ocr=bool(f.get("ocr")), renumbered=renum)
         gaz, pub = gazette(r["files"])
         sig_date = iso(DATE_RE.search(signed)) if signed and DATE_RE.search(signed) else None
         eff = r["effective_date"] or pub or sig_date
@@ -299,7 +345,11 @@ def main() -> None:
                 warn.append("เอกสารแนบท้ายยาวเกิน 40,000 อักษร — นำเข้าเฉพาะส่วนต้น ดูฉบับเต็มในไฟล์ต้นฉบับ")
             provs.append({"no": "__annex__", "lines": [annex_text], "part": "เอกสารแนบท้าย"})
             warn.append("เอกสารแนบท้าย (ตาราง/แบบฟอร์ม) นำเข้าเป็นข้อความ — รูปแบบตารางอาจไม่ครบ")
-        if f["ext"] == ".pdf":
+        if renum:
+            warn.append(f"เลข{kind}จาก OCR ไม่ต่อเนื่อง กำหนดตามลำดับ ({', '.join(renum[:6])}{' …' if len(renum) > 6 else ''}) — ตรวจกับต้นฉบับ")
+        if f.get("ocr"):
+            warn.append("ถอดจากภาพสแกนด้วย OCR — ตรวจทานตัวเลข วันที่ และวรรณยุกต์กับต้นฉบับทุกข้อก่อนอ้างอิง")
+        elif f["ext"] == ".pdf":
             warn.append("ถอดข้อความจาก PDF — ตรวจคำที่ตัดผิด")
         code_issuer, issuer = issuer_of(title)
         year = (re.findall(r"25\d\d", th2ar(title)) or [str(int(eff[:4]) + 543)])[-1]
@@ -335,12 +385,13 @@ def main() -> None:
                 "isDemo": False, "source": gaz or "ไฟล์จากฝ่ายกฎหมาย สำนักงาน กกพ.",
                 "registerTitle": r["title_th"], "preamble": "\n".join(pre) or None, "signed": signed,
                 "provisions": provisions,
-                "sourceFiles": [{"sha256": x["sha256"], "name": x["name"], "role": "text" if x is f else "copy"}
+                "sourceFiles": [{"sha256": x["sha256"], "name": x["name"], "role": "text" if x["sha256"] == f["sha256"] else "copy"}
                                 for x in r["files"]],
                 "importNotes": warn}
         fn = OUT / (eli.split("/", 2)[2].replace("/", "_") + ".json")
         fn.write_text(json.dumps([inst], ensure_ascii=False, indent=1), encoding="utf-8")
-        rep["converted"].append({"reg": r["reg_key"], "eli": eli, "provisions": len(provisions), "src": f["ext"],
+        rep["converted"].append({"reg": r["reg_key"], "eli": eli, "provisions": len(provisions),
+                                 "src": "ocr" if f.get("ocr") else f["ext"],
                                  "warn": warn, "title": inst["title"][:90]})
     REPORT.write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
     print("converted", len(rep["converted"]), "skipped", len(rep["skipped"]))
