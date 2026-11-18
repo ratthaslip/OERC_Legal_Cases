@@ -13,6 +13,7 @@ from typing import Iterator
 from sqlalchemy.engine import Connection
 
 from .. import audit
+from ..admin import llm_config
 from ..auth import User
 from ..config import get_settings
 from ..search.graph import expand
@@ -164,14 +165,15 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
 
     source_text = {src.key: src.full_text() for src in sources}
     withheld: list[Source] = []
-    if s.llm_provider == "extractive":
+    cfg = llm_config.effective()  # หน้าตั้งค่าผู้ดูแลทับ .env
+    if cfg.provider == "extractive":
         deltas = extractive_answer(sources)
     else:
         # LLM ภายนอก: ส่งเฉพาะตัวบทสาธารณะ — ข้อมูลทะเบียน ตราสารภายใน และสำนวน ตอบด้วยการยกข้อความ (ไม่ออกนอกระบบ)
-        send = [x for x in sources if shareable_with_external(x)] if s.llm_external else sources
+        send = [x for x in sources if shareable_with_external(x)] if cfg.external else sources
         withheld = [x for x in sources if x not in send]
         deltas = itertools.chain(
-            stream_chat(SYSTEM_PROMPT, build_user_prompt(question, send, as_of)) if send else iter(()),
+            stream_chat(SYSTEM_PROMPT, build_user_prompt(question, send, as_of), cfg) if send else iter(()),
             extractive_answer(withheld) if withheld else iter(()))
     buffer, passed, dropped, used = "", 0, 0, []
     status = "ANSWERED"
@@ -199,15 +201,15 @@ def answer(conn: Connection, user: User, question: str, as_of: date | None = Non
             else:
                 dropped += 1
     except LlmUnavailable as e:
-        log.warning("LLM unavailable (%s %s): %s", s.llm_provider, s.llm_base_url, e)
+        log.warning("LLM unavailable (%s %s): %s", cfg.provider, cfg.base_url, e)
         status = "MODEL_UNAVAILABLE"
     if status == "ANSWERED" and passed == 0:
         status = "NO_EVIDENCE"
 
     audit.record(conn, user, "assistant.answer", f"answer/{answer_id}", detail={
         "status": status, "sources": [src.public()["title"] for src in sources if src.key in used],
-        "sentences": passed, "dropped": dropped, "provider": s.llm_provider, "model": s.llm_model,
-        "llm_external": s.llm_external, "withheld_from_llm": len(withheld),
+        "sentences": passed, "dropped": dropped, "provider": cfg.provider, "model": cfg.model,
+        "llm_external": cfg.external, "withheld_from_llm": len(withheld),
     })
     yield "done", {"answer_id": answer_id, "status": status, "used_sources": used, "dropped_sentences": dropped,
                    "restricted_omitted": res.restricted_omitted, "demo_excluded": exclude_demo and "appeal" in kinds,

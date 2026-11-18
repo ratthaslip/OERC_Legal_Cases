@@ -55,14 +55,13 @@ def _internal_title() -> tuple[str, str]:
 
 
 def _ask(client, monkeypatch, q: str, external: bool, user: str = "lgl1"):
+    from app.admin import llm_config
     from app.assistant import rag
-    from app.config import get_settings
-    s = get_settings()
-    monkeypatch.setattr(s, "llm_provider", "openai_compat")
-    monkeypatch.setattr(s, "llm_external", external)
+    cfg = llm_config.LlmConfig("openai_compat", "https://api.example.com/v1", "m", "", 30.0, external, {})
+    monkeypatch.setattr(llm_config, "effective", lambda: cfg)
     sent: list[str] = []
 
-    def fake_llm(system, prompt):
+    def fake_llm(system, prompt, cfg=None):
         sent.append(prompt)
         yield "ไม่มีข้อความจากโมเดล\n"  # ไม่มีอ้างอิง → ถูกตัดทิ้ง; สนใจแค่ข้อความที่ส่งออก
     monkeypatch.setattr(rag, "stream_chat", fake_llm)

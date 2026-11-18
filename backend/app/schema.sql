@@ -365,3 +365,14 @@ CREATE TABLE IF NOT EXISTS audit_event (
     prev_hash   CHAR(64) NOT NULL,
     hash        CHAR(64) NOT NULL
 );
+
+
+-- ค่าตั้งระบบที่ผู้ดูแลแก้ผ่านหน้าเว็บ (ทับค่าจาก .env) — ไม่ถูกล้างตอน seed
+-- secret = TRUE: value เข้ารหัสด้วย CONFIG_SECRET (Fernet) และไม่ส่งกลับไปหน้าเว็บ
+CREATE TABLE IF NOT EXISTS app_setting (
+    key         VARCHAR(60) PRIMARY KEY,
+    value       TEXT NOT NULL,
+    secret      BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_by  VARCHAR(40) NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
