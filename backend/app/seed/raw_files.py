@@ -36,7 +36,7 @@ def pdf_pages(path: Path) -> int | None:
 
 def add_file(conn: Connection, src: Path, classification: str, source: str | None = None,
              received_from: str | None = None, received_at: date | None = None, note: str | None = None,
-             original_name: str | None = None, store: RawStore | None = None) -> dict:
+             original_name: str | None = None, store: RawStore | None = None, added_by: str | None = None) -> dict:
     store = store or RawStore()
     st = store.put_file(src, classification)
     name = original_name or src.name
@@ -47,7 +47,7 @@ def add_file(conn: Connection, src: Path, classification: str, source: str | Non
         ON CONFLICT (sha256) DO NOTHING"""), {
         "sha": st.sha256, "cls": classification, "name": name, "mime": guess_mime(name), "size": st.size,
         "pages": pdf_pages(src), "rel": st.rel_path, "src": source, "frm": received_from, "rcv": received_at,
-        "note": note, "by": os.environ.get("IMPORT_ACTOR") or "cli"})
+        "note": note, "by": added_by or os.environ.get("IMPORT_ACTOR") or "cli"})
     return {"sha256": st.sha256, "stored": st.rel_path, "new_file": st.created, "name": name}
 
 

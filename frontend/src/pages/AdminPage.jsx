@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, KeyRound, Lock, PlugZap, RotateCcw, Save, Settings, XCircle } from 'lucide-react';
 import { api } from '../api.js';
 import { Card, ErrorBox, Label, Spinner, inputCls } from '../components/ui.jsx';
+import { EmbedIndexes, ModelSection, SourceTag } from './AdminModels.jsx';
 
 const PROVIDER_TH = {
   extractive: 'extractive — ไม่เรียกโมเดล (ยกข้อความจากตัวบท)',
@@ -9,14 +10,43 @@ const PROVIDER_TH = {
   anthropic: 'Anthropic API'
 };
 
-const SourceTag = ({ src }) => (
-  <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${src === 'db' ? 'bg-brand-100 text-brand-800' : 'bg-slate-100 text-slate-500'}`}>
-    {src === 'db' ? 'ตั้งจากหน้านี้' : 'จาก .env'}
-  </span>
-);
+const TABS = [
+  ['llm', 'โมเดลภาษา (LLM)'],
+  ['rerank', 'Reranker'],
+  ['embed', 'Embedding']
+];
 
-/** หน้าตั้งค่าผู้ดูแลระบบ: LLM endpoint / model / API key */
+/** หน้าตั้งค่าผู้ดูแลระบบ: LLM / reranker / embedding (endpoint / model / API key) */
 export default function AdminPage({ notify }) {
+  const [tab, setTab] = useState('llm');
+  const [embedStamp, setEmbedStamp] = useState('');
+  return (
+    <div className="max-w-3xl space-y-4">
+      <div className="flex items-center gap-2">
+        <Settings className="w-5 h-5 text-brand-600" />
+        <h2 className="text-lg font-bold text-slate-900">ตั้งค่าระบบ — โมเดล</h2>
+      </div>
+      <div className="flex gap-1 border-b border-slate-200">
+        {TABS.map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`px-3 py-2 text-sm -mb-px border-b-2 ${tab === k ? 'border-brand-600 text-brand-700 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'llm' && <LlmSection notify={notify} />}
+      {tab === 'rerank' && <ModelSection name="rerank" notify={notify} />}
+      {tab === 'embed' && (
+        <>
+          <ModelSection name="embed" notify={notify} onLoaded={(v) => setEmbedStamp(`${v.provider}|${v.base_url}|${v.model}|${v.updated_at}`)} />
+          <EmbedIndexes key={embedStamp} notify={notify} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function LlmSection({ notify }) {
   const [cfg, setCfg] = useState(null);
   const [form, setForm] = useState({});
   const [key, setKey] = useState('');
@@ -56,12 +86,6 @@ export default function AdminPage({ notify }) {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="flex items-center gap-2">
-        <Settings className="w-5 h-5 text-brand-600" />
-        <h2 className="text-lg font-bold text-slate-900">ตั้งค่าระบบ — โมเดลภาษา (LLM)</h2>
-      </div>
-
       <Card className="p-5 space-y-4">
         <div>
           <Label>ผู้ให้บริการ <SourceTag src={cfg.source.provider} /></Label>
@@ -152,6 +176,5 @@ export default function AdminPage({ notify }) {
           <p className="text-[11px] text-slate-400">แก้ไขล่าสุดโดย {cfg.updated_by} · {new Date(cfg.updated_at).toLocaleString('th-TH')} · ทุกการแก้ไขบันทึกใน audit log</p>
         )}
       </Card>
-    </div>
   );
 }
