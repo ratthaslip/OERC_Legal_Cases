@@ -61,6 +61,12 @@ def search_filter_sql(user: User, alias: str = "") -> tuple[str, dict]:
     )
 
 
+def require_admin(user: User) -> None:
+    """ผู้ดูแลระบบ (ADM) เท่านั้น — ไม่มีสิทธิ์ตอบ 404 เหมือนไม่มีหน้า"""
+    if user.role != "ADM":
+        raise HTTPException(404, "ไม่พบ")
+
+
 def require_internal(user: User) -> None:
     if user.role not in INTERNAL_ROLES:
         # ผู้ใช้ภายนอกไม่ควรรู้ว่ามีโมดูลนี้ → ตอบเหมือนไม่มี

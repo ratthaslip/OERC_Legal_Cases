@@ -286,7 +286,7 @@ def test_llm_output_is_validated_sentence_by_sentence(client, monkeypatch):
               "ประโยคที่ไม่มีการอ้างอิง\n"
               "ตามมาตรา 999 ต้องยื่นภายในเจ็ดวัน [S1]\n")
     monkeypatch.setattr(get_settings(), "llm_provider", "openai_compat")
-    monkeypatch.setattr(rag, "stream_chat", lambda system, user: iter([answer[i:i + 5] for i in range(0, len(answer), 5)]))
+    monkeypatch.setattr(rag, "stream_chat", lambda system, user, cfg=None: iter([answer[i:i + 5] for i in range(0, len(answer), 5)]))
     r = client.post("/api/v1/assistant/answers", json={"question": "ยื่นอุทธรณ์ตามมาตรา 121 ภายในกี่วัน"}, headers=h("lgl1"))
     events = sse(r.text)
     sentences = [d["text"] for n, d in events if n == "sentence"]

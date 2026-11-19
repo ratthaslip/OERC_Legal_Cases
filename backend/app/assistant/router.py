@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..auth import User, current_user
+from ..admin import llm_config
 from ..config import get_settings
 from ..db import get_engine
 from .rag import answer
@@ -25,9 +26,10 @@ class Question(BaseModel):
 @router.get("/status")
 def status():
     s = get_settings()
-    return {"enabled": s.assistant_enabled, "provider": s.llm_provider,
-            "model": None if s.llm_provider == "extractive" else s.llm_model,
-            "external": s.llm_external}  # True = ส่งให้ LLM เฉพาะตัวบทสาธารณะ
+    cfg = llm_config.effective()
+    return {"enabled": s.assistant_enabled, "provider": cfg.provider,
+            "model": None if cfg.provider == "extractive" else cfg.model,
+            "external": cfg.external}  # True = ส่งให้ LLM เฉพาะตัวบทสาธารณะ
 
 
 @router.post("/answers")
