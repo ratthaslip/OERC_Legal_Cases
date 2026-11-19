@@ -355,6 +355,33 @@ CREATE INDEX IF NOT EXISTS search_chunk_sha ON search_chunk (content_sha);
 CREATE INDEX IF NOT EXISTS search_chunk_tokens ON search_chunk USING gin (tokens);
 CREATE INDEX IF NOT EXISTS search_chunk_kind ON search_chunk (kind, ref_id);
 
+-- ---------- เอกสารกฎหมายที่เจ้าหน้าที่นำเข้าจากหน้าเว็บ (law/uploads.py) — ไม่ถูกล้างตอน seed ----------
+-- processing → draft (ตรวจทาน/แก้ได้) → approved (เผยแพร่ — seed นำเข้าซ้ำจาก draft ทุกครั้ง) | rejected | failed
+-- ผู้อนุมัติต้องไม่ใช่ผู้อัปโหลด; ไฟล์ต้นฉบับอยู่ใน raw_file (sha256)
+CREATE TABLE IF NOT EXISTS law_upload (
+    upload_id      SERIAL PRIMARY KEY,
+    sha256         CHAR(64) NOT NULL,
+    original_name  TEXT NOT NULL,
+    ext            VARCHAR(8) NOT NULL,
+    classification VARCHAR(10) NOT NULL CHECK (classification IN ('public', 'internal')),
+    doc_type       VARCHAR(40) NOT NULL,
+    register_id    INT,            -- ไม่มี FK: law_register สร้างใหม่ทุกครั้งที่ seed (ผูกซ้ำด้วย register_title)
+    register_title TEXT,
+    effective_date DATE,
+    force_ocr      BOOLEAN NOT NULL DEFAULT FALSE,
+    status         VARCHAR(12) NOT NULL DEFAULT 'processing',
+    method         VARCHAR(8),     -- docx | doc | pdf | ocr
+    draft          JSONB,          -- ตราสารรูปแบบเดียวกับ seed/laws/*.json
+    error          TEXT,
+    uploaded_by    VARCHAR(40) NOT NULL,
+    uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    edited_by      VARCHAR(40),
+    edited_at      TIMESTAMPTZ,
+    reviewed_by    VARCHAR(40),
+    reviewed_at    TIMESTAMPTZ,
+    review_note    TEXT
+);
+
 -- ---------- embedding index จากโมเดล (search/vector_index.py) — ไม่ถูกล้างตอน seed ----------
 -- search_chunk.embedding (hash) ใช้เมื่อไม่มี index ที่ active; สร้าง index ใหม่ได้ทุกครั้งที่เปลี่ยนโมเดล แล้วสลับใช้เมื่อพร้อม
 -- external = TRUE: สร้างเวกเตอร์เฉพาะตัวบทกฎหมายสาธารณะ (ข้อมูลภายในไม่ถูกส่งไปบริการภายนอก)

@@ -37,6 +37,14 @@ export const api = {
   saveAdminLlm: (body) => request('PUT', '/admin/llm', { body }),
   resetAdminLlm: () => request('DELETE', '/admin/llm'),
   testAdminLlm: () => request('POST', '/admin/llm/test'),
+  uploads: () => request('GET', '/laws/uploads'),
+  upload: (id) => request('GET', `/laws/uploads/${id}`),
+  uploadRegisterOptions: (q) => request('GET', '/laws/uploads/register-options', { params: { q } }),
+  saveUpload: (id, body) => request('PUT', `/laws/uploads/${id}`, { body }),
+  approveUpload: (id, note) => request('POST', `/laws/uploads/${id}/approve`, { body: { note } }),
+  rejectUpload: (id, note) => request('POST', `/laws/uploads/${id}/reject`, { body: { note } }),
+  reprocessUpload: (id, force_ocr) => request('POST', `/laws/uploads/${id}/reprocess`, { params: { force_ocr } }),
+  deleteUpload: (id) => request('DELETE', `/laws/uploads/${id}`),
   adminModel: (name) => request('GET', `/admin/${name}`),
   saveAdminModel: (name, body) => request('PUT', `/admin/${name}`, { body }),
   resetAdminModel: (name) => request('DELETE', `/admin/${name}`),
@@ -130,4 +138,15 @@ export async function openRawFile(sha) {
   const url = URL.createObjectURL(await res.blob());
   if (win) win.location.href = url;
   else window.location.href = url;
+}
+
+/** อัปโหลดไฟล์กฎหมาย (multipart) — fields: doc_type, classification, register_id, effective_date, force_ocr */
+export async function uploadLawFile(file, fields) {
+  const fd = new FormData();
+  fd.append('file', file);
+  Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') fd.append(k, v); });
+  const res = await fetch('/api/v1/laws/uploads', { method: 'POST', headers: { 'X-Demo-User': currentUser }, body: fd });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data);
+  return data;
 }

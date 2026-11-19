@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { BookOpen, CheckCircle2, Gavel, Lock, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
+import { BookOpen, CheckCircle2, FileUp, Gavel, Lock, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
 import { api, setApiUser } from './api.js';
 import LawPage from './pages/LawPage.jsx';
 import AppealsPage from './pages/AppealsPage.jsx';
 import CasesPage from './pages/CasesPage.jsx';
 import AssistantPage from './pages/AssistantPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
+import ImportPage from './pages/ImportPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const CLEARANCE = {
@@ -21,7 +22,8 @@ const NAV = [
   { key: 'appeal', label: 'สืบค้นและติดตามงานอุทธรณ์', icon: Timer, badge: 'SLA', internal: true },
   { key: 'court', label: 'สืบค้นงานคดี', icon: Gavel, internal: true },
   { key: 'assistant', label: 'ระบบช่วยค้นคว้าอัจฉริยะ', icon: Sparkles, dot: true },
-  { key: 'admin', label: 'ตั้งค่าระบบ', icon: Settings, adminOnly: true }
+  { key: 'import', label: 'นำเข้าเอกสาร', icon: FileUp, roles: ['LGL', 'ADM'] },
+  { key: 'admin', label: 'ตั้งค่าระบบ', icon: Settings, roles: ['ADM'] }
 ];
 
 // โลโก้: ค่าเริ่มต้นใช้สัญลักษณ์ตาชั่ง (ไม่โหลดรูป)
@@ -155,7 +157,7 @@ export default function App() {
         <div className="bg-white border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between overflow-x-auto">
             <nav className="flex space-x-1">
-              {NAV.filter((n) => !n.adminOnly || me?.role === 'ADM').map(({ key, label, icon: Icon, badge, internal: needInternal, dot }) => (
+              {NAV.filter((n) => !n.roles || n.roles.includes(me?.role)).map(({ key, label, icon: Icon, badge, internal: needInternal, dot }) => (
                 <button
                   key={key}
                   onClick={() => go(key)}
@@ -199,6 +201,7 @@ export default function App() {
           {me && route.page === 'court' && <CasesPage key={k} {...pageProps} />}
           {me && route.page === 'assistant' && <AssistantPage key={k} {...pageProps} enabled={assistantOn} llm={llm} />}
           {me && route.page === 'admin' && me.role === 'ADM' && <AdminPage key={k} {...pageProps} />}
+          {me && route.page === 'import' && ['LGL', 'ADM'].includes(me.role) && <ImportPage key={k} {...pageProps} />}
         </ErrorBoundary>
       </main>
 

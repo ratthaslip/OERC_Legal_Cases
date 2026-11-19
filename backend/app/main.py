@@ -19,15 +19,18 @@ from .db import get_conn, rows
 from .law.router import router as law_router
 from .rawfiles import router as raw_router
 from .admin.router import router as admin_router
+from .law.uploads import router as uploads_router
 
 @asynccontextmanager
 async def lifespan(_app):
     # งานสร้าง embedding index ที่ค้างจาก process เดิมถือว่าถูกขัดจังหวะ (ผู้ดูแลกดอัปเดตเพื่อทำต่อ)
     from .db import get_engine
+    from .law import uploads
     from .search import vector_index
     try:
         with get_engine().begin() as c:
             vector_index.mark_interrupted(c)
+            uploads.mark_interrupted(c)
     except Exception:  # noqa: BLE001 — ฐานข้อมูลยังไม่พร้อม/ยังไม่ได้ seed
         pass
     yield
@@ -52,7 +55,7 @@ async def validation_problem(request: Request, exc: RequestValidationError):
                         content={"status": 400, "code": "VALIDATION_FAILED", "detail": exc.errors()[:3]})
 
 
-for r in (law_router, appeals_router, cases_router, assistant_router, raw_router, admin_router):
+for r in (uploads_router, law_router, appeals_router, cases_router, assistant_router, raw_router, admin_router):
     app.include_router(r)
 
 

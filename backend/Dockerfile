@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 WORKDIR /app
+# นำเข้าเอกสารจากหน้าเว็บ: pdftotext (poppler) และ OCR ภาษาไทยในเครื่อง (Tesseract tha) — ไม่ส่งไฟล์ออกนอกเซิร์ฟเวอร์
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-tha \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
