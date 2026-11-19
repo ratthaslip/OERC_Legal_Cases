@@ -228,7 +228,20 @@ def _openthai_engine():
 
 def openthai_page_layout(r: dict, width: float) -> list[str]:
     """ผลของ LineOCR.read (lines: text, confidence, row, box) → บรรทัดที่รักษาการเยื้อง"""
-    items = [(ln.get("text", ""), _left(ln.get("box")), ln.get("confidence")) for ln in r.get("lines") or []]
+    lines = r.get("lines") or []
+    if lines and all("row" in ln for ln in lines):
+        # หนึ่งแถวอาจมีหลายกล่อง (เช่น "ข้อ ๑" กับเนื้อความแยกกัน) — รวมเป็นบรรทัดเดียวตามแถว เรียงซ้าย→ขวา
+        rows: dict = {}
+        for ln in lines:
+            rows.setdefault(ln["row"], []).append(ln)
+        items = []
+        for seg in rows.values():
+            seg.sort(key=lambda x: _left(x.get("box")))
+            confs = [x.get("confidence") for x in seg if x.get("confidence") is not None]
+            items.append((" ".join((x.get("text") or "").strip() for x in seg).strip(), _left(seg[0].get("box")),
+                          min(confs) if confs else None))
+    else:
+        items = [(ln.get("text", ""), _left(ln.get("box")), ln.get("confidence")) for ln in lines]
     if not items and r.get("text"):
         items = [(t, 0.0, None) for t in r["text"].splitlines()]
     return lines_to_layout(items, width)

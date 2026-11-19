@@ -60,3 +60,11 @@ def test_missing_engine_gives_clear_message(monkeypatch, tmp_path):
 
 def test_table_rows_unescape():
     assert ocr._table_rows("<tr><th>ก&amp;ข</th><td> 1 </td></tr>") == ["ก&ข | 1"]
+
+
+def test_openthai_joins_boxes_on_the_same_row():
+    r = {"lines": [
+        {"text": "ข้อ ๔", "confidence": 0.99, "row": 0, "box": [400, 0, 520, 40]},
+        {"text": "ให้สำนักงานตรวจสอบ", "confidence": 0.96, "row": 0, "box": [560, 0, 1500, 40]},
+        {"text": "ภายในเจ็ดวัน", "confidence": 0.95, "row": 1, "box": [250, 50, 800, 90]}]}
+    assert ocr.openthai_page_layout(r, W) == ["    ข้อ ๔ ให้สำนักงานตรวจสอบ", "ภายในเจ็ดวัน"]
