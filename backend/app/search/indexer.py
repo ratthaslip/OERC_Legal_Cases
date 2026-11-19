@@ -29,13 +29,13 @@ def reindex_laws(conn: Connection) -> int:
     conn.execute(text("DELETE FROM search_chunk WHERE kind = 'provision'"))
     data = rows(conn, """
         SELECT pv.version_id, pv.version_no, pv.body_text, pv.summary, pv.valid_from, pv.valid_to,
-               p.eli_id, p.provision_no, i.title_th, i.short_title, i.category
+               p.eli_id, p.provision_no, i.title_th, i.short_title, i.category, i.classification
         FROM provision_version pv JOIN provision p USING (provision_id) JOIN legal_instrument i USING (instrument_id)
         WHERE pv.status = 'approved'""")
     chunks = []
     for d in data:
         base = {"kind": "provision", "ref_id": d["version_id"], "eli_id": d["eli_id"], "version_no": d["version_no"],
-                "valid_from": d["valid_from"], "valid_to": d["valid_to"], "classification": "public",
+                "valid_from": d["valid_from"], "valid_to": d["valid_to"], "classification": d["classification"],
                 "title": f"{d['provision_no']} {d['title_th']} (รุ่นที่ {d['version_no']})",
                 "weight": source_weight(d["eli_id"], d["provision_no"], d["category"])}
         for part in split_long(d["body_text"]):

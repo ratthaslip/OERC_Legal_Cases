@@ -64,8 +64,9 @@ def load_laws(conn: Connection, instruments: list[dict]) -> dict[str, list[Versi
     for inst in instruments:
         iid = conn.execute(text("""
             INSERT INTO legal_instrument (eli_id, instrument_type, title_th, short_title, issuer, category,
-                                          promulgated_date, effective_date, is_demo, gazette_ref, register_title)
-            VALUES (:eli, :t, :title, :short, :issuer, :cat, :pub, :eff, :demo, :gaz, :regt) RETURNING instrument_id"""), {
+                                          promulgated_date, effective_date, is_demo, gazette_ref, register_title, classification)
+            VALUES (:eli, :t, :title, :short, :issuer, :cat, :pub, :eff, :demo, :gaz, :regt, :cls) RETURNING instrument_id"""), {
+            "cls": inst.get("classification", "public"),
             "gaz": (inst.get("source") or "")[:200] or None, "regt": inst.get("registerTitle"),
             "eli": inst["id"], "t": inst["type"], "title": inst["title"], "short": inst["code"],
             "issuer": inst["issuer"], "cat": inst["category"], "pub": parse_iso(inst["publishedDate"]),

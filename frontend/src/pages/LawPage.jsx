@@ -168,7 +168,10 @@ function ProvisionView({ me, go, notify, route }) {
                   <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 mb-1">
                     {inst.instrument_type}
                   </span>
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">{inst.title_th}</h3>
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                    {inst.title_th}
+                    {inst.classification === 'internal' && <InternalBadge />}
+                  </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">วันที่มีผลบังคับใช้: {thDate(inst.effective_date)}</p>
                   {inst.subordinate_total > 0 && (
                     <p className="text-[11px] text-indigo-700 mt-0.5">กฎหมายลำดับรองในทะเบียน {inst.subordinate_total} ฉบับ — ดูได้ที่แต่ละมาตรา</p>
@@ -219,6 +222,7 @@ function ProvisionView({ me, go, notify, route }) {
                   <div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mb-1">
                       <span>{detail.provision.instrument_title}</span>
+                      {detail.provision.classification === 'internal' && <InternalBadge />}
                       <span>•</span>
                       <span>{detail.provision.part_heading}</span>
                     </div>
@@ -478,6 +482,15 @@ function CiteColumn({ title, icon, items, unit, empty, tag, btn, btnLabel, onOpe
 
 
 /** โมดูลสืบค้นกฎหมาย: ตัวบทรายมาตรา (point-in-time) + ทะเบียนคุมกฎหมายลำดับรอง */
+function InternalBadge() {
+  return (
+    <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-700 text-[10px] font-semibold align-middle"
+      title="ระเบียบบริหารงานภายในสำนักงาน — แสดงเฉพาะบัญชีเจ้าหน้าที่">
+      <Lock className="w-3 h-3" /> เฉพาะเจ้าหน้าที่
+    </span>
+  );
+}
+
 export default function LawPage(props) {
   const { route } = props;
   const [tab, setTab] = useState(route.tab || (route.reg ? 'register' : 'provision'));

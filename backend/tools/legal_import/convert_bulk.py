@@ -150,7 +150,7 @@ def paragraphs(f: dict) -> list[str]:
 
 def gazette(files: list[dict]) -> tuple[str | None, str | None]:
     for f in files:
-        t = WORK / "text" / f"{f['sha256']}.txt".read_text(encoding="utf-8")[:3000]
+        t = (WORK / "text" / f"{f['sha256']}.txt").read_text(encoding="utf-8")[:3000]
         g = GAZ_RE.search(t)
         if g:
             d = DATE_RE.search(t[g.end(): g.end() + 300]) or DATE_RE.search(t)
@@ -326,8 +326,12 @@ def main() -> None:
             rep["skipped"].append({"reg": r["reg_key"], "group": r["group_no"], "why": "แยกข้อความไม่ได้", "title": r["title_th"][:90]})
             continue
         short = re.sub(r"^\d+\s*\.\s*", "", f["name"].rsplit(".", 1)[0]).strip()[:100]
+        cat = category_of(title)
         inst = {"id": eli, "type": r["doc_type"], "title": re.sub(r"\s+", " ", title).strip(), "code": short,
-                "issuer": issuer, "category": category_of(title), "publishedDate": pub, "effectiveDate": eff,
+                "issuer": issuer, "category": cat,
+                # ระเบียบบริหารงานภายในสำนักงาน (บุคคล เงินเดือน เครื่องแบบ กฎบัตร ฯลฯ) เห็นเฉพาะเจ้าหน้าที่
+                **({"classification": "internal"} if cat == "การบริหารองค์กร" else {}),
+                "publishedDate": pub, "effectiveDate": eff,
                 "isDemo": False, "source": gaz or "ไฟล์จากฝ่ายกฎหมาย สำนักงาน กกพ.",
                 "registerTitle": r["title_th"], "preamble": "\n".join(pre) or None, "signed": signed,
                 "provisions": provisions,
