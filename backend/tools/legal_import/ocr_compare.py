@@ -103,7 +103,24 @@ def files_from_db() -> list[dict]:
              "pages": _pages(str(store.path(r["stored_path"]))), "internal": r["classification"] != "public"} for r in rs]
 
 
-def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None = None) -> None:
+def files_by_sha(shas: list[str]) -> list[dict]:
+    """ไฟล์ในคลังไฟล์ต้นฉบับตาม sha256 (เช่น ฉบับที่ OCR รอบก่อนอ่านไม่ได้จึงยังไม่ได้นำเข้า)"""
+    from app.db import get_engine, rows
+    from app.storage import RawStore
+    store = RawStore()
+    with get_engine().connect() as c:
+        rs = rows(c, "SELECT sha256, stored_path, original_name, classification FROM raw_file WHERE sha256 = ANY(:s)", s=shas)
+    found = {r["sha256"] for r in rs}
+    for s in shas:
+        if s not in found:
+            print(f"ไม่พบไฟล์ {s[:12]} ในคลังไฟล์ต้นฉบับ")
+    return [{"reg": Path(r["original_name"] or r["sha256"]).stem[:40], "sha256": r["sha256"],
+             "disk": str(store.path(r["stored_path"])), "pages": _pages(str(store.path(r["stored_path"]))),
+             "internal": r["classification"] != "public"} for r in rs]
+
+
+def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None = None,
+        extra: list[str] | None = None) -> None:
     if src_dir:
         todo = files_from_dir(src_dir)
     elif (WORK / "inventory.json").exists():
@@ -111,6 +128,9 @@ def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None 
         todo = targets(None)
     else:
         todo = files_from_db()
+    if extra:
+        have = {t["sha256"] for t in todo}
+        todo += [t for t in files_by_sha(extra) if t["sha256"] not in have]
     todo = sorted(todo, key=lambda t: (t["pages"], t["reg"]))  # ไฟล์สั้นก่อน: --limit ได้ผลเร็ว
     if limit:
         todo = todo[:limit]
@@ -202,10 +222,11 @@ def main() -> None:
     ap.add_argument("--force", action="store_true", help="OCR ใหม่แม้มีผลแล้ว")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--dir", help="OCR ไฟล์ PDF ทั้งหมดในโฟลเดอร์นี้แทนไฟล์ของทะเบียน")
+    ap.add_argument("--extra-sha", default="", help="sha256 ของไฟล์ในคลังที่ต้องการเพิ่ม คั่นด้วย ,")
     a = ap.parse_args()
     engines = [e.strip() for e in a.engines.split(",") if e.strip()]
     if not a.report_only:
-        run(engines, a.limit, a.force, a.dir)
+        run(engines, a.limit, a.force, a.dir, [x.strip() for x in a.extra_sha.split(",") if x.strip()])
     ready = [e for e in engines if (OUT / e).exists() and any((OUT / e).glob("*.json"))]
     if ready:
         report(ready)
