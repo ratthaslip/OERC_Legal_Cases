@@ -349,8 +349,68 @@ CREATE TABLE IF NOT EXISTS search_chunk (
     weight         REAL NOT NULL DEFAULT 1.0        -- น้ำหนักแหล่ง (ลำดับศักดิ์กฎหมาย/กลุ่มผู้ใช้) — indexer.source_weight
 );
 ALTER TABLE search_chunk ADD COLUMN IF NOT EXISTS weight REAL NOT NULL DEFAULT 1.0;
+-- sha256(title + "\n" + chunk_text): ผูกเวกเตอร์จากโมเดลกับเนื้อหา (search_chunk สร้างใหม่ทุกครั้งที่ seed แต่เวกเตอร์ใช้ต่อได้)
+ALTER TABLE search_chunk ADD COLUMN IF NOT EXISTS content_sha CHAR(64);
+CREATE INDEX IF NOT EXISTS search_chunk_sha ON search_chunk (content_sha);
 CREATE INDEX IF NOT EXISTS search_chunk_tokens ON search_chunk USING gin (tokens);
 CREATE INDEX IF NOT EXISTS search_chunk_kind ON search_chunk (kind, ref_id);
+
+-- ---------- เอกสารกฎหมายที่เจ้าหน้าที่นำเข้าจากหน้าเว็บ (law/uploads.py) — ไม่ถูกล้างตอน seed ----------
+-- processing → draft (ตรวจทาน/แก้ได้) → approved (เผยแพร่ — seed นำเข้าซ้ำจาก draft ทุกครั้ง) | rejected | failed
+-- ผู้อนุมัติต้องไม่ใช่ผู้อัปโหลด; ไฟล์ต้นฉบับอยู่ใน raw_file (sha256)
+CREATE TABLE IF NOT EXISTS law_upload (
+    upload_id      SERIAL PRIMARY KEY,
+    sha256         CHAR(64) NOT NULL,
+    original_name  TEXT NOT NULL,
+    ext            VARCHAR(8) NOT NULL,
+    classification VARCHAR(10) NOT NULL CHECK (classification IN ('public', 'internal')),
+    doc_type       VARCHAR(40) NOT NULL,
+    register_id    INT,            -- ไม่มี FK: law_register สร้างใหม่ทุกครั้งที่ seed (ผูกซ้ำด้วย register_title)
+    register_title TEXT,
+    effective_date DATE,
+    force_ocr      BOOLEAN NOT NULL DEFAULT FALSE,
+    status         VARCHAR(12) NOT NULL DEFAULT 'processing',
+    method         VARCHAR(8),     -- docx | doc | pdf | ocr
+    draft          JSONB,          -- ตราสารรูปแบบเดียวกับ seed/laws/*.json
+    error          TEXT,
+    uploaded_by    VARCHAR(40) NOT NULL,
+    uploaded_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    edited_by      VARCHAR(40),
+    edited_at      TIMESTAMPTZ,
+    reviewed_by    VARCHAR(40),
+    reviewed_at    TIMESTAMPTZ,
+    review_note    TEXT
+);
+
+-- ---------- embedding index จากโมเดล (search/vector_index.py) — ไม่ถูกล้างตอน seed ----------
+-- search_chunk.embedding (hash) ใช้เมื่อไม่มี index ที่ active; สร้าง index ใหม่ได้ทุกครั้งที่เปลี่ยนโมเดล แล้วสลับใช้เมื่อพร้อม
+-- external = TRUE: สร้างเวกเตอร์เฉพาะตัวบทกฎหมายสาธารณะ (ข้อมูลภายในไม่ถูกส่งไปบริการภายนอก)
+DO $$ BEGIN CREATE EXTENSION IF NOT EXISTS vector; EXCEPTION WHEN OTHERS THEN NULL; END $$;
+CREATE TABLE IF NOT EXISTS embedding_index (
+    index_id     SERIAL PRIMARY KEY,
+    provider     VARCHAR(20) NOT NULL,
+    base_url     VARCHAR(300) NOT NULL,
+    model        VARCHAR(120) NOT NULL,
+    dim          INT,
+    external     BOOLEAN NOT NULL,
+    status       VARCHAR(12) NOT NULL DEFAULT 'building',  -- building | ready | failed
+    active       BOOLEAN NOT NULL DEFAULT FALSE,
+    activate_when_ready BOOLEAN NOT NULL DEFAULT FALSE,
+    total        INT NOT NULL DEFAULT 0,   -- เนื้อหาที่ต้องสร้างเวกเตอร์ (ไม่ซ้ำ)
+    done         INT NOT NULL DEFAULT 0,
+    withheld     INT NOT NULL DEFAULT 0,   -- ข้ามเพราะเป็นข้อมูลภายใน และโมเดลอยู่ภายนอก
+    error        TEXT,
+    created_by   VARCHAR(40) NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at  TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX IF NOT EXISTS embedding_index_one_active ON embedding_index (active) WHERE active;
+CREATE TABLE IF NOT EXISTS embedding_vec (
+    index_id    INT NOT NULL REFERENCES embedding_index ON DELETE CASCADE,
+    content_sha CHAR(64) NOT NULL,
+    vec         REAL[] NOT NULL,
+    PRIMARY KEY (index_id, content_sha)
+);
 
 -- ---------- audit (append-only + hash chain) ----------
 CREATE TABLE IF NOT EXISTS audit_event (

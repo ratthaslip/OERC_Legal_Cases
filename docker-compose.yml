@@ -7,7 +7,7 @@
 # LLM/Embedding บน GPU ของตัวเอง: รัน Ollama บนเครื่อง host แล้วตั้งค่าใน .env (ดู .env.example)
 services:
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16   # postgres 16 + pgvector (ใช้ volume เดิมได้)
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: erc

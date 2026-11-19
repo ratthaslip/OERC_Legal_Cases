@@ -481,6 +481,8 @@ def run(conn: Connection, today: date | None = None) -> dict:
     windows = load_laws(conn, real + data["instruments"])
     for f in files:
         log_law_file(conn, f)
+    from ..law.uploads import load_approved
+    load_approved(conn)  # เอกสารที่อนุมัติจากหน้านำเข้าบนเว็บ (ร่างเก็บใน law_upload ซึ่ง seed ไม่ล้าง)
     load_review_notes(conn)
     relations.rebuild(conn)
     proto_ids = load_prototype(conn, data, windows, today, rng)
@@ -506,3 +508,7 @@ def run(conn: Connection, today: date | None = None) -> dict:
 if __name__ == "__main__":
     with get_engine().begin() as c:
         print(run(c))
+    # embedding index จากโมเดลที่ active: สร้างเวกเตอร์เฉพาะเนื้อหาใหม่ (เวกเตอร์เดิมผูกกับ content_sha จึงใช้ต่อได้)
+    if os.environ.get("SEED_SKIP_EMBED") != "1":
+        from ..search.vector_index import update_active_cli
+        update_active_cli()

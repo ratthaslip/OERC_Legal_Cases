@@ -40,6 +40,7 @@ class Settings:
         self.embed_model = os.getenv("EMBED_MODEL", "bge-m3")
         self.embed_api_key = os.getenv("EMBED_API_KEY", "")
         self.embed_dim = int(os.getenv("EMBED_DIM", "256"))  # ใช้กับ hash เท่านั้น
+        self.embed_timeout_s = float(os.getenv("EMBED_TIMEOUT_S", "120"))
 
         # LLM: extractive = ไม่เรียกโมเดล (สาธิตแบบออฟไลน์), openai_compat = GPU ของตัวเองผ่าน Ollama/vLLM,
         # anthropic = cloud API (ใช้กับข้อมูลสมมติเท่านั้น)

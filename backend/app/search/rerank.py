@@ -24,7 +24,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from ..config import get_settings
+from ..admin import model_config
 from .thai import normalize, tokenize
 
 log = logging.getLogger("erc.rerank")
@@ -85,21 +85,21 @@ def legal_features(q: str, terms: set[str], idf: dict[str, float], h, exact_ref:
     return Features(_cov(terms, idf, body_toks), _cov(terms, idf, title_toks), boost)
 
 
-def _model_scores(q: str, docs: list[str]) -> list[float] | None:
-    s = get_settings()
-    headers = {"Authorization": f"Bearer {s.rerank_api_key}"} if s.rerank_api_key else {}
+def _model_scores(q: str, docs: list[str], cfg=None) -> list[float] | None:
+    cfg = cfg or model_config.rerank_effective()
+    headers = {"Authorization": f"Bearer {cfg.api_key}"} if cfg.api_key else {}
     try:
-        with httpx.Client(timeout=s.rerank_timeout_s) as c:
-            if s.rerank_provider == "tei":
-                r = c.post(f"{s.rerank_base_url.rstrip('/')}/rerank", headers=headers,
+        with httpx.Client(timeout=cfg.timeout_s) as c:
+            if cfg.provider == "tei":
+                r = c.post(f"{cfg.base_url}/rerank", headers=headers,
                            json={"query": q, "texts": docs, "truncate": True, "raw_scores": False})
                 r.raise_for_status()
                 out = [0.0] * len(docs)
                 for item in r.json():
                     out[item["index"]] = float(item["score"])
                 return out
-            r = c.post(f"{s.rerank_base_url.rstrip('/')}/v1/rerank", headers=headers,
-                       json={"model": s.rerank_model, "query": q, "documents": docs, "top_n": len(docs)})
+            r = c.post(f"{cfg.base_url}/v1/rerank", headers=headers,
+                       json={"model": cfg.model, "query": q, "documents": docs, "top_n": len(docs)})
             r.raise_for_status()
             out = [0.0] * len(docs)
             for item in r.json()["results"]:
@@ -110,27 +110,36 @@ def _model_scores(q: str, docs: list[str]) -> list[float] | None:
         return None
 
 
+def shareable(h) -> bool:
+    """ส่งให้บริการภายนอกได้เฉพาะตัวบทกฎหมายสาธารณะ"""
+    return h.kind == "provision" and getattr(h, "classification", "public") == "public" and not getattr(h, "is_demo", False)
+
+
 def rerank(q: str, hits: list, terms: set[str], idf: dict[str, float], exact_ref_of=lambda h: False) -> list:
     """ให้คะแนนใหม่ (h.score) กับผู้สมัคร RERANK_CANDIDATES อันดับแรก; ที่เหลือคงคะแนนเดิมแต่อยู่ท้าย"""
-    s = get_settings()
-    if s.rerank_provider == "none" or not hits:
+    cfg = model_config.rerank_effective()  # หน้าตั้งค่าผู้ดูแลทับ .env
+    if cfg.provider == "none" or not hits:
         return hits
     hits = sorted(hits, key=lambda h: -h.score)
-    head, tail = hits[: s.rerank_candidates], hits[s.rerank_candidates:]
+    head, tail = hits[: cfg.candidates], hits[cfg.candidates:]
     top_prior = max(h.score for h in head) or 1.0
     prior = [h.score / top_prior for h in head]
-    if s.rerank_provider == "legal":
+    if cfg.provider == "legal":
         final = []
         for h, p in zip(head, prior):
             f = legal_features(q, terms, idf, h, exact_ref_of(h))
             final.append(0.4 * f.body_cov + 0.2 * f.title_cov + 0.4 * p + f.boost)
     else:
-        ms = _model_scores(q, [f"{h.title}\n{h.chunk_text}"[:2000] for h in head])
+        # reranker ภายนอก: ส่งให้โมเดลเฉพาะตัวบทสาธารณะ — ทะเบียน/ตราสารภายใน/สำนวน ใช้คะแนนเดิมแทนคะแนนโมเดล
+        send = [i for i, h in enumerate(head) if not cfg.external or shareable(h)]
+        ms = _model_scores(q, [f"{head[i].title}\n{head[i].chunk_text}"[:2000] for i in send], cfg) if send else []
         if ms is None:
             return hits
-        lo, hi = min(ms), max(ms)
-        norm = [(m - lo) / (hi - lo) if hi > lo else 0.5 for m in ms]
-        w = s.rerank_model_weight
+        lo, hi = (min(ms), max(ms)) if ms else (0.0, 0.0)
+        norm = list(prior)
+        for i, m in zip(send, ms):
+            norm[i] = (m - lo) / (hi - lo) if hi > lo else 0.5
+        w = cfg.model_weight
         final = [(w * n + (1 - w) * p) * top_prior for n, p in zip(norm, prior)]
     floor = min(final) if final else 0.0
     for h, sc in zip(head, final):

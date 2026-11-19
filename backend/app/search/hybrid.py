@@ -1,20 +1,18 @@
 """Hybrid search: BM25-like (Postgres FTS) + vector + Reciprocal Rank Fusion (SDD 6.3)
 
-POC เก็บ embedding เป็น real[] และคำนวณ cosine ใน numpy เพราะข้อมูลมีหลักร้อย chunk
-เมื่อข้อมูลจริงเกินหลักหมื่น ให้ย้ายไป pgvector (HNSW) หรือ OpenSearch โดยแก้เฉพาะไฟล์นี้
+dense ใช้ index จากโมเดลที่ผู้ดูแลเปิดใช้ (pgvector HNSW) หรือ hash embedding ตั้งต้น — ดู search/vector_index.py
 """
 from dataclasses import dataclass, field
 from datetime import date
 
 import math
 
-import numpy as np
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from .. import authz
 from ..auth import User
-from .embeddings import embed
+from . import vector_index
 from .rerank import rerank
 from .thai import content_terms, expand_query, normalize_ref_no, to_query
 
@@ -73,7 +71,7 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
     tsq = to_query(q)
     where, params = _base_where(user, kinds, as_of, sector, exclude_demo)
     cols = ("chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification, is_demo, "
-            "weight")
+            "weight, content_sha")
 
     # 1) lexical (กรองสิทธิ์ใน WHERE ก่อนจัดอันดับ)
     lexical: list[dict] = []
@@ -94,13 +92,8 @@ def hybrid_search(conn: Connection, user: User, q: str, kinds: list[str], as_of:
     idf = {t: math.log(1 + n_docs / (1 + df[t])) for t in q_terms}
     idf_total = sum(idf.values()) or 1.0
     cov = {c["chunk_id"]: sum(idf[t] for t in q_terms if t in set(c["lex"])) / idf_total for c in cand}
-    vector: list[tuple[dict, float]] = []
-    if cand:
-        qv = np.asarray(embed([q])[0], dtype=np.float32)
-        mat = np.asarray([c["embedding"] for c in cand], dtype=np.float32)
-        sims = mat @ qv
-        order = np.argsort(-sims)[:50]
-        vector = [(cand[i], float(sims[i])) for i in order]
+    # dense: embedding index จากโมเดลที่ active (pgvector/numpy) หรือ hash ใน search_chunk — search/vector_index.py
+    vector = vector_index.dense(conn, q, cand, where, params)
 
     # 3) Reciprocal Rank Fusion
     fused: dict[int, Hit] = {}

@@ -3,35 +3,49 @@
 ระบบจริงจะเรียก reindex_* จาก event (law.version_approved, appeal.updated, case.access_changed)
 ใน POC เรียกหลัง seed และหลังแก้ข้อมูลที่กระทบ index
 """
+import hashlib
+
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..db import rows
-from .embeddings import embed
+from .embeddings import hash_embed
 from .thai import to_document
 
 
 def _insert(conn: Connection, chunks: list[dict]) -> None:
     if not chunks:
         return
-    vecs = embed([c["title"] + "\n" + c["chunk_text"] for c in chunks])
-    for c, v in zip(chunks, vecs):
+    texts = [c["title"] + "\n" + c["chunk_text"] for c in chunks]
+    vecs = hash_embed(texts)  # เวกเตอร์จากโมเดลอยู่ใน embedding_vec (ผูกด้วย content_sha) — สร้างแยกตามสิทธิ์ส่งข้อมูล
+    for c, v, t in zip(chunks, vecs, texts):
         conn.execute(text("""
             INSERT INTO search_chunk (kind, ref_id, eli_id, version_no, valid_from, valid_to, title, chunk_text,
-                                      tokens, embedding, classification, owners, energy_sector, is_demo, weight)
+                                      tokens, embedding, classification, owners, energy_sector, is_demo, weight, content_sha)
             VALUES (:kind, :ref_id, :eli_id, :version_no, :valid_from, :valid_to, :title, :chunk_text,
-                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo, :weight)"""),
+                    to_tsvector('simple', :doc), :emb, :classification, :owners, :energy_sector, :is_demo, :weight, :sha)"""),
             {"eli_id": None, "version_no": None, "valid_from": None, "valid_to": None, "energy_sector": None,
-             "owners": [], "is_demo": False, "weight": 1.0, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v})
+             "owners": [], "is_demo": False, "weight": 1.0, **c, "doc": to_document(c["title"] + " " + c["chunk_text"]), "emb": v,
+             "sha": content_sha(t)})
 
 
-def reindex_laws(conn: Connection) -> int:
-    conn.execute(text("DELETE FROM search_chunk WHERE kind = 'provision'"))
+def content_sha(t: str) -> str:
+    return hashlib.sha256(t.encode("utf-8")).hexdigest()
+
+
+def reindex_laws(conn: Connection, only_eli: str | None = None) -> int:
+    """only_eli: index ใหม่เฉพาะตราสารเดียว (เช่น หลังอนุมัติเอกสารที่นำเข้าจากหน้าเว็บ)"""
+    if only_eli:
+        conn.execute(text("""DELETE FROM search_chunk WHERE kind = 'provision' AND ref_id IN (
+                               SELECT pv.version_id FROM provision_version pv JOIN provision p USING (provision_id)
+                               JOIN legal_instrument i USING (instrument_id) WHERE i.eli_id = :e)"""), {"e": only_eli})
+    else:
+        conn.execute(text("DELETE FROM search_chunk WHERE kind = 'provision'"))
     data = rows(conn, """
         SELECT pv.version_id, pv.version_no, pv.body_text, pv.summary, pv.valid_from, pv.valid_to,
                p.eli_id, p.provision_no, i.title_th, i.short_title, i.category, i.classification
         FROM provision_version pv JOIN provision p USING (provision_id) JOIN legal_instrument i USING (instrument_id)
-        WHERE pv.status = 'approved'""")
+        WHERE pv.status = 'approved' AND (CAST(:e AS text) IS NULL OR i.eli_id = :e)""", e=only_eli)
     chunks = []
     for d in data:
         base = {"kind": "provision", "ref_id": d["version_id"], "eli_id": d["eli_id"], "version_no": d["version_no"],
