@@ -78,13 +78,14 @@ def extract(path: str, ext: str, force_ocr: bool = False) -> tuple[list[str], st
     ps = docparse.layout_paragraphs(raw) if raw.strip() else []
     thai = len(docparse.THAI_RE.findall("\n".join(ps)))
     if force_ocr or thai < 300 or docparse.tone_ratio("\n".join(ps)) < 0.06:
-        from .ocr import clean, ocr_tesseract
+        from .ocr import clean, engine_name, ocr_pdf
         with _ocr_slot:
-            raw = clean(ocr_tesseract(path, 0))
+            raw = clean(ocr_pdf(path))   # OCR_ENGINE: tesseract | akson | openthai
+        method = f"ocr:{engine_name()}"
         ps = docparse.layout_paragraphs(raw)
         if len(docparse.THAI_RE.findall(raw)) < 100:
             raise ValueError("ถอดข้อความจากไฟล์ไม่ได้ (OCR อ่านภาษาไทยได้น้อยเกินไป) — ตรวจว่าไฟล์ชัดและไม่กลับหัว")
-        return ps, "ocr", raw
+        return ps, method, raw
     return ps, "pdf", raw
 
 
@@ -95,7 +96,7 @@ def build_draft(u: dict, path: str) -> dict:
     stem = re.sub(r"^\d+\s*\.\s*", "", Path(u["original_name"]).stem).strip()
     reg_title = u["register_title"] or stem
     args = dict(doc_type=u["doc_type"], reg_title=reg_title, key=f"u{u['upload_id']}", gaz=gaz, pub=pub,
-                ocr=method == "ocr", ext=u["ext"], short=stem[:100], source_default=SOURCE)
+                ocr=method.startswith("ocr"), ext=u["ext"], short=stem[:100], source_default=SOURCE)
     eff = u["effective_date"].isoformat() if u["effective_date"] else None
     inst, why, _ = docparse.build_instrument(paras, effective_date=eff, **args)
     if inst is None and why == "ไม่พบวันที่ใช้บังคับ":
@@ -116,6 +117,8 @@ def build_draft(u: dict, path: str) -> dict:
     inst["registerTitle"] = u["register_title"]  # ผูกทะเบียนเฉพาะเมื่อเลือกแถวทะเบียน
     if u["classification"] == "internal":
         inst["classification"] = "internal"
+    if method.startswith("ocr:"):
+        inst["importNotes"].append(f"OCR engine: {method[4:]}")
     inst["sourceFiles"] = [{"sha256": u["sha256"], "name": u["original_name"], "role": "text"}]
     inst["importNotes"].append(f"นำเข้าจากหน้าเว็บโดย {u['uploaded_by']} (รายการที่ {u['upload_id']})")
     return {"draft": inst, "method": method}
@@ -131,7 +134,7 @@ def process(upload_id: int) -> None:
         with eng.begin() as c:
             c.execute(text("""UPDATE law_upload SET status = 'draft', method = :m, draft = CAST(:d AS jsonb), error = NULL
                               WHERE upload_id = :i"""),
-                      {"m": res["method"], "d": json.dumps(res["draft"], ensure_ascii=False), "i": upload_id})
+                      {"m": res["method"].split(":")[0], "d": json.dumps(res["draft"], ensure_ascii=False), "i": upload_id})
     except Exception as e:  # noqa: BLE001 — แสดงสาเหตุให้ผู้นำเข้าเห็น
         log.warning("law upload %s failed: %s", upload_id, e)
         with eng.begin() as c:

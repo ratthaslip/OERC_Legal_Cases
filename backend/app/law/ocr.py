@@ -1,15 +1,23 @@
-"""OCR เอกสารกฎหมายภาษาไทย (Tesseract tha+eng ในเครื่อง หรือโมเดล OCR แบบ OpenAI-compatible vision)
+"""OCR เอกสารกฎหมายภาษาไทย — ทุกตัวรันในเครื่อง (ยกเว้น endpoint ที่ผู้ดูแลกำหนดเอง)
+
+เลือกด้วย OCR_ENGINE:
+  tesseract (ค่าเริ่มต้น) — Tesseract tha+eng
+  akson     — AksonOCR-Lite (Remtir, Apache-2.0, ONNX บน CPU, มี layout/ตาราง)   pip install aksonocr-lite
+  openthai  — OpenThai2.0-OCR-Text (iApp, Apache-2.0, ONNX/OpenVINO บน CPU)     OPENTHAI_OCR_DIR=<โฟลเดอร์โมเดล>
 
 ใช้ร่วมกันโดย tools/legal_import/ocr.py (ชุดไฟล์จากฝ่ายกฎหมาย) และหน้านำเข้าเอกสารบนเว็บ (law/uploads.py)
 ผลลัพธ์รักษาการเยื้องบรรทัด (ช่องว่างนำหน้า) เพื่อให้ docparse.layout_paragraphs แยกย่อหน้า/ข้อได้
 """
 import base64
 import csv
+import html
 import io
 import os
 import re
 import subprocess
+import sys
 import tempfile
+import threading
 import unicodedata
 from pathlib import Path
 from urllib.parse import urlparse
@@ -70,6 +78,187 @@ def ocr_tesseract(pdf: str, pages: int) -> str:
             texts.append("\n".join(_layout_lines(base.with_suffix(".txt").read_text(encoding="utf-8"),
                                                  base.with_suffix(".tsv").read_text(encoding="utf-8"))))
     return "\n\f\n".join(texts)
+
+
+# ---------------------------------------------------------------- เครื่องมือร่วม: บรรทัด + กรอบ → ข้อความที่รักษาการเยื้อง
+def _left(box) -> float:
+    """ขอบซ้ายของกรอบ: รองรับ [x0, y0, x1, y1] และ [[x, y] × 4] (polygon)"""
+    if box is None:
+        return 0.0
+    if len(box) and isinstance(box[0], (list, tuple)):
+        return float(min(p[0] for p in box))
+    return float(box[0])
+
+
+def lines_to_layout(items: list[tuple[str, float, float | None]], width: float,
+                    min_conf: float = 0.5, para_starts: set[int] | None = None) -> list[str]:
+    """[(ข้อความ, ขอบซ้าย, ความมั่นใจ 0–1)] ตามลำดับการอ่าน → บรรทัดที่มีช่องว่างนำหน้าตามระยะเยื้อง
+    หน่วยเยื้อง = 1.6% ของความกว้างหน้า (เท่ากับ 40 px ที่ 300 dpi บน A4) ให้ docparse.layout_paragraphs ใช้ได้เหมือน Tesseract
+    para_starts: ลำดับบรรทัดที่เป็นต้นย่อหน้า (จาก layout ของ engine) — บังคับเยื้องอย่างน้อย 4"""
+    lefts = sorted(x for _, x, _ in items) or [0.0]
+    margin = lefts[len(lefts) // 10]
+    unit = max(width * 0.016, 1.0)
+    out = []
+    for i, (text_, left, conf) in enumerate(items):
+        t = (text_ or "").strip()
+        if not t:
+            continue
+        thai = len(THAI.findall(t))
+        if conf is not None and conf < min_conf and (len(t) < 30 or thai < len(t) * 0.4):
+            continue
+        if is_noise(t):
+            continue
+        n = max(0, round((left - margin) / unit))
+        if para_starts and i in para_starts:
+            n = max(n, 4)
+        out.append(" " * n + t)
+    return out
+
+
+def _pdf_pages(pdf: str, tmp: str, dpi: int = DPI) -> list[Path]:
+    subprocess.run(["pdftoppm", "-r", str(dpi), "-gray", "-png", pdf, f"{tmp}/p"], check=True, capture_output=True)
+    return sorted(Path(tmp).glob("p-*.png"), key=lambda p: int(p.stem.split("-")[1]))
+
+
+class OcrUnavailable(RuntimeError):
+    pass
+
+
+# ---------------------------------------------------------------- AksonOCR-Lite
+_akson = None
+_akson_lock = threading.Lock()
+SKIP_LABELS = {"header", "footer", "number", "page_number", "seal", "image", "figure", "chart", "header_image",
+               "footer_image", "aside_text", "footnote"}
+
+
+def _akson_conv():
+    global _akson
+    with _akson_lock:
+        if _akson is None:
+            try:
+                import aksonocr_lite
+            except ImportError as e:
+                raise OcrUnavailable("ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install aksonocr-lite) — หรือใช้ OCR_ENGINE=tesseract") from e
+            _akson = aksonocr_lite.load(device=os.environ.get("AKSON_DEVICE", "cpu"),
+                                        dewarp=os.environ.get("AKSON_DEWARP") == "1", tables=True)
+    return _akson
+
+
+def _table_rows(h: str) -> list[str]:
+    """HTML ตาราง → บรรทัดละแถว คั่นเซลล์ด้วย " | " (เอกสารแนบท้ายเก็บเป็นข้อความ)"""
+    rows = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", h, flags=re.S | re.I):
+        cells = [html.unescape(re.sub(r"<[^>]+>", " ", c)).strip()
+                 for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, flags=re.S | re.I)]
+        cells = [re.sub(r"\s+", " ", c) for c in cells]
+        if any(cells):
+            rows.append(" | ".join(cells))
+    return rows
+
+
+def akson_page_layout(page) -> list[str]:
+    """Page ของ AksonOCR (blocks ตามลำดับการอ่าน + lines พร้อมกรอบ) → บรรทัดที่รักษาการเยื้อง; ข้ามหัว/ท้ายกระดาษ ตราประทับ รูป"""
+    lines = list(page.lines or [])
+    blocks = sorted(page.blocks or [], key=lambda b: (b.order if b.order is not None else 10 ** 6))
+    width = float(page.width or max((_left(getattr(l, "bbox", None)) for l in lines), default=1000) * 1.2)
+    items: list[tuple[str, float, float | None]] = []
+    starts: set[int] = set()
+    tables: dict[int, list[str]] = {}
+    used: set[int] = set()
+    for b in blocks:
+        ids = [i for i in (b.line_ids or []) if 0 <= i < len(lines)]
+        used.update(ids)
+        if b.label in SKIP_LABELS:
+            continue
+        if b.label == "table" and getattr(b, "html", None):
+            tables[len(items)] = _table_rows(b.html)
+            continue
+        if ids:
+            starts.add(len(items))
+            for i in ids:
+                ln = lines[i]
+                items.append((ln.text, _left(ln.bbox), ln.confidence))
+        elif b.text:
+            starts.add(len(items))
+            x = _left(b.bbox)
+            items.extend((t, x, None) for t in b.text.splitlines())
+    if not blocks:  # ไม่มี layout → ใช้บรรทัดตามลำดับที่ได้
+        items = [(ln.text, _left(ln.bbox), ln.confidence) for ln in lines]
+    out = lines_to_layout(items, width, para_starts=starts)
+    if tables:  # แทรกตารางตามตำแหน่งโดยประมาณ (ต่อท้ายหน้า) — รูปแบบตารางยังต้องตรวจทาน
+        for rows in tables.values():
+            out.append("")
+            out.extend("    " + r if k == 0 else r for k, r in enumerate(rows))
+    return out
+
+
+def ocr_akson(pdf: str, pages: int = 0) -> str:
+    conv = _akson_conv()
+    texts = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for img in _pdf_pages(pdf, tmp):   # เรนเดอร์เองที่ 300 dpi ให้ทุก engine ได้ภาพเดียวกัน
+            for page in conv.convert(str(img)):
+                texts.append("\n".join(akson_page_layout(page)))
+    return "\n\f\n".join(texts)
+
+
+# ---------------------------------------------------------------- OpenThai2.0-OCR-Text (iApp)
+_openthai = None
+_openthai_lock = threading.Lock()
+
+
+def _openthai_engine():
+    global _openthai
+    with _openthai_lock:
+        if _openthai is None:
+            d = os.environ.get("OPENTHAI_OCR_DIR", "")
+            if not d or not (Path(d) / "det.onnx").exists():
+                raise OcrUnavailable("ตั้ง OPENTHAI_OCR_DIR เป็นโฟลเดอร์โมเดล OpenThai2.0-OCR-Text (มี det.onnx rec.onnx runtime/) "
+                                     "— หรือใช้ OCR_ENGINE=tesseract")
+            sys.path.insert(0, d)
+            try:
+                from runtime.line_engine import LineOCR  # มากับโมเดล (huggingface iapp/OpenThai2.0-OCR-Text)
+            except ImportError as e:
+                raise OcrUnavailable(f"โหลด runtime ของ OpenThai OCR ไม่ได้: {e} (ต้องมี openvino หรือ onnxruntime, "
+                                     "opencv-python-headless, pyclipper)") from e
+            _openthai = LineOCR(d, threads=int(os.environ.get("OPENTHAI_OCR_THREADS", "1")))
+    return _openthai
+
+
+def openthai_page_layout(r: dict, width: float) -> list[str]:
+    """ผลของ LineOCR.read (lines: text, confidence, row, box) → บรรทัดที่รักษาการเยื้อง"""
+    items = [(ln.get("text", ""), _left(ln.get("box")), ln.get("confidence")) for ln in r.get("lines") or []]
+    if not items and r.get("text"):
+        items = [(t, 0.0, None) for t in r["text"].splitlines()]
+    return lines_to_layout(items, width)
+
+
+def ocr_openthai(pdf: str, pages: int = 0) -> str:
+    eng = _openthai_engine()
+    texts = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for img in _pdf_pages(pdf, tmp):
+            r = eng.read(str(img))
+            from PIL import Image
+            with Image.open(img) as im:
+                w = im.width
+            texts.append("\n".join(openthai_page_layout(r, w)))
+    return "\n\f\n".join(texts)
+
+
+ENGINES = {"tesseract": ocr_tesseract, "akson": ocr_akson, "openthai": ocr_openthai}
+
+
+def engine_name(name: str | None = None) -> str:
+    n = (name or os.environ.get("OCR_ENGINE") or "tesseract").lower()
+    if n not in ENGINES:
+        raise OcrUnavailable(f"OCR_ENGINE ไม่รู้จัก: {n} (ใช้ได้: {', '.join(ENGINES)})")
+    return n
+
+
+def ocr_pdf(pdf: str, engine: str | None = None) -> str:
+    """OCR ทั้งไฟล์ด้วย engine ที่เลือก (ข้อความดิบ ยังไม่ผ่าน clean)"""
+    return ENGINES[engine_name(engine)](pdf, 0)
 
 
 # ---------------------------------------------------------------- endpoint (vision LLM)
