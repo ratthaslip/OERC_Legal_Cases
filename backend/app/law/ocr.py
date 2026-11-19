@@ -2,7 +2,8 @@
 
 เลือกด้วย OCR_ENGINE:
   tesseract (ค่าเริ่มต้น) — Tesseract tha+eng
-  akson     — AksonOCR-Lite (Remtir, Apache-2.0, ONNX บน CPU, มี layout/ตาราง)   pip install aksonocr-lite
+  akson     — AksonOCR-Lite (Remtir, Apache-2.0, ONNX บน CPU, มี layout/ตาราง)   pip install <github.com/Remtir/AksonOCR-Lite zip>
+              AKSONOCR_WEIGHTS=<โฟลเดอร์โมเดลจาก huggingface Remtir/AksonOCR-Lite>
   openthai  — OpenThai2.0-OCR-Text (iApp, Apache-2.0, ONNX/OpenVINO บน CPU)     OPENTHAI_OCR_DIR=<โฟลเดอร์โมเดล>
 
 ใช้ร่วมกันโดย tools/legal_import/ocr.py (ชุดไฟล์จากฝ่ายกฎหมาย) และหน้านำเข้าเอกสารบนเว็บ (law/uploads.py)
@@ -138,7 +139,7 @@ def _akson_conv():
             try:
                 import aksonocr_lite
             except ImportError as e:
-                raise OcrUnavailable("ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install aksonocr-lite) — หรือใช้ OCR_ENGINE=tesseract") from e
+                raise OcrUnavailable("ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip) — หรือใช้ OCR_ENGINE=tesseract") from e
             _akson = aksonocr_lite.load(device=os.environ.get("AKSON_DEVICE", "cpu"),
                                         dewarp=os.environ.get("AKSON_DEWARP") == "1", tables=True)
     return _akson
@@ -227,7 +228,20 @@ def _openthai_engine():
 
 def openthai_page_layout(r: dict, width: float) -> list[str]:
     """ผลของ LineOCR.read (lines: text, confidence, row, box) → บรรทัดที่รักษาการเยื้อง"""
-    items = [(ln.get("text", ""), _left(ln.get("box")), ln.get("confidence")) for ln in r.get("lines") or []]
+    lines = r.get("lines") or []
+    if lines and all("row" in ln for ln in lines):
+        # หนึ่งแถวอาจมีหลายกล่อง (เช่น "ข้อ ๑" กับเนื้อความแยกกัน) — รวมเป็นบรรทัดเดียวตามแถว เรียงซ้าย→ขวา
+        rows: dict = {}
+        for ln in lines:
+            rows.setdefault(ln["row"], []).append(ln)
+        items = []
+        for seg in rows.values():
+            seg.sort(key=lambda x: _left(x.get("box")))
+            confs = [x.get("confidence") for x in seg if x.get("confidence") is not None]
+            items.append((" ".join((x.get("text") or "").strip() for x in seg).strip(), _left(seg[0].get("box")),
+                          min(confs) if confs else None))
+    else:
+        items = [(ln.get("text", ""), _left(ln.get("box")), ln.get("confidence")) for ln in lines]
     if not items and r.get("text"):
         items = [(t, 0.0, None) for t in r["text"].splitlines()]
     return lines_to_layout(items, width)

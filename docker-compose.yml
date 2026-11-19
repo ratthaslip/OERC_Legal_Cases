@@ -21,7 +21,7 @@ services:
   api:
     build:
       context: ./backend
-      # OCR ทางเลือก: OCR_PIP="aksonocr-lite onnxruntime opencv-python-headless pyclipper" docker compose build api
+      # OCR ทางเลือก: OCR_PIP="https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip pyclipper" docker compose build api
       args: { OCR_PIP: "${OCR_PIP:-}" }
     env_file: .env
     environment:
