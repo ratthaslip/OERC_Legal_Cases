@@ -30,3 +30,22 @@ OCR (ocr.py) — ชุดที่ 2: PDF สแกน 86 ไฟล์ (1,081 �
 
 ตรรกะการแปลง (แยกข้อ/มาตรา, แก้อักขระ, OCR) อยู่ใน `app/law/docparse.py` และ `app/law/ocr.py` — ใช้ร่วมกับหน้า
 "นำเข้าเอกสาร" บนเว็บ (`app/law/uploads.py`) ซึ่งให้นิติกร/ผู้ดูแลอัปโหลดทีละไฟล์ → ร่าง → อนุมัติโดยผู้อื่น
+
+## เลือก OCR engine และเทียบผล
+
+`OCR_ENGINE` (ใช้ทั้งหน้านำเข้าเอกสารบนเว็บและ `ocr.py --engine`) — ทุกตัวรันในเซิร์ฟเวอร์:
+
+| engine | โมเดล | ติดตั้ง |
+|---|---|---|
+| `tesseract` (ค่าเริ่ม) | Tesseract tha+eng | มีใน image แล้ว |
+| `akson` | AksonOCR-Lite (Remtir, Apache-2.0) — layout + ตาราง | `OCR_PIP="aksonocr-lite"` ตอน build |
+| `openthai` | OpenThai2.0-OCR-Text (iApp, Apache-2.0) — บรรทัด + กรอบ | ดาวน์โหลดโมเดลไว้ที่ `data/models/`, `OCR_PIP="onnxruntime opencv-python-headless pyclipper"`, `OPENTHAI_OCR_DIR=/data/models/OpenThai2.0-OCR-Text` |
+
+เทียบกับไฟล์สแกนจริง (ผลอยู่ใน `$LEGAL_IMPORT_WORK/ocr-compare/` นอก git):
+
+```bash
+python tools/legal_import/ocr_compare.py --limit 20                 # tesseract, akson, openthai
+python tools/legal_import/ocr_compare.py --report-only              # สรุปจากผลที่มี
+```
+ตัวชี้วัดดูที่หัวไฟล์ `ocr_compare.py` (ความเร็ว, อักขรวิธีผิด, จุดที่ต้องแก้คำ, แยกข้อครบ, เลขข้อผิดลำดับ) — สุ่มเทียบกับต้นฉบับด้วยตาก่อนตัดสินใจ
+เปลี่ยนชุดที่ convert_bulk ใช้: `LEGAL_IMPORT_OCR_DIR=ocr-akson python tools/legal_import/convert_bulk.py`

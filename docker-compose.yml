@@ -19,7 +19,10 @@ services:
       retries: 10
 
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      # OCR ทางเลือก: OCR_PIP="aksonocr-lite onnxruntime opencv-python-headless pyclipper" docker compose build api
+      args: { OCR_PIP: "${OCR_PIP:-}" }
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/erc
@@ -31,6 +34,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/app:/app/app
+      - ./backend/tools:/app/tools   # เครื่องมือนำเข้า/OCR: docker compose exec api python tools/legal_import/ocr_compare.py
       - ./backend/eval:/app/eval   # ชุดคำถามทดสอบ: docker compose exec api python -m eval.run_eval --inproc --baseline eval/baseline.json
       - ./data:/data:ro        # ข้อมูลจริงของสำนักงาน (ไม่อยู่ใน git) เช่น register.xlsx
       - ./data/raw:/data/raw   # ที่เก็บไฟล์ต้นฉบับ (เขียนได้) — สำรองโฟลเดอร์นี้พร้อมฐานข้อมูลเสมอ

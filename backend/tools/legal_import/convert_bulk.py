@@ -21,7 +21,8 @@ REPORT = WORK / "convert_report.json"
 SOURCE = "ไฟล์จากฝ่ายกฎหมาย สำนักงาน กกพ."
 
 
-OCR_DIR = WORK / "ocr"   # ผลจาก ocr.py (ข้อความที่รักษาการเยื้องบรรทัด)
+# ผลจาก ocr.py (ข้อความที่รักษาการเยื้องบรรทัด) — เลือกชุดของ engine อื่นด้วย LEGAL_IMPORT_OCR_DIR=ocr-akson
+OCR_DIR = WORK / os.environ.get("LEGAL_IMPORT_OCR_DIR", "ocr")
 
 
 def ocr_text(f: dict) -> str | None:

@@ -2,6 +2,8 @@
 
   python tools/legal_import/ocr.py                     # Tesseract (tha+eng) ในเครื่อง — ค่าเริ่มต้น ไม่ส่งไฟล์ออกนอกเครื่อง
   python tools/legal_import/ocr.py --workers 4 --only 1.2,1.3
+  python tools/legal_import/ocr.py --engine akson      # AksonOCR-Lite → $LEGAL_IMPORT_WORK/ocr-akson/
+  python tools/legal_import/ocr.py --engine openthai   # OpenThai2.0-OCR-Text (OPENTHAI_OCR_DIR) → ocr-openthai/
   python tools/legal_import/ocr.py --engine endpoint   # โมเดล OCR แบบ OpenAI-compatible vision (เช่น Typhoon OCR บน vLLM)
        OCR_BASE_URL=http://ocr:8000/v1 OCR_MODEL=typhoon-ocr-7b [OCR_API_KEY=…]
        endpoint ภายนอก (คลาวด์) ต้องใส่ --allow-external และส่งได้เฉพาะประกาศ/ระเบียบที่เป็นข้อมูลสาธารณะ —
@@ -19,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/ → import app.law.ocr
-from app.law.ocr import (THAI, _external, _layout_lines, clean, is_noise, ocr_endpoint,  # noqa: E402,F401
+from app.law.ocr import (ENGINES, THAI, _external, _layout_lines, clean, is_noise, ocr_endpoint,  # noqa: E402,F401
                          ocr_tesseract)
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
@@ -56,7 +58,8 @@ def targets(only: set[str] | None) -> list[dict]:
 # ---------------------------------------------------------------- main
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--engine", choices=["tesseract", "endpoint"], default="tesseract")
+    ap.add_argument("--engine", choices=[*ENGINES, "endpoint"], default="tesseract")
+    ap.add_argument("--out", help="โฟลเดอร์ผลลัพธ์ (ค่าเริ่ม: ocr/ สำหรับ tesseract, ocr-<engine>/ สำหรับตัวอื่น)")
     ap.add_argument("--allow-external", action="store_true", help="อนุญาต endpoint ภายนอก (เฉพาะเอกสารสาธารณะ)")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--only", help="เลขทะเบียนคั่นด้วย ,")
@@ -64,6 +67,8 @@ def main() -> None:
     ap.add_argument("--list", action="store_true", help="แสดงรายการไฟล์ที่จะ OCR แล้วจบ")
     ap.add_argument("--reclean", action="store_true", help="ใช้ตัวกรองบรรทัดขยะและการแก้คำล่าสุดกับผลที่มีอยู่ (ไม่ OCR ใหม่)")
     a = ap.parse_args()
+    global OUT
+    OUT = Path(a.out) if a.out else (WORK / "ocr" if a.engine == "tesseract" else WORK / f"ocr-{a.engine}")
     OUT.mkdir(parents=True, exist_ok=True)
     if a.reclean:
         for p in sorted(OUT.glob("*.txt")):
@@ -72,7 +77,9 @@ def main() -> None:
         print("reclean", len(list(OUT.glob("*.txt"))))
         return
     todo = targets(set(a.only.split(",")) if a.only else None)
-    engine = ocr_tesseract
+    engine = ENGINES.get(a.engine, ocr_tesseract)
+    if a.engine in ("akson", "openthai"):
+        a.workers = 1   # โมเดลโหลดครั้งเดียวและใช้หลายเธรดภายในเอง
     if a.engine == "endpoint":
         external = _external(os.environ["OCR_BASE_URL"])
         if external and not a.allow_external:

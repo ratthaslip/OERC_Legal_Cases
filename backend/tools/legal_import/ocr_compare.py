@@ -1,0 +1,169 @@
+"""เทียบ OCR engine กับไฟล์สแกนจริงของทะเบียน (ไม่ต้องมีเฉลย) — รันบนเซิร์ฟเวอร์ ผลอยู่นอก git
+
+  python tools/legal_import/ocr_compare.py                              # tesseract, akson, openthai ทุกไฟล์
+  python tools/legal_import/ocr_compare.py --engines tesseract,openthai --limit 15
+  python tools/legal_import/ocr_compare.py --report-only                # สรุปจากผลที่มีอยู่ ไม่ OCR ใหม่
+
+ผล: $LEGAL_IMPORT_WORK/ocr-compare/<engine>/<sha>.raw.txt (ก่อน clean) + .txt (หลัง clean)
+     $LEGAL_IMPORT_WORK/ocr-compare/report.md, report.json, per_file.csv
+
+ตัวชี้วัด (ยิ่งต่ำยิ่งดี เว้นแต่ระบุ) — วัดจากข้อความดิบก่อนการแก้คำ เพื่อสะท้อนคุณภาพของ engine เอง:
+  sec/page            เวลาเฉลี่ยต่อหน้า (รวมเรนเดอร์ PDF → ภาพ 300 dpi)
+  invalid/1k          ลำดับอักษรไทยที่ผิดอักขรวิธี (สระบน/วรรณยุกต์ลอย, วรรณยุกต์ซ้อน, สระหน้าไม่มีพยัญชนะตาม) ต่ออักษรไทย 1,000 ตัว
+  repairs/1k          จุดที่ต้องใช้กฎแก้คำ (ซือ→ซื้อ, ทัง→ทั้ง, ฯลฯ) ต่ออักษรไทย 1,000 ตัว
+  latin_in_thai/1k    อักษรละตินที่แทรกกลางคำไทย (เช่น "WA." แทน "พ.ศ.")
+  clause_coverage ↑   สัดส่วนข้อที่แยกได้ / เลขข้อสูงสุดที่พบ (ข้อมูลโครงสร้างครบแค่ไหน)
+  renumbered          เลขข้อที่อ่านผิดลำดับ (เลขไทย ๔↔๕↔๖) ต้องเรียงใหม่
+  thai_chars ↑        ปริมาณอักษรไทยที่อ่านได้ (ต่ำผิดปกติ = อ่านตกหล่น)
+ตัวเลขเหล่านี้เป็นตัวแทนคุณภาพ — ควรสุ่มเทียบกับต้นฉบับด้วยตาอีก 3–5 ไฟล์ก่อนตัดสินใจ
+"""
+import argparse
+import csv
+import json
+import os
+import re
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from app.law import docparse  # noqa: E402
+from app.law.ocr import REPAIRS, THAI, OcrUnavailable, clean, ocr_pdf  # noqa: E402
+
+WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
+OUT = WORK / "ocr-compare"
+
+INVALID = [
+    re.compile(r"(?<![ก-ฮัิ-ฺ็-๎])[ัิ-ฺ็-๎]"),  # สระบน/ล่าง/วรรณยุกต์ไม่มีพยัญชนะนำ
+    re.compile(r"[่-๋]{2,}"),                                                       # วรรณยุกต์ซ้อน
+    re.compile(r"[เแโใไ](?![ก-ฮ])"),                                                           # สระหน้าไม่มีพยัญชนะตาม
+    re.compile(r"ํา"),                                                              # ํ + า แทน ำ
+]
+LATIN_IN_THAI = re.compile(r"(?<=[ก-๙])[A-Za-z]+|[A-Za-z]+(?=[ก-๙])")
+
+
+def metrics(raw: str) -> dict:
+    thai = len(THAI.findall(raw)) or 1
+    per_k = lambda n: round(n * 1000 / thai, 2)  # noqa: E731
+    cleaned = clean(raw)
+    paras = docparse.fix_lost_am("\n".join(docparse.layout_paragraphs(cleaned))).split("\n")
+    renum: list[str] = []
+    _, _, provs, *_ = docparse.parse(paras, "ข้อ", "", ocr=True, renumbered=renum)
+    seen = [int(docparse.th2ar(m.group(1))) for p in paras for m in [re.match(r"^ข้อ\s*([๐-๙\d]+)\s", p)] if m]
+    top = max([x for x in seen if x <= 200], default=0)
+    n_clauses = sum(1 for p in provs if p["no"] and p["no"] != "__annex__")
+    return {
+        "thai_chars": thai,
+        "invalid_per_1k": per_k(sum(len(rx.findall(raw)) for rx in INVALID)),
+        "repairs_per_1k": per_k(sum(len(rx.findall(raw)) for rx, _ in REPAIRS)),
+        "latin_in_thai_per_1k": per_k(len(LATIN_IN_THAI.findall(raw))),
+        "clauses": n_clauses, "max_clause_seen": top,
+        "clause_coverage": round(min(n_clauses, top) / top, 3) if top else None,
+        "renumbered": len(renum),
+    }
+
+
+def run(engines: list[str], limit: int | None, force: bool) -> None:
+    from ocr import targets  # tools/legal_import/ocr.py — ไฟล์สแกนของแถวที่ใช้บังคับและยังไม่มีตัวบท
+    todo = sorted(targets(None), key=lambda t: t["reg"])
+    if limit:
+        todo = todo[:limit]
+    print(f"{len(todo)} ไฟล์ {sum(t['pages'] for t in todo)} หน้า × {', '.join(engines)}")
+    for eng in engines:
+        d = OUT / eng
+        d.mkdir(parents=True, exist_ok=True)
+        for k, t in enumerate(todo, 1):
+            raw_p, meta_p = d / f"{t['sha256']}.raw.txt", d / f"{t['sha256']}.json"
+            if raw_p.exists() and meta_p.exists() and not force:
+                continue
+            t0 = time.perf_counter()
+            try:
+                raw = ocr_pdf(t["disk"], eng)
+            except OcrUnavailable as e:
+                print(f"ข้าม {eng}: {e}")
+                break
+            except Exception as e:  # noqa: BLE001
+                print(f"✗ {eng} {t['reg']}: {type(e).__name__}: {e}"[:300])
+                continue
+            sec = time.perf_counter() - t0
+            raw_p.write_text(raw, encoding="utf-8")
+            (d / f"{t['sha256']}.txt").write_text(clean(raw), encoding="utf-8")
+            meta_p.write_text(json.dumps({"reg": t["reg"], "pages": t["pages"], "seconds": round(sec, 2),
+                                          "internal": t["internal"]}), encoding="utf-8")
+            print(f"[{eng} {k}/{len(todo)}] {t['reg']} {t['pages']} หน้า {sec:.1f} s", flush=True)
+
+
+def report(engines: list[str]) -> None:
+    rows, summary = [], {}
+    shas = None
+    for eng in engines:  # เทียบเฉพาะไฟล์ที่ทุก engine มีผล
+        s = {p.name.split(".")[0] for p in (OUT / eng).glob("*.json")} if (OUT / eng).exists() else set()
+        shas = s if shas is None else shas & s
+    shas = sorted(shas or [])
+    for eng in engines:
+        acc = {"files": 0, "pages": 0, "seconds": 0.0, "thai": 0, "inv": 0.0, "rep": 0.0, "lat": 0.0,
+               "cov": [], "renum": 0}
+        for sha in shas:
+            meta = json.loads((OUT / eng / f"{sha}.json").read_text(encoding="utf-8"))
+            m = metrics((OUT / eng / f"{sha}.raw.txt").read_text(encoding="utf-8"))
+            rows.append({"engine": eng, "reg": meta["reg"], "sha256": sha[:12], "pages": meta["pages"],
+                         "sec_per_page": round(meta["seconds"] / max(meta["pages"], 1), 2), **m})
+            w = m["thai_chars"]
+            acc["files"] += 1
+            acc["pages"] += meta["pages"]
+            acc["seconds"] += meta["seconds"]
+            acc["thai"] += w
+            acc["inv"] += m["invalid_per_1k"] * w
+            acc["rep"] += m["repairs_per_1k"] * w
+            acc["lat"] += m["latin_in_thai_per_1k"] * w
+            acc["renum"] += m["renumbered"]
+            if m["clause_coverage"] is not None:
+                acc["cov"].append(m["clause_coverage"])
+        t = acc["thai"] or 1
+        summary[eng] = {
+            "files": acc["files"], "pages": acc["pages"],
+            "sec_per_page": round(acc["seconds"] / max(acc["pages"], 1), 2),
+            "thai_chars": acc["thai"],
+            "invalid_per_1k": round(acc["inv"] / t, 2), "repairs_per_1k": round(acc["rep"] / t, 2),
+            "latin_in_thai_per_1k": round(acc["lat"] / t, 2),
+            "clause_coverage": round(sum(acc["cov"]) / len(acc["cov"]), 3) if acc["cov"] else None,
+            "renumbered": acc["renum"],
+        }
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "report.json").write_text(json.dumps({"files": len(shas), "summary": summary}, ensure_ascii=False, indent=1),
+                                     encoding="utf-8")
+    if rows:
+        with open(OUT / "per_file.csv", "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0]))
+            w.writeheader()
+            w.writerows(rows)
+    cols = [("sec_per_page", "วินาที/หน้า ↓"), ("thai_chars", "อักษรไทย ↑"), ("invalid_per_1k", "ผิดอักขรวิธี/1k ↓"),
+            ("repairs_per_1k", "ต้องแก้คำ/1k ↓"), ("latin_in_thai_per_1k", "ละตินปนไทย/1k ↓"),
+            ("clause_coverage", "แยกข้อครบ ↑"), ("renumbered", "เลขข้อผิดลำดับ ↓")]
+    md = [f"# เทียบ OCR — {len(shas)} ไฟล์ที่ทุก engine มีผล", "",
+          "| ตัวชี้วัด | " + " | ".join(engines) + " |", "|---|" + "---|" * len(engines)]
+    for k, label in cols:
+        md.append(f"| {label} | " + " | ".join(str(summary[e][k]) for e in engines) + " |")
+    md += ["", "รายไฟล์: per_file.csv · ข้อความดิบ/หลังแก้: <engine>/<sha>.raw.txt / .txt"]
+    (OUT / "report.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    print("\n".join(md))
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--engines", default="tesseract,akson,openthai")
+    ap.add_argument("--limit", type=int, help="จำนวนไฟล์ (เรียงตามเลขทะเบียน)")
+    ap.add_argument("--force", action="store_true", help="OCR ใหม่แม้มีผลแล้ว")
+    ap.add_argument("--report-only", action="store_true")
+    a = ap.parse_args()
+    engines = [e.strip() for e in a.engines.split(",") if e.strip()]
+    if not a.report_only:
+        run(engines, a.limit, a.force)
+    ready = [e for e in engines if (OUT / e).exists() and any((OUT / e).glob("*.json"))]
+    if ready:
+        report(ready)
+
+
+if __name__ == "__main__":
+    main()

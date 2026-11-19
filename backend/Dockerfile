@@ -5,6 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils t
     && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# OCR engine ทางเลือก (ไม่บังคับ): AksonOCR-Lite / runtime ของ OpenThai2.0-OCR-Text — ดู .env.example (OCR_ENGINE)
+ARG OCR_PIP=""
+RUN if [ -n "$OCR_PIP" ]; then pip install --no-cache-dir $OCR_PIP; fi
 COPY app ./app
 COPY tests ./tests
 EXPOSE 8000
