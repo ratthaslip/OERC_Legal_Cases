@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { BookOpen, CheckCircle2, FileUp, Gavel, Lock, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
+import { BookOpen, CheckCircle2, FileUp, Gavel, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
 import { api, setApiUser } from './api.js';
 import LawPage from './pages/LawPage.jsx';
 import AppealsPage from './pages/AppealsPage.jsx';
@@ -102,8 +102,13 @@ export default function App() {
   };
 
   const internal = me && me.role !== 'PUB';
+  // เมนูที่ผู้ใช้เห็น: งานอุทธรณ์/งานคดีเฉพาะเจ้าหน้าที่ (ประชาชนทั่วไปไม่เห็นเมนู) และเมนูที่จำกัดบทบาท
+  const canSee = (n) => (!n.roles || n.roles.includes(me?.role)) && (!n.internal || internal);
+  const nav = NAV.filter(canSee);
+  // หน้าที่บันทึกไว้หรือถูกลิงก์มาแต่ผู้ใช้ปัจจุบันไม่มีสิทธิ์ (เช่น สลับเป็นประชาชนทั่วไป) → กลับไปหน้าสืบค้นกฎหมาย
+  const page = !me || nav.some((n) => n.key === route.page) ? route.page : 'law';
   const pageProps = { me, go, notify, route, switchUser };
-  const k = `${userId}-${route.page}`;
+  const k = `${userId}-${page}`;
 
   return (
     <div className="min-h-screen bg-canvas text-slate-800 flex flex-col font-sans">
@@ -157,12 +162,12 @@ export default function App() {
         <div className="bg-white border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between overflow-x-auto">
             <nav className="flex space-x-1">
-              {NAV.filter((n) => !n.roles || n.roles.includes(me?.role)).map(({ key, label, icon: Icon, badge, internal: needInternal, dot }) => (
+              {nav.map(({ key, label, icon: Icon, badge, dot }) => (
                 <button
                   key={key}
                   onClick={() => go(key)}
                   className={`flex items-center gap-2 px-3.5 py-3 text-xs sm:text-sm font-medium border-b-[3px] transition-colors whitespace-nowrap ${
-                    route.page === key
+                    page === key
                       ? 'border-brand-600 text-brand-700 font-semibold'
                       : 'border-transparent text-slate-600 hover:text-brand-700 hover:bg-brand-50'
                   }`}
@@ -171,7 +176,6 @@ export default function App() {
                   <span>{label}</span>
                   {badge && <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-amber-100 text-amber-700 font-semibold">{badge}</span>}
                   {dot && <span className={`w-2 h-2 rounded-full ${assistantOn ? 'bg-emerald-500' : 'bg-rose-500'}`} />}
-                  {needInternal && me && !internal && <Lock className="w-3.5 h-3.5 text-slate-400" />}
                 </button>
               ))}
             </nav>
@@ -196,12 +200,12 @@ export default function App() {
 
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-1">
         <ErrorBoundary key={k}>
-          {me && route.page === 'law' && <LawPage key={k} {...pageProps} />}
-          {me && route.page === 'appeal' && <AppealsPage key={k} {...pageProps} />}
-          {me && route.page === 'court' && <CasesPage key={k} {...pageProps} />}
-          {me && route.page === 'assistant' && <AssistantPage key={k} {...pageProps} enabled={assistantOn} llm={llm} />}
-          {me && route.page === 'admin' && me.role === 'ADM' && <AdminPage key={k} {...pageProps} />}
-          {me && route.page === 'import' && ['LGL', 'ADM'].includes(me.role) && <ImportPage key={k} {...pageProps} />}
+          {me && page === 'law' && <LawPage key={k} {...pageProps} />}
+          {me && page === 'appeal' && <AppealsPage key={k} {...pageProps} />}
+          {me && page === 'court' && <CasesPage key={k} {...pageProps} />}
+          {me && page === 'assistant' && <AssistantPage key={k} {...pageProps} enabled={assistantOn} llm={llm} />}
+          {me && page === 'admin' && me.role === 'ADM' && <AdminPage key={k} {...pageProps} />}
+          {me && page === 'import' && ['LGL', 'ADM'].includes(me.role) && <ImportPage key={k} {...pageProps} />}
         </ErrorBoundary>
       </main>
 
