@@ -1,6 +1,28 @@
 """การตั้งค่าทั้งหมดอ่านจาก environment variable (ดู .env.example)"""
 from functools import lru_cache
+import ipaddress
 import os
+from urllib.parse import urlparse
+
+
+def llm_is_external(provider: str, base_url: str, override: str = "auto") -> bool:
+    """LLM อยู่นอกเครือข่ายสำนักงานหรือไม่ — ถ้าใช่ ระบบส่งให้ LLM เฉพาะตัวบทสาธารณะ"""
+    if override.lower() in ("true", "1", "yes"):
+        return True
+    if override.lower() in ("false", "0", "no"):
+        return False
+    if provider == "extractive":
+        return False
+    if provider == "anthropic":
+        return True
+    host = (urlparse(base_url).hostname or "").lower()
+    if not host or host == "localhost" or "." not in host or host.endswith((".internal", ".local", ".lan", ".corp")):
+        return False  # localhost, ชื่อ service ใน docker compose, host.docker.internal, โดเมนภายใน
+    try:
+        ip = ipaddress.ip_address(host)
+        return not (ip.is_private or ip.is_loopback or ip.is_link_local)
+    except ValueError:
+        return True  # ชื่อโดเมนสาธารณะ เช่น api.openai.com
 
 
 class Settings:
@@ -26,6 +48,8 @@ class Settings:
         self.llm_model = os.getenv("LLM_MODEL", "qwen2.5:14b-instruct")
         self.llm_api_key = os.getenv("LLM_API_KEY", "")
         self.llm_timeout_s = float(os.getenv("LLM_TIMEOUT_S", "60"))
+        # LLM ภายนอก (คลาวด์) ห้ามรับข้อมูลภายใน: auto = ตัดสินจาก provider/URL, true/false = บังคับ
+        self.llm_external = llm_is_external(self.llm_provider, self.llm_base_url, os.getenv("LLM_EXTERNAL", "auto"))
 
         # RAG (SDD 6.2)
         self.rag_top_k = int(os.getenv("RAG_TOP_K", "12"))
