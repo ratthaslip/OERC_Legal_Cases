@@ -2,7 +2,8 @@
 
 เลือกด้วย OCR_ENGINE:
   tesseract (ค่าเริ่มต้น) — Tesseract tha+eng
-  akson     — AksonOCR-Lite (Remtir, Apache-2.0, ONNX บน CPU, มี layout/ตาราง)   pip install aksonocr-lite
+  akson     — AksonOCR-Lite (Remtir, Apache-2.0, ONNX บน CPU, มี layout/ตาราง)   pip install <github.com/Remtir/AksonOCR-Lite zip>
+              AKSONOCR_WEIGHTS=<โฟลเดอร์โมเดลจาก huggingface Remtir/AksonOCR-Lite>
   openthai  — OpenThai2.0-OCR-Text (iApp, Apache-2.0, ONNX/OpenVINO บน CPU)     OPENTHAI_OCR_DIR=<โฟลเดอร์โมเดล>
 
 ใช้ร่วมกันโดย tools/legal_import/ocr.py (ชุดไฟล์จากฝ่ายกฎหมาย) และหน้านำเข้าเอกสารบนเว็บ (law/uploads.py)
@@ -138,7 +139,7 @@ def _akson_conv():
             try:
                 import aksonocr_lite
             except ImportError as e:
-                raise OcrUnavailable("ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install aksonocr-lite) — หรือใช้ OCR_ENGINE=tesseract") from e
+                raise OcrUnavailable("ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip) — หรือใช้ OCR_ENGINE=tesseract") from e
             _akson = aksonocr_lite.load(device=os.environ.get("AKSON_DEVICE", "cpu"),
                                         dewarp=os.environ.get("AKSON_DEWARP") == "1", tables=True)
     return _akson

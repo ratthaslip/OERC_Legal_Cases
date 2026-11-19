@@ -38,7 +38,7 @@ OCR (ocr.py) — ชุดที่ 2: PDF สแกน 86 ไฟล์ (1,081 �
 | engine | โมเดล | ติดตั้ง |
 |---|---|---|
 | `tesseract` (ค่าเริ่ม) | Tesseract tha+eng | มีใน image แล้ว |
-| `akson` | AksonOCR-Lite (Remtir, Apache-2.0) — layout + ตาราง | `OCR_PIP="aksonocr-lite"` ตอน build |
+| `akson` | AksonOCR-Lite (Remtir, Apache-2.0) — layout + ตาราง | `OCR_PIP="https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip"` ตอน build; โมเดลจาก huggingface Remtir/AksonOCR-Lite ไว้ที่ `data/models/`, `AKSONOCR_WEIGHTS=/data/models/AksonOCR-Lite` |
 | `openthai` | OpenThai2.0-OCR-Text (iApp, Apache-2.0) — บรรทัด + กรอบ | ดาวน์โหลดโมเดลไว้ที่ `data/models/`, `OCR_PIP="onnxruntime opencv-python-headless pyclipper"`, `OPENTHAI_OCR_DIR=/data/models/OpenThai2.0-OCR-Text` |
 
 เทียบกับไฟล์สแกนจริง (ผลอยู่ใน `$LEGAL_IMPORT_WORK/ocr-compare/` นอก git):
