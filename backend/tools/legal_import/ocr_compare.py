@@ -3,6 +3,10 @@
   python tools/legal_import/ocr_compare.py                              # tesseract, akson, openthai ทุกไฟล์
   python tools/legal_import/ocr_compare.py --engines tesseract,openthai --limit 15
   python tools/legal_import/ocr_compare.py --report-only                # สรุปจากผลที่มีอยู่ ไม่ OCR ใหม่
+  python tools/legal_import/ocr_compare.py --dir /data/scans            # PDF ในโฟลเดอร์ใดก็ได้
+
+เลือกไฟล์: มี $LEGAL_IMPORT_WORK/inventory.json → ไฟล์สแกนของทะเบียน; ไม่มี (เช่นบนเซิร์ฟเวอร์) → ไฟล์ต้นฉบับของตราสารที่
+นำเข้าด้วย OCR จากฐานข้อมูล (raw_file + import_note "ถอดจากภาพสแกนด้วย OCR"); หรือระบุ --dir
 
 ผล: $LEGAL_IMPORT_WORK/ocr-compare/<engine>/<sha>.raw.txt (ก่อน clean) + .txt (หลัง clean)
      $LEGAL_IMPORT_WORK/ocr-compare/report.md, report.json, per_file.csv
@@ -64,9 +68,50 @@ def metrics(raw: str) -> dict:
     }
 
 
-def run(engines: list[str], limit: int | None, force: bool) -> None:
-    from ocr import targets  # tools/legal_import/ocr.py — ไฟล์สแกนของแถวที่ใช้บังคับและยังไม่มีตัวบท
-    todo = sorted(targets(None), key=lambda t: t["reg"])
+def _pages(path: str) -> int:
+    import subprocess
+    out = subprocess.run(["pdfinfo", path], capture_output=True, text=True).stdout
+    m = re.search(r"^Pages:\s+(\d+)", out, flags=re.M)
+    return int(m.group(1)) if m else 0
+
+
+def files_from_dir(d: str) -> list[dict]:
+    import hashlib
+    out = []
+    for p in sorted(Path(d).rglob("*.pdf")) + sorted(Path(d).rglob("*.PDF")):
+        out.append({"reg": p.stem[:40], "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "disk": str(p),
+                    "pages": _pages(str(p)), "internal": False})
+    return out
+
+
+def files_from_db() -> list[dict]:
+    """ไฟล์ต้นฉบับของตราสารที่นำเข้าด้วย OCR (ใช้บนเซิร์ฟเวอร์ที่ไม่มี inventory.json)"""
+    from app.db import get_engine, rows
+    from app.storage import RawStore
+    store = RawStore()
+    with get_engine().connect() as c:
+        rs = rows(c, """
+            SELECT DISTINCT ON (f.sha256) f.sha256, f.stored_path, i.eli_id, i.classification,
+                   COALESCE(r.reg_no, split_part(i.eli_id, '/', 6)) AS reg
+            FROM law_open_issue o
+            JOIN legal_instrument i ON i.eli_id = o.instrument_eli
+            JOIN raw_file_link l ON l.instrument_eli = i.eli_id AND l.role = 'text'
+            JOIN raw_file f ON f.sha256 = l.sha256
+            LEFT JOIN law_register r ON r.instrument_eli = i.eli_id
+            WHERE o.kind = 'import_note' AND o.note LIKE 'ถอดจากภาพสแกนด้วย OCR%' AND lower(f.stored_path) LIKE '%.pdf'""")
+    return [{"reg": r["reg"], "sha256": r["sha256"], "disk": str(store.path(r["stored_path"])),
+             "pages": _pages(str(store.path(r["stored_path"]))), "internal": r["classification"] != "public"} for r in rs]
+
+
+def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None = None) -> None:
+    if src_dir:
+        todo = files_from_dir(src_dir)
+    elif (WORK / "inventory.json").exists():
+        from ocr import targets  # tools/legal_import/ocr.py — ไฟล์สแกนของแถวที่ใช้บังคับและยังไม่มีตัวบท
+        todo = targets(None)
+    else:
+        todo = files_from_db()
+    todo = sorted(todo, key=lambda t: (t["pages"], t["reg"]))  # ไฟล์สั้นก่อน: --limit ได้ผลเร็ว
     if limit:
         todo = todo[:limit]
     print(f"{len(todo)} ไฟล์ {sum(t['pages'] for t in todo)} หน้า × {', '.join(engines)}")
@@ -156,10 +201,11 @@ def main() -> None:
     ap.add_argument("--limit", type=int, help="จำนวนไฟล์ (เรียงตามเลขทะเบียน)")
     ap.add_argument("--force", action="store_true", help="OCR ใหม่แม้มีผลแล้ว")
     ap.add_argument("--report-only", action="store_true")
+    ap.add_argument("--dir", help="OCR ไฟล์ PDF ทั้งหมดในโฟลเดอร์นี้แทนไฟล์ของทะเบียน")
     a = ap.parse_args()
     engines = [e.strip() for e in a.engines.split(",") if e.strip()]
     if not a.report_only:
-        run(engines, a.limit, a.force)
+        run(engines, a.limit, a.force, a.dir)
     ready = [e for e in engines if (OUT / e).exists() and any((OUT / e).glob("*.json"))]
     if ready:
         report(ready)
