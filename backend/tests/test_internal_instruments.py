@@ -5,15 +5,28 @@ from pathlib import Path
 
 import pytest
 
-LAWS = Path(__file__).resolve().parents[1] / "app" / "seed" / "laws"
+# ตราสารภายในจริงไม่อยู่ใน repo (วางที่ LAWS_INTERNAL_DIR บนเครื่องของสำนักงาน) — เทสต์ใช้ตราสารสมมติ
+INTERNAL = {
+    "id": "eli/th/reg/erc/2599/test-internal", "type": "ระเบียบ", "code": "ระเบียบทดสอบภายใน",
+    "title": "ระเบียบสำนักงานคณะกรรมการกำกับกิจการพลังงาน ว่าด้วยสวัสดิการทดสอบภายในของพนักงาน พ.ศ. 2599",
+    "issuer": "สำนักงาน กกพ.", "category": "การบริหารองค์กร", "classification": "internal",
+    "publishedDate": "2026-01-01", "effectiveDate": "2026-01-02", "isDemo": False, "source": "ทดสอบ",
+    "registerTitle": None, "preamble": None, "signed": None, "importNotes": [],
+    "provisions": [{"id": "eli/th/reg/erc/2599/test-internal/clause-1", "number": "ข้อ 1", "part": None, "sourcePage": None,
+                    "versions": [{"version": 1, "validFrom": "2026-01-02", "validTo": None, "summary": None,
+                                  "relations": [], "amendingInstrument": "ตัวบทตั้งต้น",
+                                  "text": "พนักงานมีสิทธิได้รับสวัสดิการทดสอบภายในปีละหนึ่งครั้งตามระเบียบสวัสดิการทดสอบภายในนี้"}]}],
+}
 
 
 def _internal_instrument() -> dict:
-    for f in sorted(LAWS.rglob("*.json")):
-        for inst in json.loads(f.read_text(encoding="utf-8")):
-            if inst.get("classification") == "internal":
-                return inst
-    pytest.skip("ไม่มีตราสารภายในในชุดข้อมูล")
+    return INTERNAL
+
+
+def write_internal_dir(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "test-internal.json").write_text(json.dumps([INTERNAL], ensure_ascii=False), encoding="utf-8")
+    return path
 
 
 @pytest.fixture(scope="module")
@@ -22,8 +35,10 @@ def client(tmp_path_factory):
     if not db:
         pytest.skip("ตั้ง TEST_DATABASE_URL เพื่อรันเทสต์ API")
     os.environ.update(DATABASE_URL=db, LLM_PROVIDER="extractive", EMBED_PROVIDER="hash",
-                      RAW_STORE_DIR=str(tmp_path_factory.mktemp("raw")))
+                      RAW_STORE_DIR=str(tmp_path_factory.mktemp("raw")),
+                      LAWS_INTERNAL_DIR=str(write_internal_dir(tmp_path_factory.mktemp("laws-internal"))))
     os.environ.pop("REGISTER_XLSX", None)
+    os.environ.pop("PUBLIC_DATA_ONLY", None)
     from app.config import get_settings
     get_settings.cache_clear()
     from fastapi.testclient import TestClient
@@ -33,7 +48,8 @@ def client(tmp_path_factory):
     from app.seed import seed
     with get_engine().begin() as conn:
         seed.run(conn)
-    return TestClient(app)
+    yield TestClient(app)
+    os.environ.pop("LAWS_INTERNAL_DIR", None)
 
 
 def _h(user: str) -> dict:

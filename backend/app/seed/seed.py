@@ -21,6 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..appeals.workflow import STEPS
+from ..config import laws_internal_dir, public_data_only
 from ..db import get_engine, reset_schema
 from ..law.resolver import NotYetInForce, Repealed, VersionWindow, pick_version
 from ..law import relations
@@ -105,7 +106,8 @@ def log_law_file(conn: Connection, path: Path) -> None:
             INSERT INTO law_import_log (kind, source_name, source_sha256, instrument_eli, title_th, provisions, versions,
                                         actor, detail)
             VALUES ('law_json', :src, :sha, :eli, :title, :np, :nv, :actor, CAST(:detail AS jsonb))"""), {
-            "src": f"seed/{path.relative_to(HERE).as_posix()}", "sha": sha, "eli": inst["id"], "title": inst["title"],
+            "src": f"seed/{path.relative_to(HERE).as_posix()}" if path.is_relative_to(HERE) else f"laws-internal/{path.name}",
+            "sha": sha, "eli": inst["id"], "title": inst["title"],
             "np": len(inst["provisions"]), "nv": sum(len(p["versions"]) for p in inst["provisions"]),
             "actor": import_actor(), "detail": json.dumps({
                 "origin": inst.get("source"),
@@ -477,7 +479,16 @@ def run(conn: Connection, today: date | None = None) -> dict:
                       "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
     data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
     files = sorted((HERE / "laws").rglob("*.json"))  # laws/*.json + laws/legal-team/*.json (ไฟล์จากฝ่ายกฎหมาย)
+    # ตราสารภายในอยู่นอก repo (LAWS_INTERNAL_DIR) — เครื่องที่ตั้ง PUBLIC_DATA_ONLY ไม่นำเข้าเลย
+    idir = Path(laws_internal_dir())
+    if idir.is_dir() and not public_data_only():
+        files += sorted(idir.rglob("*.json"))
     real = [i for f in files for i in json.loads(f.read_text(encoding="utf-8"))]
+    if public_data_only():
+        skipped = sum(1 for i in real if i.get("classification") == "internal")
+        real = [i for i in real if i.get("classification") != "internal"]
+        if skipped:
+            print(f"PUBLIC_DATA_ONLY: ข้ามตราสารภายใน {skipped} ฉบับ")
     windows = load_laws(conn, real + data["instruments"])
     for f in files:
         log_law_file(conn, f)
@@ -498,10 +509,14 @@ def run(conn: Connection, today: date | None = None) -> dict:
               for t in ("provision_version", "appeal", "court_case", "citation_link")}
     # ทะเบียนกฎหมายลำดับรองจริง (ถ้ามีไฟล์) — seed ล้างตารางทุกครั้ง จึงต้องนำเข้าซ้ำที่นี่
     reg_path = Path(os.environ.get("REGISTER_XLSX", "/data/register.xlsx"))
+    reg_json = Path(os.environ.get("REGISTER_PUBLIC_JSON", "/data/raw/register-public.json"))
     n_reg = 0
     if reg_path.is_file():
         from .import_register import load_register
         n_reg = load_register(conn, str(reg_path))["rows"]
+    elif reg_json.is_file():  # เครื่องที่ไม่มีไฟล์ทะเบียนต้นฉบับ: ใช้ทะเบียนฉบับเฉพาะคอลัมน์สาธารณะ (public_only export-register)
+        from .import_register import load_register_json
+        n_reg = load_register_json(conn, reg_json)["rows"]
     return {**counts, "law_chunks": n_law, "case_chunks": n_case, "register_rows": n_reg}
 
 

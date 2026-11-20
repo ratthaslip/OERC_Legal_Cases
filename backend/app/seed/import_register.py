@@ -22,12 +22,24 @@ from sqlalchemy.engine import Connection
 
 from ..db import get_engine
 from ..law.register import read_workbook
+from ..config import public_data_only
 from ..law import relations
 from ..search.indexer import reindex_register
 
 
+# คอลัมน์ที่ระบบแสดงเฉพาะเจ้าหน้าที่ (law/router.py _INTERNAL_COLS) — เครื่อง PUBLIC_DATA_ONLY ไม่เก็บ
+INTERNAL_FIELDS = {"owner_unit": None, "review_text": None, "status_text": None, "note": None, "hearing_text": None,
+                   "attachments": {}, "issues": []}
+PUBLIC_FIELDS = ("sheet_row", "reg_no", "group_no", "doc_type", "title_th", "authority_text", "authority_secs",
+                 "effective_text", "effective_date", "status", "status_assumed")
+
+
 def load_register(conn: Connection, path: str) -> dict:
     items, sheet_title = read_workbook(path)
+    if public_data_only():
+        for r in items:
+            for k, v in INTERNAL_FIELDS.items():
+                setattr(r, k, v)
     conn.execute(text("DELETE FROM law_register"))
     for r in items:
         conn.execute(text("""
@@ -40,7 +52,7 @@ def load_register(conn: Connection, path: str) -> dict:
             {**r.__dict__, "attachments": json.dumps(r.attachments), "source_file": Path(path).name})
     linked = link_instruments(conn)
     relations.rebuild(conn)  # เส้น authorizes มาจากทะเบียน
-    archived = archive_source(conn, Path(path))
+    archived = None if public_data_only() else archive_source(conn, Path(path))
     n = reindex_register(conn)
     conn.execute(text("""
         INSERT INTO law_import_log (kind, source_name, source_sha256, rows_total, rows_linked, actor, detail)
@@ -51,6 +63,35 @@ def load_register(conn: Connection, path: str) -> dict:
         "detail": json.dumps({"sheet": sheet_title, "with_issues": sum(1 for r in items if r.issues),
                               "archived": archived}, ensure_ascii=False)})
     return {"sheet": sheet_title, "rows": len(items), "indexed": n, "items": items}
+
+
+def load_register_json(conn: Connection, path: Path) -> dict:
+    """ทะเบียนฉบับเฉพาะคอลัมน์สาธารณะ (จาก public_only export-register) — ใช้บนเครื่องที่ไม่เก็บไฟล์ทะเบียนต้นฉบับ"""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    conn.execute(text("DELETE FROM law_register"))
+    for r in data["rows"]:
+        conn.execute(text("""
+            INSERT INTO law_register (sheet_row, reg_no, group_no, doc_type, title_th, authority_text, authority_secs,
+                effective_text, effective_date, status, status_assumed, attachments, issues, source_file)
+            VALUES (:sheet_row, :reg_no, :group_no, :doc_type, :title_th, :authority_text, :authority_secs,
+                :effective_text, CAST(:effective_date AS date), :status, :status_assumed, '{}'::jsonb, '{}', :src)"""),
+            {**{k: r.get(k) for k in PUBLIC_FIELDS}, "src": Path(path).name})
+    linked = link_instruments(conn)
+    relations.rebuild(conn)
+    n = reindex_register(conn)
+    return {"sheet": data.get("sheet"), "rows": len(data["rows"]), "indexed": n, "linked": linked}
+
+
+def export_register_json(conn: Connection, path: Path) -> int:
+    """เขียนทะเบียนจากฐานข้อมูลเฉพาะคอลัมน์ที่ประชาชนเห็น (ไม่มีหน่วยงาน หมายเหตุ การทบทวน ไฟล์แนบ ข้อสังเกต)"""
+    cols = ", ".join(PUBLIC_FIELDS)
+    rs = [dict(r._mapping) for r in conn.execute(text(f"SELECT {cols} FROM law_register ORDER BY sheet_row"))]
+    for r in rs:
+        r["effective_date"] = r["effective_date"].isoformat() if r["effective_date"] else None
+    sheet = conn.execute(text("SELECT detail->>'sheet' FROM law_import_log WHERE kind = 'register' "
+                              "ORDER BY 1 DESC LIMIT 1")).scalar()
+    Path(path).write_text(json.dumps({"sheet": sheet, "rows": rs}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(rs)
 
 
 def archive_source(conn: Connection, path: Path) -> str | None:

@@ -17,6 +17,8 @@ from app.law.docparse import (build_instrument, doc_paragraphs, docx_paragraphs,
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
 INV = WORK / "inventory.json"
 OUT = Path(__file__).resolve().parents[2] / "app" / "seed" / "laws" / "legal-team"
+# ตราสารภายใน (หมวดบริหารองค์กร) ไม่อยู่ใน repo — เขียนแยกไว้ แล้วนำไปวางที่ LAWS_INTERNAL_DIR บนเครื่องของสำนักงาน
+INTERNAL_OUT = Path(os.environ.get("LEGAL_IMPORT_INTERNAL_OUT", str(WORK / "laws-internal"))) / "legal-team"
 REPORT = WORK / "convert_report.json"
 SOURCE = "ไฟล์จากฝ่ายกฎหมาย สำนักงาน กกพ."
 
@@ -73,9 +75,10 @@ def gazette(files: list[dict]) -> tuple[str | None, str | None]:
 
 def main() -> None:
     inv = json.loads(INV.read_text(encoding="utf-8"))
-    OUT.mkdir(parents=True, exist_ok=True)
-    for f in OUT.glob("*.json"):
-        f.unlink()
+    for d in (OUT, INTERNAL_OUT):
+        d.mkdir(parents=True, exist_ok=True)
+        for f in d.glob("*.json"):
+            f.unlink()
     rep = {"converted": [], "skipped": []}
     used_eli = set()
     done_sha: dict[str, str] = {}
@@ -123,7 +126,7 @@ def main() -> None:
         inst["sourceFiles"] = [{"sha256": x["sha256"], "name": x["name"],
                                 "role": "text" if x["sha256"] == f["sha256"] else "copy"} for x in r["files"]]
         inst["importNotes"] = notes
-        fn = OUT / (eli.split("/", 2)[2].replace("/", "_") + ".json")
+        fn = (INTERNAL_OUT if inst.get("classification") == "internal" else OUT) / (eli.split("/", 2)[2].replace("/", "_") + ".json")
         fn.write_text(json.dumps([inst], ensure_ascii=False, indent=1), encoding="utf-8")
         rep["converted"].append({"reg": r["reg_key"], "eli": eli, "provisions": len(inst["provisions"]),
                                  "src": "ocr" if f.get("ocr") else f["ext"],
