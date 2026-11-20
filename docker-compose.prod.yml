@@ -1,0 +1,82 @@
+# ระบบจริงบน VM ของสำนักงาน (ไม่ใช้ร่วมกับ docker-compose.yml ซึ่งเป็นโหมดพัฒนา)
+#
+#   cp .env.example .env            # ตั้ง POSTGRES_PASSWORD, CONFIG_SECRET, *_ALLOWED_BASE_URLS, LLM_* ฯลฯ
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml exec api python -m app.seed.seed --laws-only   # นำเข้าตัวบท + ทะเบียน
+#
+# - API ปรับโครงสร้างฐานข้อมูล (alembic upgrade head) ให้เองทุกครั้งที่เริ่ม
+# - หน้าเว็บ: http://<เครื่อง>:80 (WAF/reverse proxy ของสำนักงานทำ TLS) หรือเปิด TLS ที่ nginx นี้ — ดูบริการ web
+# - ไม่มีพอร์ตฐานข้อมูลหรือ API เปิดออกนอกเครื่อง; ทุกบริการเริ่มเองหลังรีบูต
+# - ฐานข้อมูลแยกเครื่อง (VM DB): ลบบริการ db แล้วตั้ง EXTERNAL_DATABASE_URL ใน .env ให้ชี้ไปเครื่องนั้น
+#   (ใช้ผู้ใช้ฐานข้อมูลของแอปที่ไม่ใช่ superuser)
+name: erc-prod
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  db:
+    <<: *restart
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ตั้ง POSTGRES_PASSWORD ใน .env}
+      POSTGRES_DB: erc
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      retries: 10
+    networks: [backend]
+
+  api:
+    <<: *restart
+    build:
+      context: ./backend
+      args: { OCR_PIP: "${OCR_PIP:-}" }
+    env_file: .env
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql+psycopg://postgres:${POSTGRES_PASSWORD}@db:5432/erc}
+      CORS_ORIGINS: ""            # หน้าเว็บและ API อยู่โดเมนเดียวกัน
+    depends_on:
+      db: { condition: service_healthy }
+    read_only: true               # เขียนได้เฉพาะ volume ด้านล่างและ tmpfs
+    tmpfs: ["/tmp:size=2g", "/home/app:size=256m"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    volumes:
+      - ./data/raw:/data/raw                          # คลังไฟล์ต้นฉบับ (เขียนได้) — chown 10001 ก่อนเริ่มครั้งแรก
+      - ./data/laws-internal:/data/laws-internal:ro   # ตราสารภายใน (ชุดไฟล์จากฝ่ายกฎหมาย)
+      - ./data/import:/data/import:ro                 # ไฟล์ทะเบียน Excel ที่จะนำเข้า (REGISTER_XLSX=/data/import/register.xlsx)
+      - ./data/models:/data/models:ro                 # น้ำหนักโมเดล OCR (ถ้าใช้ AksonOCR-Lite)
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    networks: [backend, frontend]
+
+  web:
+    <<: *restart
+    build: ./frontend
+    depends_on:
+      api: { condition: service_healthy }
+    read_only: true
+    tmpfs: ["/tmp", "/var/cache/nginx"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    ports:
+      - "${HTTP_PORT:-80}:8080"
+      # TLS ที่ nginx นี้ (ไม่ผ่าน WAF): เปิดสองบรรทัดล่าง และวางใบรับรองใน deploy/certs/
+      # - "${HTTPS_PORT:-443}:8443"
+    # volumes:
+    #   - ./deploy/nginx/tls.conf:/etc/nginx/conf.d/default.conf:ro
+    #   - ./deploy/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 30s
+      retries: 3
+    networks: [frontend]
+
+networks:
+  backend:
+  frontend:
+
+volumes:
+  pgdata:

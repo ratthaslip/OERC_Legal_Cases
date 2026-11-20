@@ -534,6 +534,19 @@ def _load_register(conn: Connection) -> int:
     return 0
 
 
+def load_workflow_steps(conn: Connection) -> None:
+    """นิยามขั้นตอนงานอุทธรณ์ (appeals/workflow.py) → workflow_step_def — ปรับให้ตรงโค้ดทุกครั้ง (idempotent)"""
+    for sd in STEPS:
+        conn.execute(text("""INSERT INTO workflow_step_def (step_no, code, name_th, optional, anchors, limit_days, day_type,
+                                                         limit_text, basis)
+                             VALUES (:n, :c, :name, :opt, :anch, :days, :dt, :lt, :b)
+                             ON CONFLICT (step_no) DO UPDATE SET code = EXCLUDED.code, name_th = EXCLUDED.name_th,
+                               optional = EXCLUDED.optional, anchors = EXCLUDED.anchors, limit_days = EXCLUDED.limit_days,
+                               day_type = EXCLUDED.day_type, limit_text = EXCLUDED.limit_text, basis = EXCLUDED.basis"""),
+                     {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
+                      "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
+
+
 LAW_TABLES = "provision_version, provision, legal_instrument, legal_relation, law_open_issue, raw_file_link, law_relation"
 
 
@@ -541,6 +554,7 @@ def run_laws(conn: Connection) -> dict:
     """นำเข้าตัวบทและทะเบียนใหม่ทั้งหมด โดยไม่แตะงานอุทธรณ์ คดี audit log ร่างนำเข้า และค่าตั้ง
     (การอ้างอิงตัวบทในสำนวนผูกด้วย ELI ไม่มี FK จึงคงอยู่ได้)"""
     init_schema(conn)
+    load_workflow_steps(conn)   # ฐานข้อมูลใหม่บนเครื่องจริงต้องมีนิยามขั้นตอนก่อนรับเรื่องอุทธรณ์
     conn.execute(text(f"TRUNCATE {LAW_TABLES} CASCADE"))
     files, real = _law_corpus()
     load_laws(conn, real)
@@ -557,12 +571,7 @@ def run(conn: Connection, today: date | None = None) -> dict:
     today = today or date.today()
     rng = random.Random(42)
     reset_schema(conn)
-    for sd in STEPS:
-        conn.execute(text("""INSERT INTO workflow_step_def (step_no, code, name_th, optional, anchors, limit_days, day_type,
-                                                         limit_text, basis)
-                             VALUES (:n, :c, :name, :opt, :anch, :days, :dt, :lt, :b)"""),
-                     {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
-                      "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
+    load_workflow_steps(conn)
     data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
     files, real = _law_corpus()
     windows = load_laws(conn, real + data["instruments"])

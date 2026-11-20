@@ -77,3 +77,47 @@ jobs:
       - name: dependency vulnerabilities (npm audit, production deps)
         run: npm audit --omit=dev --audit-level=high
       - run: npm run build
+
+  # ชุดติดตั้งระบบจริง (docker-compose.prod.yml): build image, เปิดบริการ, ตรวจ health / header / ผู้ใช้ไม่ใช่ root
+  production-stack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: prepare .env and data folders
+        run: |
+          cat > .env <<'ENV'
+          POSTGRES_PASSWORD=ci-prod-password-0123456789
+          CONFIG_SECRET=ci-config-secret-0123456789abcdef
+          LLM_PROVIDER=extractive
+          EMBED_PROVIDER=hash
+          HTTP_PORT=8088
+          ENV
+          mkdir -p data/raw data/laws-internal data/import data/models
+          sudo chown -R 10001:10001 data/raw
+      - name: build and start
+        run: docker compose -f docker-compose.prod.yml up -d --build --wait --wait-timeout 300
+      - name: import laws (production command)
+        run: docker compose -f docker-compose.prod.yml exec -T api python -m app.seed.seed --laws-only
+      - name: demo seed is refused in production
+        run: |
+          if docker compose -f docker-compose.prod.yml exec -T api python -m app.seed.seed; then
+            echo "demo seed must not run when APP_ENV=production"; exit 1
+          fi
+      - name: smoke test through nginx
+        run: |
+          set -e
+          curl -fsS http://localhost:8088/api/v1/health | grep '"db":true'
+          curl -fsS "http://localhost:8088/api/v1/laws/search?q=%E0%B8%AD%E0%B8%B8%E0%B8%97%E0%B8%98%E0%B8%A3%E0%B8%93%E0%B9%8C" | grep -q eli
+          curl -fsS -D headers.txt -o index.html http://localhost:8088/
+          grep -qi '^content-security-policy:' headers.txt
+          grep -qi '^x-frame-options: DENY' headers.txt
+          grep -q 'id="root"' index.html
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/docs)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/api/v1/laws/register?offset=-1)" = 400
+      - name: containers run as non-root
+        run: |
+          test "$(docker compose -f docker-compose.prod.yml exec -T api id -u)" = 10001
+          test "$(docker compose -f docker-compose.prod.yml exec -T web id -u)" != 0
+      - name: logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml logs --tail=200
