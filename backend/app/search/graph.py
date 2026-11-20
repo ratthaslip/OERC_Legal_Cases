@@ -20,7 +20,7 @@ from ..auth import User
 from ..db import rows
 from ..law import relations
 from .hybrid import Hit
-from .thai import content_terms, tokenize
+from .thai import content_terms, term_overlap
 
 PARENT_ACT = "eli/th/act/2550/energy-industry"
 SEC_RE = re.compile(rf"^{re.escape(PARENT_ACT)}/sec-(\d+)$")
@@ -30,10 +30,6 @@ DECAY = 0.9
 MIN_TITLE_OVERLAP = 0.34
 
 _COLS = "chunk_id, kind, ref_id, title, chunk_text, eli_id, version_no, valid_from, valid_to, classification"
-
-
-def _overlap(q_terms: set[str], text: str) -> float:
-    return len(q_terms & set(tokenize(text))) / (len(q_terms) or 1)
 
 
 def _to_hit(r: dict, parent: Hit, via: str) -> Hit:
@@ -51,7 +47,7 @@ def _subordinate(conn, user, sec: int, q_terms, limit=2) -> list[dict]:
                              AND ref_id IN (SELECT dst_register_id FROM law_relation
                                             WHERE rel_type = 'authorizes' AND src_eli = :s)""",
                  s=f"{PARENT_ACT}/sec-{sec}", **params)
-    scored = sorted(((_overlap(q_terms, c["title"]), c) for c in cands), key=lambda x: -x[0])
+    scored = sorted(((term_overlap(q_terms, c["title"]), c) for c in cands), key=lambda x: -x[0])
     return [c for s, c in scored[:limit] if s >= MIN_TITLE_OVERLAP]
 
 
@@ -72,14 +68,8 @@ def _best_provision(conn, user, instrument_eli: str, as_of: date, q_terms) -> di
                            WHERE kind = 'provision' AND eli_id LIKE :p AND {perm}
                              AND valid_from <= :d AND (valid_to IS NULL OR :d <= valid_to)""",
                  p=instrument_eli + "/%", d=as_of, **params)
-    scored = sorted(((_overlap(q_terms, c["chunk_text"]), c) for c in cands), key=lambda x: -x[0])
+    scored = sorted(((term_overlap(q_terms, c["chunk_text"]), c) for c in cands), key=lambda x: -x[0])
     return scored[0][1] if scored and scored[0][0] >= MIN_TITLE_OVERLAP else None
-
-
-def _instrument_of(eli: str | None) -> str | None:
-    if not eli:
-        return None
-    return eli.rsplit("/", 1)[0] if re.search(r"/(sec|clause|item)-[\w-]+$", eli) else None
 
 
 def expand(conn: Connection, user: User, hits: list[Hit], question: str, as_of: date) -> list[Hit]:
@@ -112,7 +102,7 @@ def expand(conn: Connection, user: User, hits: list[Hit], question: str, as_of: 
                         if p:
                             add(p, reg, "ตัวบทของฉบับที่ออกตามมาตรานี้")
             else:
-                inst = _instrument_of(seed.eli_id)
+                inst = relations.instrument_of(seed.eli_id) if seed.eli_id and relations.PROVISION_SUFFIX.search(seed.eli_id) else None
                 if inst:
                     for r in _parents(conn, user, inst, as_of):
                         add(r, seed, "บทอาศัยอำนาจของฉบับนี้")

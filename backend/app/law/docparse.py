@@ -37,6 +37,12 @@ PUA = dict(zip(range(0xF700, 0xF71B), "ฐ\u0e34\u0e35\u0e36\u0e37\u0e48\u0e49\u
                                         "ญ\u0e31\u0e4d\u0e47\u0e48\u0e49\u0e4a\u0e4b\u0e4c\u0e38\u0e39\u0e3a"))
 
 
+# สัดส่วนวรรณยุกต์ ่ ้ ต่ออักษรไทย: ข้อความจาก PDF ที่ฟอนต์เพี้ยน/ไม่มีชั้นข้อความต่ำกว่าเกณฑ์นี้ → ต้อง OCR
+MIN_TONE_RATIO = 0.06
+# ข้อความแทนหน้าที่ OCR ข้ามเพราะเรนเดอร์ภาพไม่สำเร็จ (ocr.py ใส่, build_instrument ใส่หมายเหตุให้ตรวจ)
+SKIPPED_PAGE = "[หน้านี้เรนเดอร์ไม่สำเร็จ — ต้องตรวจจากต้นฉบับ]"
+
+
 def tone_ratio(t: str) -> float:
     th = len(re.findall(r"[\u0e01-\u0e2e]", t))
     return len(re.findall(r"[\u0e48\u0e49]", t)) / th if th else 0.0
@@ -85,11 +91,13 @@ def unjustify(line: str) -> str:
 
 
 
+def pdf_text(path: str) -> str:
+    """ชั้นข้อความของ PDF โดยรักษาตำแหน่งบรรทัด (pdftotext -layout)"""
+    return subprocess.run(["pdftotext", "-q", "-layout", path, "-"], capture_output=True, text=True, timeout=300).stdout
+
 
 def pdf_paragraphs(path: str) -> list[str]:
-    return layout_paragraphs(subprocess.run(["pdftotext", "-q", "-layout", path, "-"], capture_output=True, text=True).stdout)
-
-
+    return layout_paragraphs(pdf_text(path))
 
 
 def layout_paragraphs(txt: str) -> list[str]:
@@ -168,11 +176,20 @@ CATEGORIES = [("การจัดหาไฟฟ้า", r"รับซื้�
                                   r"พนักงาน|ลูกจ้าง|การประชุม|สำนักงาน|เบิกจ่าย|พัสดุ|รายได้แผ่นดิน|กฎบัตร|ใช้รถ")]
 
 
+INTERNAL_CATEGORY = "การบริหารองค์กร"   # ระเบียบบริหารงานภายในสำนักงาน — เห็นเฉพาะเจ้าหน้าที่
+
+
 def category_of(title: str) -> str:
     for name, rx in CATEGORIES:
         if re.search(rx, title, re.I):
             return name
     return "กิจการพลังงานทั่วไป"
+
+
+def is_internal_title(*titles: str | None) -> bool:
+    """ชื่อใดชื่อหนึ่งเข้าหมวดบริหารองค์กร → ภายใน (ตรวจทั้งชื่อในทะเบียนและชื่อจากตัวบท
+    เพื่อไม่ให้ชื่อย่อในทะเบียน เช่น "ลกพ." ทำให้ฉบับภายในหลุดเป็นสาธารณะ)"""
+    return any(t and category_of(t) == INTERNAL_CATEGORY for t in titles)
 
 
 OCR_CLAUSE = re.compile(r"^(?:ข้อ|มาตรา)\s*([^\s.()]{1,3})\s+(.*)$")  # ไม่รับ "(๑)" (อนุข้อที่ขึ้นบรรทัดใหม่)
@@ -310,7 +327,7 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
         warn.append(f"ไม่พบหัว{kind} {', '.join(gaps[:8])} ในข้อความ OCR — เนื้อความอาจรวมอยู่กับ{kind}ก่อนหน้า ตรวจกับต้นฉบับ")
     if renum:
         warn.append(f"เลข{kind}จาก OCR ไม่ต่อเนื่อง กำหนดตามลำดับ ({', '.join(renum[:6])}{' …' if len(renum) > 6 else ''}) — ตรวจกับต้นฉบับ")
-    skipped = sum(1 for x in paras if "เรนเดอร์ไม่สำเร็จ" in x)
+    skipped = sum(1 for x in paras if SKIPPED_PAGE in x)
     if skipped:
         warn.append(f"OCR ข้าม {skipped} หน้าที่เรนเดอร์ภาพไม่สำเร็จ — ข้อความของหน้านั้นขาดหาย ตรวจกับต้นฉบับ")
     if ocr:
@@ -342,9 +359,7 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
     cat = category_of(title)
     inst = {"id": eli, "type": doc_type, "title": re.sub(r"\s+", " ", title).strip(), "code": short,
             "issuer": issuer, "category": cat,
-            # ระเบียบบริหารงานภายในสำนักงาน (บุคคล เงินเดือน เครื่องแบบ กฎบัตร ฯลฯ) เห็นเฉพาะเจ้าหน้าที่
-            # ตรวจทั้งชื่อจากตัวบทและชื่อในทะเบียน: ชื่อย่อในทะเบียน (เช่น "ลกพ.") ต้องไม่ทำให้ฉบับภายในหลุดเป็นสาธารณะ
-            **({"classification": "internal"} if "การบริหารองค์กร" in (cat, category_of(reg_title)) else {}),
+            **({"classification": "internal"} if is_internal_title(title, reg_title) else {}),
             "publishedDate": pub, "effectiveDate": eff,
             "isDemo": False, "source": gaz or source_default,
             "registerTitle": reg_title, "preamble": "\n".join(pre) or None, "signed": signed,

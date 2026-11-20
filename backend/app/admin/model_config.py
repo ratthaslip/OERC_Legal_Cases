@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from sqlalchemy.engine import Connection
 
 from ..config import get_settings, llm_is_external
-from . import store
+from . import llm_config, store
 from .store import FieldSpec, Group
 
 RERANK_PROVIDERS = ("none", "legal", "tei", "cohere")
@@ -33,7 +33,6 @@ EMBED = Group("embed.", {
     "api_key": FieldSpec("embed_api_key", secret=True),
     "timeout_s": FieldSpec("embed_timeout_s", store.v_number(5, 600)),
 })
-GROUPS = {"rerank": RERANK, "embed": EMBED}
 
 
 @dataclass
@@ -80,14 +79,14 @@ def embed_effective(conn: Connection | None = None) -> EmbedConfig:
                        _external(v["provider"] == "openai_compat", v["base_url"], "EMBED_EXTERNAL"), src)
 
 
+# ทุกกลุ่มที่แก้จากหน้าตั้งค่า: ชื่อ → (กลุ่มค่าตั้ง, ฟังก์ชันค่าที่ใช้จริง, ผู้ให้บริการที่เลือกได้, env รายการ endpoint ที่อนุญาต)
+SETTINGS = {
+    "llm": (llm_config.GROUP, llm_config.effective, llm_config.PROVIDERS, "LLM_ALLOWED_BASE_URLS"),
+    "rerank": (RERANK, rerank_effective, RERANK_PROVIDERS, "RERANK_ALLOWED_BASE_URLS"),
+    "embed": (EMBED, embed_effective, EMBED_PROVIDERS, "EMBED_ALLOWED_BASE_URLS"),
+}
+
+
 def public_view(name: str, conn: Connection | None = None) -> dict:
-    group = GROUPS[name]
-    cfg = rerank_effective(conn) if name == "rerank" else embed_effective(conn)
-    _, _, last = store.values(group, get_settings(), conn)
-    d = {k: v for k, v in cfg.__dict__.items() if k != "api_key"}
-    d.update(has_key=bool(cfg.api_key), key_hint=f"…{cfg.api_key[-4:]}" if len(cfg.api_key) >= 8 else None,
-             providers=list(RERANK_PROVIDERS if name == "rerank" else EMBED_PROVIDERS),
-             allowed_base_urls=store.allowed_urls(f"{name.upper()}_ALLOWED_BASE_URLS"),
-             secret_configured=store.secret_configured(),
-             updated_by=last["updated_by"] if last else None, updated_at=last["updated_at"] if last else None)
-    return d
+    group, effective, providers, allow_env = SETTINGS[name]
+    return store.public_view(group, effective(conn), providers, allow_env, conn)

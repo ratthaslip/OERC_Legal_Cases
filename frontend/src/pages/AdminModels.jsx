@@ -5,13 +5,18 @@ import {
 import { api } from '../api.js';
 import { Card, ErrorBox, Label, Spinner, inputCls } from '../components/ui.jsx';
 
-export const SourceTag = ({ src }) => (
+const SourceTag = ({ src }) => (
   <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${src === 'db' ? 'bg-brand-100 text-brand-800' : 'bg-slate-100 text-slate-500'}`}>
     {src === 'db' ? 'ตั้งจากหน้านี้' : 'จาก .env'}
   </span>
 );
 
 const PROVIDERS = {
+  llm: {
+    extractive: 'extractive — ไม่เรียกโมเดล (ยกข้อความจากตัวบท)',
+    openai_compat: 'OpenAI-compatible — OpenAI, Azure OpenAI, vLLM, Ollama',
+    anthropic: 'Anthropic API'
+  },
   rerank: {
     none: 'none — ไม่ rerank',
     legal: 'legal — คุณลักษณะทางกฎหมายในระบบ (ไม่เรียกโมเดล)',
@@ -23,9 +28,18 @@ const PROVIDERS = {
     openai_compat: 'OpenAI-compatible — /embeddings (Ollama, vLLM, TEI, OpenAI)'
   }
 };
-const USES_URL = { rerank: (p) => p === 'tei' || p === 'cohere', embed: (p) => p === 'openai_compat' };
-const FIELDS = { rerank: ['provider', 'base_url', 'model', 'candidates', 'model_weight', 'timeout_s'], embed: ['provider', 'base_url', 'model', 'timeout_s'] };
+const USES_URL = { llm: (p) => p !== 'extractive', rerank: (p) => p === 'tei' || p === 'cohere', embed: (p) => p === 'openai_compat' };
+const BASIC = ['provider', 'base_url', 'model', 'timeout_s'];
+const FIELDS = { llm: BASIC, rerank: [...BASIC, 'candidates', 'model_weight'], embed: BASIC };
+// endpoint: [placeholder, ข้อความใต้ช่อง (ตามผู้ให้บริการ)]
+const ENDPOINT = {
+  llm: ['https://api.openai.com/v1', () => 'ระบบต่อท้าย /chat/completions ให้เอง (OpenAI-compatible)'],
+  rerank: ['http://reranker:80', (p) => (p === 'tei' ? 'ระบบต่อท้าย /rerank ให้เอง' : 'ระบบต่อท้าย /v1/rerank ให้เอง')],
+  embed: ['http://host.docker.internal:11434/v1', () => 'ระบบต่อท้าย /embeddings ให้เอง']
+};
 const GUARD = {
+  llm: ['LLM ภายนอก — ระบบส่งให้ LLM เฉพาะตัวบทกฎหมายสาธารณะ ข้อมูลทะเบียน ตราสารภายใน และสำนวน ตอบด้วยการยกข้อความแทน',
+    'LLM ภายในเครือข่าย หรือไม่เรียกโมเดล — ส่งแหล่งอ้างอิงทุกประเภทที่ผู้ถามมีสิทธิ์'],
   rerank: ['reranker ภายนอก — ส่งให้โมเดลเฉพาะตัวบทกฎหมายสาธารณะ ผลค้นที่เป็นทะเบียน ตราสารภายใน และสำนวน ใช้คะแนนเดิม',
     'reranker ภายในเครือข่าย หรือไม่เรียกโมเดล — จัดอันดับผลค้นทุกประเภทที่ผู้ค้นมีสิทธิ์'],
   embed: ['โมเดลภายนอก — index ใหม่สร้างเวกเตอร์เฉพาะตัวบทกฎหมายสาธารณะ ข้อมูลภายในค้นด้วยคำตามเดิม (คำค้นถูกส่งไปฝังเวกเตอร์)',
@@ -41,14 +55,14 @@ function TestResult({ test }) {
         {test.ok ? `เชื่อมต่อได้ — ${test.latency_ms} ms` : 'เชื่อมต่อไม่ได้'}
         <span className="font-normal text-slate-500">({test.provider}{test.model ? ` · ${test.model}` : ''})</span>
       </div>
-      {test.sample && <div className="mt-1 text-slate-700">{test.sample}</div>}
+      {test.sample && <div className="mt-1 text-slate-700">ผลตัวอย่าง: {test.sample}</div>}
       {test.error && <div className="mt-1 text-rose-800 break-all">{test.error}</div>}
     </div>
   );
 }
 
-/** ฟอร์มค่าตั้ง reranker / embedding (โครงเดียวกับ LLM) */
-export function ModelSection({ name, notify, onLoaded, children }) {
+/** ฟอร์มค่าตั้ง LLM / reranker / embedding — ส่งเฉพาะช่องที่เปลี่ยน ช่องที่ไม่แตะยังตามค่า .env */
+export function ModelSection({ name, notify, onLoaded }) {
   const [cfg, setCfg] = useState(null);
   const [form, setForm] = useState({});
   const [key, setKey] = useState('');
@@ -101,12 +115,9 @@ export function ModelSection({ name, notify, onLoaded, children }) {
                 {[...new Set([form.base_url, ...cfg.allowed_base_urls])].map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             ) : (
-              <input className={inputCls} value={form.base_url} onChange={set('base_url')}
-                placeholder={name === 'embed' ? 'http://host.docker.internal:11434/v1' : 'http://reranker:80'} />
+              <input className={inputCls} value={form.base_url} onChange={set('base_url')} placeholder={ENDPOINT[name][0]} />
             )}
-            <p className="text-[11px] text-slate-500 mt-1">
-              {name === 'embed' ? 'ระบบต่อท้าย /embeddings ให้เอง' : form.provider === 'tei' ? 'ระบบต่อท้าย /rerank ให้เอง' : 'ระบบต่อท้าย /v1/rerank ให้เอง'}
-            </p>
+            <p className="text-[11px] text-slate-500 mt-1">{ENDPOINT[name][1](form.provider)}</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
@@ -125,7 +136,7 @@ export function ModelSection({ name, notify, onLoaded, children }) {
             </Label>
             <div className="flex gap-2">
               <input type="password" autoComplete="new-password" className={inputCls} value={key} onChange={(e) => setKey(e.target.value)}
-                placeholder={cfg.has_key ? 'เว้นว่าง = ใช้คีย์เดิม' : 'ไม่ต้องใส่ถ้าเป็นบริการภายใน'} disabled={!cfg.secret_configured} />
+                placeholder={cfg.has_key ? 'เว้นว่าง = ใช้คีย์เดิม' : name === 'llm' ? 'sk-…' : 'ไม่ต้องใส่ถ้าเป็นบริการภายใน'} disabled={!cfg.secret_configured} />
               {cfg.source.api_key === 'db' && (
                 <button onClick={() => run(() => api.saveAdminModel(name, { api_key: '' }), 'ลบคีย์แล้ว')} disabled={busy}
                   className="px-3 text-xs rounded-lg border border-slate-300 hover:bg-slate-50 whitespace-nowrap">ลบคีย์</button>
@@ -166,7 +177,7 @@ export function ModelSection({ name, notify, onLoaded, children }) {
           <Save className="w-4 h-4" /> บันทึก
         </button>
         <button onClick={doTest} disabled={busy} className="px-4 py-2 rounded-lg border border-brand-300 text-brand-700 hover:bg-brand-50 text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50">
-          <PlugZap className="w-4 h-4" /> ทดสอบ (ข้อความสมมติ)
+          <PlugZap className="w-4 h-4" /> ทดสอบการเชื่อมต่อ (ข้อความสมมติ)
         </button>
         <button onClick={() => run(() => api.resetAdminModel(name), 'กลับไปใช้ค่าจาก .env แล้ว')} disabled={busy}
           className="ml-auto px-3 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs flex items-center gap-1.5">
@@ -174,7 +185,6 @@ export function ModelSection({ name, notify, onLoaded, children }) {
         </button>
       </div>
       <TestResult test={test} />
-      {children}
       {cfg.updated_by && (
         <p className="text-[11px] text-slate-400">แก้ไขล่าสุดโดย {cfg.updated_by} · {new Date(cfg.updated_at).toLocaleString('th-TH')} · ทุกการแก้ไขบันทึกใน audit log</p>
       )}

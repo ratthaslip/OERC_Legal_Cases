@@ -1,5 +1,4 @@
 """หน้าตั้งค่าผู้ดูแล: แก้ LLM endpoint / model / API key — ADM เท่านั้น, key เข้ารหัสและไม่ส่งกลับ, บันทึก audit"""
-import json
 import os
 
 import pytest

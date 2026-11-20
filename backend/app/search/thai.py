@@ -81,6 +81,11 @@ def _thai_number(tok: str) -> str | None:
         return None
 
 
+def term_overlap(q_terms: set[str], text: str) -> float:
+    """สัดส่วนคำค้นที่พบในข้อความ (0–1)"""
+    return len(q_terms & set(tokenize(text))) / (len(q_terms) or 1)
+
+
 def tokenize(text: str) -> list[str]:
     text = expand_abbreviations(normalize(text))
     raw: list[str] = []

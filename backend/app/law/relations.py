@@ -65,8 +65,12 @@ class _Index:
         return None
 
 
-def _instrument_of(eli: str) -> str:
-    return re.sub(r"/(sec|clause|item)-[\w-]+$", "", eli)
+PROVISION_SUFFIX = re.compile(r"/(sec|clause|item)-[\w-]+$")   # ELI ของบทบัญญัติ = ELI ตราสาร + ส่วนท้ายนี้
+
+
+def instrument_of(eli: str) -> str:
+    """ELI ของตราสารที่บทบัญญัตินี้อยู่ (ELI ตราสารคืนค่าเดิม)"""
+    return PROVISION_SUFFIX.sub("", eli)
 
 
 def _from_register(conn: Connection) -> int:
@@ -245,12 +249,6 @@ def section_eli(sec: int) -> str:
     return f"{PARENT_ACT}/sec-{sec}"
 
 
-def authorized_register_ids(conn: Connection, src_eli: str) -> list[int]:
-    return [r["dst_register_id"] for r in rows(conn, """
-        SELECT DISTINCT dst_register_id FROM law_relation
-        WHERE rel_type = 'authorizes' AND src_eli = :s AND dst_register_id IS NOT NULL""", s=src_eli)]
-
-
 def authority_sections(conn: Connection, *, register_id: int | None = None,
                        instrument_eli: str | None = None) -> list[str]:
     """มาตราแม่บท (ELI) ของกฎหมายลำดับรอง ระบุด้วย register_id หรือ ELI ของตราสาร"""
@@ -315,10 +313,3 @@ def stats(conn: Connection) -> list[dict]:
                                 count(*) FILTER (WHERE src_eli IS NULL OR (dst_eli IS NULL AND dst_register_id IS NULL)) AS unresolved
                          FROM law_relation GROUP BY 1, 2, 3 ORDER BY 1, 2, 3""")
 
-
-def instrument_of(eli: str) -> str:
-    return _instrument_of(eli)
-
-
-def has_any(conn: Connection) -> bool:
-    return bool(one(conn, "SELECT 1 AS x FROM law_relation LIMIT 1"))

@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/ → import app.law.docparse
 from app.law.docparse import (build_instrument, doc_paragraphs, docx_paragraphs, fix_lost_am,  # noqa: E402
-                              gazette_from_text, layout_paragraphs, pdf_paragraphs, tone_ratio)
+                              gazette_from_text, layout_paragraphs, pdf_paragraphs, tone_ratio, THAI_RE, MIN_TONE_RATIO)
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
 INV = WORK / "inventory.json"
@@ -52,7 +52,6 @@ def ocr_file(files: list[dict]) -> dict | None:
     return {**max(c, key=lambda x: x[1])[0], "ocr": True} if c else None
 
 
-THAI_RE = re.compile(r"[ก-๙]")
 
 
 def paragraphs(f: dict) -> list[str]:
@@ -103,12 +102,11 @@ def main() -> None:
                                    "title": r["title_th"][:90]})
             continue
         done_sha[f["sha256"]] = f"ทะเบียน {r['reg_key']}"
-        kind = "มาตรา" if r["doc_type"] in ("พระราชกฤษฎีกา", "พระราชบัญญัติ") else "ข้อ"
         paras = paragraphs(f)
-        if tone_ratio("\n".join(paras)) < 0.06 and not f.get("ocr") and (g := ocr_file(r["files"])):
+        if tone_ratio("\n".join(paras)) < MIN_TONE_RATIO and not f.get("ocr") and (g := ocr_file(r["files"])):
             f, paras = g, paragraphs(g)   # ข้อความจาก PDF เพี้ยน (ฟอนต์เก่า) → ใช้ผล OCR
-        # ข้อความเพี้ยนจากฟอนต์เก่ามีวรรณยุกต์น้อยมาก; ผล OCR ที่ดีแต่มีตาราง/ตัวเลขมากก็ต่ำกว่า 0.06 ได้ จึงใช้เกณฑ์ต่ำกว่า
-        if tone_ratio("\n".join(paras)) < (0.03 if f.get("ocr") else 0.06):
+        # ข้อความเพี้ยนจากฟอนต์เก่ามีวรรณยุกต์น้อยมาก; ผล OCR ที่ดีแต่มีตาราง/ตัวเลขมากก็ต่ำกว่าเกณฑ์ได้ จึงใช้เกณฑ์ต่ำกว่า
+        if tone_ratio("\n".join(paras)) < (MIN_TONE_RATIO / 2 if f.get("ocr") else MIN_TONE_RATIO):
             rep["skipped"].append({"reg": r["reg_key"], "group": r["group_no"], "why": "ข้อความจาก PDF เพี้ยน (รอ OCR)",
                                    "title": r["title_th"][:90]})
             continue

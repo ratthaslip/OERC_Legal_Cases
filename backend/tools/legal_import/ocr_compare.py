@@ -33,7 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app.law import docparse  # noqa: E402
-from app.law.ocr import REPAIRS, THAI, OcrUnavailable, clean, ocr_pdf  # noqa: E402
+from app.law.ocr import REPAIRS, THAI, OcrUnavailable, clean, ocr_pdf, pdf_page_count  # noqa: E402
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
 OUT = WORK / "ocr-compare"
@@ -69,55 +69,49 @@ def metrics(raw: str) -> dict:
     }
 
 
-def _pages(path: str) -> int:
-    import subprocess
-    out = subprocess.run(["pdfinfo", path], capture_output=True, text=True).stdout
-    m = re.search(r"^Pages:\s+(\d+)", out, flags=re.M)
-    return int(m.group(1)) if m else 0
+def _entry(reg: str, sha: str, disk: str, internal: bool) -> dict:
+    return {"reg": reg, "sha256": sha, "disk": disk, "pages": pdf_page_count(disk), "internal": internal}
 
 
 def files_from_dir(d: str) -> list[dict]:
     import hashlib
-    out = []
-    for p in sorted(Path(d).rglob("*.pdf")) + sorted(Path(d).rglob("*.PDF")):
-        out.append({"reg": p.stem[:40], "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "disk": str(p),
-                    "pages": _pages(str(p)), "internal": False})
-    return out
+    return [_entry(p.stem[:40], hashlib.sha256(p.read_bytes()).hexdigest(), str(p), False)
+            for p in sorted(Path(d).rglob("*.pdf")) + sorted(Path(d).rglob("*.PDF"))]
+
+
+def _from_raw_store(sql: str, reg_of, **params) -> list[dict]:
+    """แถวจากคลังไฟล์ต้นฉบับ (raw_file) → รายการไฟล์ที่จะ OCR"""
+    from app.db import get_engine, rows
+    from app.storage import RawStore
+    store = RawStore()
+    with get_engine().connect() as c:
+        rs = rows(c, sql, **params)
+    return rs, [_entry(reg_of(r), r["sha256"], str(store.path(r["stored_path"])), r["classification"] != "public") for r in rs]
 
 
 def files_from_db() -> list[dict]:
     """ไฟล์ต้นฉบับของตราสารที่นำเข้าด้วย OCR (ใช้บนเซิร์ฟเวอร์ที่ไม่มี inventory.json)"""
-    from app.db import get_engine, rows
-    from app.storage import RawStore
-    store = RawStore()
-    with get_engine().connect() as c:
-        rs = rows(c, """
-            SELECT DISTINCT ON (f.sha256) f.sha256, f.stored_path, i.eli_id, i.classification,
-                   COALESCE(r.reg_no, split_part(i.eli_id, '/', 6)) AS reg
-            FROM law_open_issue o
-            JOIN legal_instrument i ON i.eli_id = o.instrument_eli
-            JOIN raw_file_link l ON l.instrument_eli = i.eli_id AND l.role = 'text'
-            JOIN raw_file f ON f.sha256 = l.sha256
-            LEFT JOIN law_register r ON r.instrument_eli = i.eli_id
-            WHERE o.kind = 'import_note' AND o.note LIKE 'ถอดจากภาพสแกนด้วย OCR%' AND lower(f.stored_path) LIKE '%.pdf'""")
-    return [{"reg": r["reg"], "sha256": r["sha256"], "disk": str(store.path(r["stored_path"])),
-             "pages": _pages(str(store.path(r["stored_path"]))), "internal": r["classification"] != "public"} for r in rs]
+    return _from_raw_store("""
+        SELECT DISTINCT ON (f.sha256) f.sha256, f.stored_path, i.classification,
+               COALESCE(r.reg_no, split_part(i.eli_id, '/', 6)) AS reg
+        FROM law_open_issue o
+        JOIN legal_instrument i ON i.eli_id = o.instrument_eli
+        JOIN raw_file_link l ON l.instrument_eli = i.eli_id AND l.role = 'text'
+        JOIN raw_file f ON f.sha256 = l.sha256
+        LEFT JOIN law_register r ON r.instrument_eli = i.eli_id
+        WHERE o.kind = 'import_note' AND o.note LIKE 'ถอดจากภาพสแกนด้วย OCR%' AND lower(f.stored_path) LIKE '%.pdf'""",
+                           lambda r: r["reg"])[1]
 
 
 def files_by_sha(shas: list[str]) -> list[dict]:
     """ไฟล์ในคลังไฟล์ต้นฉบับตาม sha256 (เช่น ฉบับที่ OCR รอบก่อนอ่านไม่ได้จึงยังไม่ได้นำเข้า)"""
-    from app.db import get_engine, rows
-    from app.storage import RawStore
-    store = RawStore()
-    with get_engine().connect() as c:
-        rs = rows(c, "SELECT sha256, stored_path, original_name, classification FROM raw_file WHERE sha256 = ANY(:s)", s=shas)
+    rs, out = _from_raw_store("SELECT sha256, stored_path, original_name, classification FROM raw_file WHERE sha256 = ANY(:s)",
+                              lambda r: Path(r["original_name"] or r["sha256"]).stem[:40], s=shas)
     found = {r["sha256"] for r in rs}
     for s in shas:
         if s not in found:
             print(f"ไม่พบไฟล์ {s[:12]} ในคลังไฟล์ต้นฉบับ")
-    return [{"reg": Path(r["original_name"] or r["sha256"]).stem[:40], "sha256": r["sha256"],
-             "disk": str(store.path(r["stored_path"])), "pages": _pages(str(store.path(r["stored_path"]))),
-             "internal": r["classification"] != "public"} for r in rs]
+    return out
 
 
 def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None = None,

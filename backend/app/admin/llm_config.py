@@ -11,7 +11,7 @@ from sqlalchemy.engine import Connection
 
 from ..config import get_settings, llm_is_external
 from . import store
-from .store import ConfigError, FieldSpec, Group, secret_configured  # noqa: F401 — ใช้จาก router/เทสต์
+from .store import FieldSpec, Group
 
 PROVIDERS = ("extractive", "openai_compat", "anthropic")
 GROUP = Group("llm.", {
@@ -41,27 +41,9 @@ def effective(conn: Connection | None = None) -> LlmConfig:
     return LlmConfig(v["provider"], v["base_url"].rstrip("/"), v["model"], v["api_key"], float(v["timeout_s"]), ext, src)
 
 
-def allowed_base_urls() -> list[str]:
-    return store.allowed_urls("LLM_ALLOWED_BASE_URLS")
-
-
 def public_view(conn: Connection | None = None) -> dict:
     """สิ่งที่หน้าเว็บเห็น — ไม่มี API key"""
-    cfg = effective(conn)
-    _, _, last = store.values(GROUP, get_settings(), conn)
-    return {"provider": cfg.provider, "base_url": cfg.base_url, "model": cfg.model, "timeout_s": cfg.timeout_s,
-            "has_key": bool(cfg.api_key), "key_hint": f"…{cfg.api_key[-4:]}" if len(cfg.api_key) >= 8 else None,
-            "external": cfg.external, "source": cfg.source, "providers": list(PROVIDERS),
-            "allowed_base_urls": allowed_base_urls(), "secret_configured": secret_configured(),
-            "updated_by": last["updated_by"] if last else None, "updated_at": last["updated_at"] if last else None}
-
-
-def save(conn: Connection, user_id: str, changes: dict) -> list[str]:
-    return store.save(conn, user_id, GROUP, changes)
-
-
-def reset(conn: Connection) -> int:
-    return store.reset(conn, GROUP)
+    return store.public_view(GROUP, effective(conn), PROVIDERS, "LLM_ALLOWED_BASE_URLS", conn)
 
 
 def invalidate() -> None:
