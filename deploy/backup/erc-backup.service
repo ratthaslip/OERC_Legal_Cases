@@ -1,0 +1,14 @@
+# สำรองข้อมูลรายวัน — ติดตั้ง: sudo cp deploy/backup/erc-backup.* /etc/systemd/system/
+#   แก้ WorkingDirectory และ Environment ให้ตรงเครื่อง แล้ว sudo systemctl enable --now erc-backup.timer
+[Unit]
+Description=ERC legal platform backup (database + source files, encrypted)
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/OERC_Legal_Cases
+Environment=BACKUP_PASSPHRASE_FILE=/root/erc-backup.pass
+Environment=BACKUP_DIR=/mnt/backup/erc
+Environment=BACKUP_KEEP_DAYS=30
+ExecStart=/opt/OERC_Legal_Cases/deploy/backup/backup.sh

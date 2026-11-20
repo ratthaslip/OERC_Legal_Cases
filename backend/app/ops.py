@@ -18,7 +18,7 @@ TABLES = ("legal_instrument", "provision_version", "law_register", "raw_file", "
           "citation_link", "audit_event", "app_setting", "embedding_index")
 
 
-def check() -> dict:
+def check(audit_seq: int | None = None) -> dict:
     with get_engine().connect() as c:
         counts = {}
         for t in TABLES:
@@ -26,11 +26,13 @@ def check() -> dict:
                 counts[t] = c.execute(text(f"SELECT count(*) FROM {t}")).scalar()
         ok, broken = verify_chain(c)
         last = c.execute(text("SELECT seq, hash FROM audit_event ORDER BY seq DESC LIMIT 1")).mappings().first()
+        at = c.execute(text("SELECT hash FROM audit_event WHERE seq = :s"), {"s": audit_seq}).scalar() \
+            if audit_seq is not None else None
         version = c.execute(text("SELECT version_num FROM alembic_version")).scalar() \
             if c.execute(text("SELECT to_regclass('alembic_version')")).scalar() else None
     return {"counts": counts, "audit_chain_valid": ok, "audit_broken_at": broken,
             "audit_last_seq": last["seq"] if last else None, "audit_last_hash": last["hash"] if last else None,
-            "schema_version": version}
+            "schema_version": version, **({"audit_hash_at_seq": at} if audit_seq is not None else {})}
 
 
 def audit_verify(path: str) -> dict:
@@ -61,11 +63,12 @@ def main(argv: list[str]) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("check")
     c.add_argument("--json", action="store_true")
+    c.add_argument("--audit-seq", type=int, help="คืน hash ของ audit event ลำดับนี้ด้วย (ตรวจหลังกู้คืน)")
     v = sub.add_parser("audit-verify")
     v.add_argument("--file", required=True)
     a = ap.parse_args(argv)
     if a.cmd == "check":
-        r = check()
+        r = check(a.audit_seq)
         if a.json:
             print(json.dumps(r, ensure_ascii=False))
         else:

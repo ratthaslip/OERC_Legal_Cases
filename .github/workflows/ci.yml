@@ -132,6 +132,15 @@ jobs:
           test "$(up clean.docx)" = 200
       - name: audit log copy outside the database matches
         run: docker compose -f docker-compose.prod.yml exec -T api python -m app.ops audit-verify --file /data/audit/audit.jsonl
+      - name: backup, change data, restore — data returns to the backup point
+        run: |
+          set -e
+          head -c 32 /dev/urandom | base64 > /tmp/backup.pass
+          sudo BACKUP_PASSPHRASE_FILE=/tmp/backup.pass BACKUP_DIR=$PWD/backups deploy/backup/backup.sh
+          ls -l backups
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Demo-User: lgl1' -F 'file=@clean.docx' -F 'doc_type=ประกาศ' http://localhost:8088/api/v1/laws/uploads)" = 200
+          sudo BACKUP_PASSPHRASE_FILE=/tmp/backup.pass deploy/backup/restore.sh "$(ls backups/*.enc)" --yes
+          curl -fsS http://localhost:8088/api/v1/health | grep '"db":true'
       - name: containers run as non-root
         run: |
           test "$(docker compose -f docker-compose.prod.yml exec -T api id -u)" = 10001

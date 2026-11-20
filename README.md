@@ -58,6 +58,31 @@ docker compose -f docker-compose.prod.yml exec api python -m app.seed.seed --law
 | ข้อมูล | `APP_ENV=production` → `seed` โหมดสาธิตไม่ทำงาน; นำเข้าตัวบท/ทะเบียนรอบใหม่ด้วย `seed --laws-only` (ไม่แตะงานอุทธรณ์ คดี audit log) |
 | เริ่มเองหลังรีบูต | `restart: unless-stopped` + health check ทุกบริการ |
 
+**สแกนไวรัสไฟล์อัปโหลด:** บริการ `clamav` (ClamAV) — ไฟล์ต้องผ่านการตรวจชนิดไฟล์จากเนื้อไฟล์ ไม่มี macro/JavaScript ไม่ใช่ zip bomb
+ไม่ล็อกรหัส ไม่เกิน `UPLOAD_MAX_PDF_PAGES` หน้า และ clamd ไม่พบมัลแวร์ (`AV_SCAN=required`: clamd ไม่พร้อม = ไม่รับไฟล์) ·
+ไฟล์ที่ถูกปฏิเสธไม่ถูกเก็บ และบันทึกใน audit log (`law.upload.reject_file`)
+
+**Log:** JSON บรรทัดละเหตุการณ์ทาง stdout (`docker compose logs api` หรือส่งเข้าระบบรวม log ของสำนักงาน) ทุกบรรทัดมี `request_id`
+ตรงกับ header `X-Request-Id` ของคำขอ — ผู้ใช้ที่เจอข้อผิดพลาดเห็นรหัสนี้เพื่อแจ้งผู้ดูแล · access log ไม่บันทึก query string
+
+**Audit log:** ฐานข้อมูลห้ามแก้/ลบ (trigger) และทุกเหตุการณ์ที่ commit ถูกส่งสำเนาไป `AUDIT_SINK`
+(ค่าเริ่มระบบจริง: stdout + `data/audit/audit.jsonl` — ควรเป็นดิสก์แยก; เพิ่ม `syslog+tcp://<SIEM>:514` ได้)
+ตรวจว่าสำเนาตรงกับฐาน: `docker compose -f docker-compose.prod.yml exec api python -m app.ops audit-verify --file /data/audit/audit.jsonl`
+· ฐานข้อมูลแยกเครื่อง: สร้างผู้ใช้ของแอปที่เพิ่ม audit ได้อย่างเดียวด้วย `deploy/db/app-role.sql`
+
+**สำรองและกู้คืน** (`deploy/backup/`):
+
+```bash
+openssl rand -base64 32 | sudo tee /root/erc-backup.pass >/dev/null && sudo chmod 600 /root/erc-backup.pass   # เก็บสำเนาไว้นอกเครื่องด้วย
+sudo BACKUP_PASSPHRASE_FILE=/root/erc-backup.pass BACKUP_DIR=/mnt/backup/erc deploy/backup/backup.sh       # หรือ systemd timer: erc-backup.timer
+sudo BACKUP_PASSPHRASE_FILE=/root/erc-backup.pass deploy/backup/restore.sh /mnt/backup/erc/erc-backup-<เวลา>.tar.enc
+docker compose -f docker-compose.prod.yml exec api python -m app.ops check      # จำนวนข้อมูล + ตรวจ hash chain
+```
+
+ไฟล์สำรอง 1 ไฟล์ = ฐานข้อมูล (pg_dump) + คลังไฟล์ต้นฉบับ + สำเนา audit log + ตราสารภายใน + `.env` เข้ารหัส AES-256 ·
+เก็บ `BACKUP_KEEP_DAYS` วัน (ค่าเริ่ม 30) · restore ตรวจ checksum ก่อนแตะข้อมูล ย้ายไฟล์เดิมไป `*.before-restore-<เวลา>`
+และยืนยันว่าจำนวนข้อมูลและ hash ล่าสุดของ audit log ตรงกับตอนสำรอง · CI ทดสอบสำรอง → แก้ข้อมูล → กู้คืน ทุก PR
+
 **แก้โครงสร้างฐานข้อมูล:** แก้ `backend/app/schema.sql` (โครงสร้างล่าสุด) **และ** เพิ่มไฟล์ migration (`cd backend && alembic revision -m "…"`)
 — `tests/test_migrations.py` ตรวจว่าสองทางได้ตารางเหมือนกัน
 

@@ -8,3 +8,4 @@ data/
 *.xlsx
 *.xls
 backend/eval/results.json
+backups/

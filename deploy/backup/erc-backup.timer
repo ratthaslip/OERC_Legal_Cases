@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily ERC backup at 02:15
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
