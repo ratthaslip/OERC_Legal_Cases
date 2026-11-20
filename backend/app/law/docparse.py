@@ -343,7 +343,8 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
     inst = {"id": eli, "type": doc_type, "title": re.sub(r"\s+", " ", title).strip(), "code": short,
             "issuer": issuer, "category": cat,
             # ระเบียบบริหารงานภายในสำนักงาน (บุคคล เงินเดือน เครื่องแบบ กฎบัตร ฯลฯ) เห็นเฉพาะเจ้าหน้าที่
-            **({"classification": "internal"} if cat == "การบริหารองค์กร" else {}),
+            # ตรวจทั้งชื่อจากตัวบทและชื่อในทะเบียน: ชื่อย่อในทะเบียน (เช่น "ลกพ.") ต้องไม่ทำให้ฉบับภายในหลุดเป็นสาธารณะ
+            **({"classification": "internal"} if "การบริหารองค์กร" in (cat, category_of(reg_title)) else {}),
             "publishedDate": pub, "effectiveDate": eff,
             "isDemo": False, "source": gaz or source_default,
             "registerTitle": reg_title, "preamble": "\n".join(pre) or None, "signed": signed,
