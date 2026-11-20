@@ -242,10 +242,14 @@ async def upload(file: UploadFile = File(...), doc_type: str = Form(...), classi
     data = await file.read(MAX_BYTES + 1)
     if len(data) > MAX_BYTES:
         raise HTTPException(413, "ไฟล์ใหญ่เกิน 50 MB")
-    head = data[:8]
-    if (ext == ".pdf" and not head.startswith(b"%PDF")) or (ext == ".docx" and not head.startswith(b"PK")) \
-            or (ext == ".doc" and not head.startswith(b"\xd0\xcf\x11\xe0")):
-        raise HTTPException(400, "เนื้อไฟล์ไม่ตรงกับนามสกุล")
+    from .. import filecheck
+    try:
+        fc = filecheck.check(data, ext)
+    except filecheck.FileRejected as e:
+        with get_engine().begin() as c3:   # บันทึกการปฏิเสธแม้คำขอนี้ไม่สำเร็จ
+            audit.record(c3, user, "law.upload.reject_file", "law_upload", outcome="DENY",
+                         detail={"name": name, "reason": str(e), "signature": e.signature, "bytes": len(data)})
+        raise HTTPException(e.status, str(e)) from e
     from ..seed.raw_files import add_file
     with tempfile.TemporaryDirectory() as td, get_engine().begin() as c2:  # commit ก่อนเริ่มงานเบื้องหลัง
         tmp = Path(td) / f"upload{ext}"
@@ -259,7 +263,8 @@ async def upload(file: UploadFile = File(...), doc_type: str = Form(...), classi
             {"s": st["sha256"], "n": name, "e": ext, "c": classification, "t": doc_type, "r": register_id,
              "rt": reg_title, "d": effective_date, "o": force_ocr, "u": user.user_id}).scalar()
     audit.record(conn, user, "law.upload.create", f"law_upload/{uid}",
-                 detail={"name": name, "sha256": st["sha256"], "classification": classification, "register_id": register_id})
+                 detail={"name": name, "sha256": st["sha256"], "classification": classification, "register_id": register_id,
+                         "av": fc.av, "pages": fc.pages})
     process_in_background(uid)
     return _view(_get(conn, uid))
 

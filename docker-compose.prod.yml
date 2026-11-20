@@ -38,6 +38,8 @@ services:
       APP_ENV: production
       DATABASE_URL: ${EXTERNAL_DATABASE_URL:-postgresql+psycopg://postgres:${POSTGRES_PASSWORD}@db:5432/erc}
       CORS_ORIGINS: ""            # หน้าเว็บและ API อยู่โดเมนเดียวกัน
+      AV_SCAN: ${AV_SCAN:-required}   # ไฟล์อัปโหลดต้องผ่าน ClamAV (clamd ไม่พร้อม = ไม่รับไฟล์)
+      CLAMD_HOST: clamav
     depends_on:
       db: { condition: service_healthy }
     read_only: true               # เขียนได้เฉพาะ volume ด้านล่างและ tmpfs
@@ -51,6 +53,18 @@ services:
       - ./data/models:/data/models:ro                 # น้ำหนักโมเดล OCR (ถ้าใช้ AksonOCR-Lite)
     extra_hosts: ["host.docker.internal:host-gateway"]
     networks: [backend, frontend]
+
+  # สแกนไวรัสไฟล์อัปโหลด — ดาวน์โหลดฐานข้อมูลไวรัส (freshclam) จาก database.clamav.net ทุกวัน
+  # เครือข่ายที่ออกอินเทอร์เน็ตไม่ได้: ตั้ง private mirror (FRESHCLAM_CONF_PrivateMirror) หรือ AV_SCAN=off พร้อมสแกนที่ gateway แทน
+  clamav:
+    <<: *restart
+    image: clamav/clamav:1.4
+    environment:
+      CLAMD_CONF_StreamMaxLength: 60M     # ไฟล์อัปโหลดสูงสุด 50 MB
+      CLAMD_CONF_MaxFileSize: 60M
+      CLAMD_CONF_MaxScanSize: 200M
+    volumes: [clamdb:/var/lib/clamav]
+    networks: [backend]
 
   web:
     <<: *restart
@@ -80,3 +94,4 @@ networks:
 
 volumes:
   pgdata:
+  clamdb:

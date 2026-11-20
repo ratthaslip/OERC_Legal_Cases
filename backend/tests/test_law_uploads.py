@@ -80,6 +80,24 @@ def test_rejects_bad_files(client):
                        files={"file": ("x.pdf", b"not a pdf", "application/pdf")})
     assert fake.status_code == 400
     assert _upload(client, doc_type="จดหมาย").status_code == 400
+    # การปฏิเสธไฟล์ถูกบันทึกใน audit log แม้คำขอไม่สำเร็จ
+    from sqlalchemy import text
+
+    from app.db import get_engine
+    with get_engine().connect() as c:
+        r = c.execute(text("""SELECT outcome, detail FROM audit_event WHERE action = 'law.upload.reject_file'
+                              ORDER BY seq DESC LIMIT 1""")).mappings().first()
+    assert r["outcome"] == "DENY" and "PDF" in r["detail"]["reason"]
+
+
+def test_virus_found_is_rejected(client, monkeypatch):
+    from app import filecheck
+    monkeypatch.setenv("AV_SCAN", "required")
+    monkeypatch.setattr(filecheck, "clamd_scan", lambda data: "Eicar-Test-Signature")
+    r = _upload(client)
+    assert r.status_code == 422 and "มัลแวร์" in r.json()["detail"]
+    monkeypatch.setattr(filecheck, "clamd_scan", lambda data: None)
+    assert _upload(client).status_code == 200
 
 
 def test_upload_edit_approve_search_and_survive_seed(client):
