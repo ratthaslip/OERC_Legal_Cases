@@ -310,6 +310,9 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
         warn.append(f"ไม่พบหัว{kind} {', '.join(gaps[:8])} ในข้อความ OCR — เนื้อความอาจรวมอยู่กับ{kind}ก่อนหน้า ตรวจกับต้นฉบับ")
     if renum:
         warn.append(f"เลข{kind}จาก OCR ไม่ต่อเนื่อง กำหนดตามลำดับ ({', '.join(renum[:6])}{' …' if len(renum) > 6 else ''}) — ตรวจกับต้นฉบับ")
+    skipped = sum(1 for x in paras if "เรนเดอร์ไม่สำเร็จ" in x)
+    if skipped:
+        warn.append(f"OCR ข้าม {skipped} หน้าที่เรนเดอร์ภาพไม่สำเร็จ — ข้อความของหน้านั้นขาดหาย ตรวจกับต้นฉบับ")
     if ocr:
         warn.append("ถอดจากภาพสแกนด้วย OCR — ตรวจทานตัวเลข วันที่ และวรรณยุกต์กับต้นฉบับทุกข้อก่อนอ้างอิง")
     elif ext == ".pdf":

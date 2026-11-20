@@ -70,9 +70,10 @@ def is_noise(s: str) -> bool:
 def ocr_tesseract(pdf: str, pages: int) -> str:
     texts = []
     with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(["pdftoppm", "-r", str(DPI), "-gray", "-png", pdf, f"{tmp}/p"], check=True, capture_output=True)
-        imgs = sorted(Path(tmp).glob("p-*.png"), key=lambda p: int(p.stem.split("-")[1]))
-        for img in imgs:
+        for img in _pdf_pages(pdf, tmp):
+            if img is None:
+                texts.append(SKIPPED_PAGE)
+                continue
             base = img.with_suffix("")
             subprocess.run(["tesseract", str(img), str(base), "-l", "tha+eng", "--psm", "4", "txt", "tsv"],
                            check=True, capture_output=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"})
@@ -120,9 +121,43 @@ def lines_to_layout(items: list[tuple[str, float, float | None]], width: float,
     return out
 
 
-def _pdf_pages(pdf: str, tmp: str, dpi: int = DPI) -> list[Path]:
-    subprocess.run(["pdftoppm", "-r", str(dpi), "-gray", "-png", pdf, f"{tmp}/p"], check=True, capture_output=True)
-    return sorted(Path(tmp).glob("p-*.png"), key=lambda p: int(p.stem.split("-")[1]))
+PAGE_TIMEOUT = int(os.environ.get("OCR_PAGE_TIMEOUT", "180"))   # วินาทีต่อหน้าสำหรับเรนเดอร์ PDF → ภาพ
+FALLBACK_DPI = 150
+
+
+def pdf_page_count(pdf: str) -> int:
+    out = subprocess.run(["pdfinfo", pdf], capture_output=True, text=True, timeout=60).stdout
+    m = re.search(r"^Pages:\s+(\d+)", out, flags=re.M)
+    return int(m.group(1)) if m else 0
+
+
+def _render_page(pdf: str, n: int, base: str, dpi: int, gray: bool) -> Path | None:
+    cmd = ["pdftoppm", "-r", str(dpi), "-f", str(n), "-l", str(n), "-singlefile", "-png"] + (["-gray"] if gray else [])
+    try:
+        subprocess.run(cmd + [pdf, base], check=True, capture_output=True, timeout=PAGE_TIMEOUT)
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        return None
+    img = Path(base + ".png")
+    return img if img.exists() else None
+
+
+def _pdf_pages(pdf: str, tmp: str, dpi: int = DPI, gray: bool = True):
+    """เรนเดอร์ทีละหน้า (ไม่เก็บภาพทั้งเล่มไว้พร้อมกัน) — หน้าที่เกิน OCR_PAGE_TIMEOUT ลองใหม่ที่ 150 dpi
+    ถ้ายังไม่ได้ ส่ง None (ผู้เรียกใส่หน้าว่าง + หมายเหตุ) แทนการค้างทั้งไฟล์"""
+    total = pdf_page_count(pdf)
+    for n in range(1, total + 1):
+        base = f"{tmp}/p-{n}"
+        img = _render_page(pdf, n, base, dpi, gray) or (dpi > FALLBACK_DPI and _render_page(pdf, n, base, FALLBACK_DPI, gray))
+        if not img:
+            print(f"  ! เรนเดอร์หน้า {n}/{total} ไม่สำเร็จ (เกิน {PAGE_TIMEOUT} s) — ข้ามหน้านี้", file=sys.stderr, flush=True)
+        try:
+            yield img or None
+        finally:
+            if img:
+                img.unlink(missing_ok=True)
+
+
+SKIPPED_PAGE = "[หน้านี้เรนเดอร์ไม่สำเร็จ — ต้องตรวจจากต้นฉบับ]"
 
 
 class OcrUnavailable(RuntimeError):
@@ -208,6 +243,9 @@ def ocr_akson(pdf: str, pages: int = 0) -> str:
     texts = []
     with tempfile.TemporaryDirectory() as tmp:
         for img in _pdf_pages(pdf, tmp):   # เรนเดอร์เองที่ 300 dpi ให้ทุก engine ได้ภาพเดียวกัน
+            if img is None:
+                texts.append(SKIPPED_PAGE)
+                continue
             for page in conv.convert(str(img)):
                 texts.append("\n".join(akson_page_layout(page)))
     return "\n\f\n".join(texts)
@@ -262,6 +300,9 @@ def ocr_openthai(pdf: str, pages: int = 0) -> str:
     texts = []
     with tempfile.TemporaryDirectory() as tmp:
         for img in _pdf_pages(pdf, tmp):
+            if img is None:
+                texts.append(SKIPPED_PAGE)
+                continue
             r = eng.read(str(img))
             from PIL import Image
             with Image.open(img) as im:
@@ -297,8 +338,10 @@ def ocr_endpoint(pdf: str, pages: int) -> str:
     base, model, key = os.environ["OCR_BASE_URL"].rstrip("/"), os.environ["OCR_MODEL"], os.environ.get("OCR_API_KEY", "")
     texts = []
     with tempfile.TemporaryDirectory() as tmp, httpx.Client(timeout=300) as c:
-        subprocess.run(["pdftoppm", "-r", "200", "-png", pdf, f"{tmp}/p"], check=True, capture_output=True)
-        for img in sorted(Path(tmp).glob("p-*.png"), key=lambda p: int(p.stem.split("-")[1])):
+        for img in _pdf_pages(pdf, tmp, dpi=200, gray=False):
+            if img is None:
+                texts.append(SKIPPED_PAGE)
+                continue
             b64 = base64.b64encode(img.read_bytes()).decode()
             r = c.post(f"{base}/chat/completions", headers={"Authorization": f"Bearer {key}"} if key else {}, json={
                 "model": model, "temperature": 0,
