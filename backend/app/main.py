@@ -2,7 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -14,7 +14,7 @@ from .appeals.router import router as appeals_router
 from .assistant.router import router as assistant_router
 from .auth import DEMO_USERS, User, current_user
 from .cases.router import router as cases_router
-from .config import get_settings
+from .config import get_settings, is_production
 from .db import get_conn, rows
 from .law.router import router as law_router
 from .rawfiles import router as raw_router
@@ -36,9 +36,13 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins, allow_methods=["*"],
-                   allow_headers=["*"], expose_headers=["X-Request-Id"])
+# ระบบจริงไม่เปิดเอกสาร OpenAPI (/docs, /redoc, /openapi.json)
+_docs = {} if not is_production() else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0", lifespan=lifespan, **_docs)
+# production เสิร์ฟหน้าเว็บและ API จากโดเมนเดียวกัน (nginx) → ไม่ต้องเปิด CORS (CORS_ORIGINS ว่าง)
+app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins,
+                   allow_methods=["GET", "POST", "PUT", "DELETE"],
+                   allow_headers=["Content-Type", "Authorization", "If-Match", "X-Demo-User"], expose_headers=["X-Request-Id"])
 
 
 @app.exception_handler(HTTPException)
@@ -61,7 +65,16 @@ for r in (uploads_router, law_router, appeals_router, cases_router, assistant_ro
 
 @app.get("/api/v1/health")
 def health():
-    return {"ok": True}
+    """ใช้กับ health check ของ container / load balancer — ตรวจการเชื่อมต่อฐานข้อมูลด้วย"""
+    from sqlalchemy import text
+
+    from .db import get_engine
+    try:
+        with get_engine().connect() as c:
+            c.execute(text("SELECT 1"))
+    except Exception:  # noqa: BLE001
+        return JSONResponse(status_code=503, content={"ok": False, "db": False})
+    return {"ok": True, "db": True}
 
 
 @app.get("/api/v1/me")
@@ -70,12 +83,12 @@ def me(user: User = Depends(current_user)):
 
 
 @app.get("/api/v1/audit-events")
-def audit_events(limit: int = 50, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+def audit_events(limit: int = Query(default=50, ge=1, le=500), user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     if user.role != "ADM":
         raise HTTPException(403, detail={"code": "FORBIDDEN_ACTION", "detail": "เฉพาะผู้ดูแลระบบ"})
     ok, broken = audit.verify_chain(conn)
     items = rows(conn, """SELECT seq, occurred_at, actor_id, actor_role, action, resource, outcome, detail
-                          FROM audit_event ORDER BY seq DESC LIMIT :n""", n=min(limit, 500))
+                          FROM audit_event ORDER BY seq DESC LIMIT :n""", n=limit)
     return {"chain_valid": ok, "broken_at": broken, "items": items}
 
 

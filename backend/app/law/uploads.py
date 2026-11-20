@@ -12,7 +12,7 @@ import threading
 from datetime import date
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -21,6 +21,7 @@ from .. import audit
 from ..auth import User, current_user
 from ..db import get_conn, get_engine, rows
 from ..storage import RawStore
+from ..config import Q_MAX
 from . import docparse
 
 log = logging.getLogger(__name__)
@@ -202,7 +203,7 @@ def list_uploads(user: User = Depends(current_user), conn: Connection = Depends(
 
 
 @router.get("/register-options")
-def register_options(q: str = "", user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+def register_options(q: str = Query(default="", max_length=Q_MAX), user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     """แถวทะเบียนที่ยังไม่มีตัวบท — ให้ผู้นำเข้าเลือกผูก (ระบบใช้วันใช้บังคับจากทะเบียน)"""
     require_importer(user)
     return {"items": rows(conn, """

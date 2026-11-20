@@ -20,7 +20,7 @@ POC ที่รันได้จริงตาม SDD ครอบคลุ�
 ```bash
 cp .env.example .env
 docker compose up -d --build
-docker compose exec api python -m app.seed.seed     # โหลดข้อมูลสาธิต (ล้างฐานทุกครั้งที่รัน)
+docker compose exec api python -m app.seed.seed     # โหลดข้อมูลสาธิต (ล้างฐานทุกครั้งที่รัน — ไม่ทำงานบนระบบจริง)
 # เปิด http://localhost:5173  ·  API docs: http://localhost:8000/docs
 ```
 
@@ -39,6 +39,31 @@ cd frontend && npm install && npm run dev     # http://localhost:5173 (proxy /ap
 ```
 
 deploy ชิ้นเดียว: `cd frontend && npm run build` แล้ว FastAPI จะเสิร์ฟหน้าเว็บจาก `frontend/dist` ที่ `http://localhost:8000/` เอง
+
+### ติดตั้งระบบจริง (VM ของสำนักงาน)
+
+```bash
+cp .env.example .env        # ตั้ง POSTGRES_PASSWORD, CONFIG_SECRET (openssl rand -hex 32), *_ALLOWED_BASE_URLS, LLM_*
+mkdir -p data/raw data/laws-internal data/import data/models && sudo chown -R 10001:10001 data/raw
+docker compose -f docker-compose.prod.yml up -d --build          # API ปรับฐานข้อมูลเป็นรุ่นล่าสุดให้เองตอนเริ่ม
+docker compose -f docker-compose.prod.yml exec api python -m app.seed.seed --laws-only   # นำเข้าตัวบท + ทะเบียน
+```
+
+| เรื่อง | ระบบจริง (`docker-compose.prod.yml`) |
+| --- | --- |
+| หน้าเว็บ | build เป็นไฟล์ static เสิร์ฟด้วย nginx (ผู้ใช้ไม่ใช่ root) พอร์ต 80 — TLS ที่ WAF ของสำนักงาน หรือเปิด `deploy/nginx/tls.conf` + ใบรับรองใน `deploy/certs/` |
+| ความปลอดภัย | header HSTS / CSP / X-Frame-Options, จำกัดคำถามผู้ช่วย AI 6 ครั้งต่อนาทีต่อ IP, ปิด `/docs`, CORS ปิด (โดเมนเดียวกัน) |
+| API | ไม่ reload, 1 worker, container อ่านอย่างเดียว (เขียนได้เฉพาะ `data/raw` และ tmp), ผู้ใช้ uid 10001 |
+| ฐานข้อมูล | ไม่เปิดพอร์ต; `alembic upgrade head` ทุกครั้งที่ API เริ่ม; ฐานแยกเครื่อง: ตั้ง `EXTERNAL_DATABASE_URL` |
+| ข้อมูล | `APP_ENV=production` → `seed` โหมดสาธิตไม่ทำงาน; นำเข้าตัวบท/ทะเบียนรอบใหม่ด้วย `seed --laws-only` (ไม่แตะงานอุทธรณ์ คดี audit log) |
+| เริ่มเองหลังรีบูต | `restart: unless-stopped` + health check ทุกบริการ |
+
+**แก้โครงสร้างฐานข้อมูล:** แก้ `backend/app/schema.sql` (โครงสร้างล่าสุด) **และ** เพิ่มไฟล์ migration (`cd backend && alembic revision -m "…"`)
+— `tests/test_migrations.py` ตรวจว่าสองทางได้ตารางเหมือนกัน
+
+**ไลบรารี:** แก้ช่วงเวอร์ชันใน `backend/requirements.in` แล้วสร้างไฟล์ล็อกใหม่
+`uv pip compile requirements.in --python-version 3.12 --generate-hashes -o requirements.txt` (เครื่องมือทดสอบอยู่ใน `requirements-dev.*`)
+CI ตรวจช่องโหว่ด้วย pip-audit และ npm audit และทดสอบชุดติดตั้งระบบจริงทั้งชุดทุก PR
 
 ### เปิดใช้ LLM
 

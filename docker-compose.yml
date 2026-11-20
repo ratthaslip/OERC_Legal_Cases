@@ -1,4 +1,4 @@
-# POC: ฐานข้อมูล + API + หน้าเว็บ (โหมดพัฒนา)
+# POC: ฐานข้อมูล + API + หน้าเว็บ (โหมดพัฒนา) — ระบบจริงใช้ docker-compose.prod.yml
 #   docker compose up -d --build
 #   docker compose exec api python -m app.seed.seed      ← โหลดข้อมูลสาธิตครั้งแรก
 #   (ถ้ามี ./data/register.xlsx จะนำเข้าทะเบียนกฎหมายลำดับรองให้ด้วย)
@@ -8,6 +8,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16   # postgres 16 + pgvector (ใช้ volume เดิมได้)
+    restart: unless-stopped
     environment:
       # ตั้งรหัสผ่านที่เดายากใน .env (POSTGRES_PASSWORD) — ห้ามใช้ค่าเริ่มต้น
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ตั้ง POSTGRES_PASSWORD ใน .env}
@@ -24,7 +25,10 @@ services:
     build:
       context: ./backend
       # OCR ทางเลือก: OCR_PIP="https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip pyclipper" docker compose build api
-      args: { OCR_PIP: "${OCR_PIP:-}" }
+      args: { OCR_PIP: "${OCR_PIP:-}", INSTALL_DEV: "1" }
+    restart: unless-stopped
+    # image ทำงานด้วยผู้ใช้ไม่ใช่ root; โหมดพัฒนาใช้ root เพราะโฟลเดอร์ที่เมานต์จากเครื่อง (data/raw, โค้ด) เป็นของผู้ใช้เครื่อง
+    user: root
     env_file: .env
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?ตั้ง POSTGRES_PASSWORD ใน .env}@db:5432/erc
@@ -38,6 +42,8 @@ services:
       - ./backend/app:/app/app
       - ./backend/tools:/app/tools   # เครื่องมือนำเข้า/OCR: docker compose exec api python tools/legal_import/ocr_compare.py
       - ./backend/eval:/app/eval   # ชุดคำถามทดสอบ: docker compose exec api python -m eval.run_eval --inproc --baseline eval/baseline.json
+      - ./backend/tests:/app/tests # docker compose exec api python -m pytest
+      - ./backend/migrations:/app/migrations
       - ./data:/data:ro        # ข้อมูลจริงของสำนักงาน (ไม่อยู่ใน git) เช่น register.xlsx
       - ./data/raw:/data/raw   # ที่เก็บไฟล์ต้นฉบับ (เขียนได้) — สำรองโฟลเดอร์นี้พร้อมฐานข้อมูลเสมอ
 
@@ -46,6 +52,7 @@ services:
     working_dir: /web
     environment:
       API_URL: http://api:8000
+    restart: unless-stopped
     command: sh -c "npm install && npm run dev"
     ports: ["5173:5173"]
     volumes: [./frontend:/web, webmodules:/web/node_modules]

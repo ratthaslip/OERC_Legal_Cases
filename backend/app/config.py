@@ -25,6 +25,11 @@ def llm_is_external(provider: str, base_url: str, override: str = "auto") -> boo
         return True  # ชื่อโดเมนสาธารณะ เช่น api.openai.com
 
 
+def is_production() -> bool:
+    """APP_ENV=production: เครื่องใช้งานจริงของสำนักงาน — ห้ามคำสั่งที่ล้างฐานหรือใส่ข้อมูลสาธิต"""
+    return os.getenv("APP_ENV", "development").strip().lower() == "production"
+
+
 def public_data_only() -> bool:
     """PUBLIC_DATA_ONLY=true: เครื่องนี้เก็บเฉพาะข้อมูลที่เผยแพร่ได้ (เช่น เครื่องพัฒนาส่วนตัว/คลาวด์)
     — ไม่นำเข้าตราสารภายใน คอลัมน์ภายในของทะเบียน ไฟล์ต้นฉบับภายใน และเอกสารภายในจากหน้าเว็บ"""
@@ -34,6 +39,9 @@ def public_data_only() -> bool:
 def laws_internal_dir() -> str:
     """ตราสารภายใน (classification internal) อยู่นอก repo — วางไว้เฉพาะเครื่องของสำนักงาน"""
     return os.getenv("LAWS_INTERNAL_DIR", "/data/laws-internal")
+
+
+Q_MAX = 300   # ความยาวคำค้นสูงสุด (ตัดคำภาษาไทยของคำค้นยาว ๆ ใช้ CPU มาก)
 
 
 class Settings:
@@ -86,7 +94,7 @@ class Settings:
         self.raw_store_dir = os.getenv("RAW_STORE_DIR", "/data/raw")
         self.assistant_enabled = os.getenv("ASSISTANT_ENABLED", "true").lower() == "true"
 
-        self.cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        self.cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 
 
 @lru_cache

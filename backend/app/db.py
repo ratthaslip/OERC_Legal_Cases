@@ -22,9 +22,24 @@ def get_conn() -> Iterator[Connection]:
         yield conn
 
 
+BACKEND = Path(__file__).resolve().parents[1]
+
+
+def alembic_config(conn: Connection | None = None):
+    from alembic.config import Config
+    cfg = Config(str(BACKEND / "alembic.ini"))
+    if conn is not None:
+        cfg.attributes["connection"] = conn
+    return cfg
+
+
 def init_schema(conn: Connection) -> None:
+    """สร้างตารางจาก schema.sql (โครงสร้างล่าสุด) แล้วบันทึกรุ่น Alembic เป็น head
+    — ฐานข้อมูลที่มีอยู่แล้วบนระบบจริงให้ใช้ `alembic upgrade head` แทน"""
     sql = (Path(__file__).parent / "schema.sql").read_text(encoding="utf-8")
     conn.exec_driver_sql(sql)
+    from alembic import command
+    command.stamp(alembic_config(conn), "head")
 
 
 def reset_schema(conn: Connection) -> None:

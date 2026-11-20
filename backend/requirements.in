@@ -1,0 +1,14 @@
+# ไลบรารีที่ระบบใช้งานจริง (ช่วงเวอร์ชันที่ยอมรับ) — แก้ไฟล์นี้แล้วสร้างไฟล์ล็อกใหม่:
+#   uv pip compile requirements.in --python-version 3.12 --generate-hashes -o requirements.txt
+fastapi>=0.115
+uvicorn[standard]>=0.30
+SQLAlchemy>=2.0
+psycopg[binary]>=3.2
+httpx>=0.27
+numpy>=1.26
+pythainlp>=5.0
+openpyxl>=3.1
+cryptography>=42
+python-multipart>=0.0.9
+python-docx>=1.1
+alembic>=1.14
