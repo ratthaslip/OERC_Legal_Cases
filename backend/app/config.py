@@ -36,6 +36,9 @@ def laws_internal_dir() -> str:
     return os.getenv("LAWS_INTERNAL_DIR", "/data/laws-internal")
 
 
+Q_MAX = 300   # ความยาวคำค้นสูงสุด (ตัดคำภาษาไทยของคำค้นยาว ๆ ใช้ CPU มาก)
+
+
 class Settings:
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/erc")
@@ -86,7 +89,7 @@ class Settings:
         self.raw_store_dir = os.getenv("RAW_STORE_DIR", "/data/raw")
         self.assistant_enabled = os.getenv("ASSISTANT_ENABLED", "true").lower() == "true"
 
-        self.cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        self.cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 
 
 @lru_cache

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.engine import Connection
 
 from .. import audit, authz
@@ -6,6 +6,7 @@ from ..auth import User, current_user
 from ..db import get_conn, one, rows
 from ..law.lookup import provision_labels
 from ..search.hybrid import hybrid_search
+from ..config import Q_MAX
 
 router = APIRouter(prefix="/api/v1/court-cases", tags=["court-cases"])
 
@@ -13,7 +14,7 @@ ACCESS_SQL = "(k.classification = 'internal' OR EXISTS (SELECT 1 FROM court_case
 
 
 @router.get("")
-def list_cases(q: str | None = None, court_level: str | None = None, sector: str | None = None,
+def list_cases(q: str | None = Query(default=None, max_length=Q_MAX), court_level: str | None = None, sector: str | None = None,
                user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     authz.require_internal(user)
     base = rows(conn, f"""

@@ -11,6 +11,7 @@ from ..db import get_conn, one, rows
 from ..search.hybrid import hybrid_search
 from ..search.thai import content_terms, normalize, tokenize
 from ..rawfiles import sources_of
+from ..config import Q_MAX
 from . import coverage as law_coverage
 from . import fragments, relations
 from .resolver import NotYetInForce, Repealed, resolve
@@ -115,7 +116,7 @@ def list_instruments(category: str | None = None, user: User = Depends(current_u
 
 
 @router.get("/search")
-def search_laws(q: str, as_of: date | None = None, user: User = Depends(current_user),
+def search_laws(q: str = Query(min_length=1, max_length=Q_MAX), as_of: date | None = None, user: User = Depends(current_user),
                 conn: Connection = Depends(get_conn)):
     """ค้นตัวบท (hybrid) เฉพาะรุ่นที่มีผล ณ วันที่ที่เลือก"""
     as_of = as_of or date.today()
@@ -226,10 +227,10 @@ _INTERNAL_COLS = ", owner_unit, review_text, status_text, note, hearing_text, at
 
 
 @router.get("/register")
-def list_register(q: str | None = None, doc_type: str | None = None, status: str | None = None,
+def list_register(q: str | None = Query(default=None, max_length=Q_MAX), doc_type: str | None = None, status: str | None = None,
                   section: int | None = None, unit: str | None = None, issues_only: bool = False,
                   has_text: bool | None = None,
-                  limit: int = Query(default=50, le=400), offset: int = 0,
+                  limit: int = Query(default=50, ge=1, le=400), offset: int = Query(default=0, ge=0),
                   user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     """ทะเบียนกฎหมายลำดับรอง: กรองตามประเภท/สถานะ/มาตราแม่บท/ฝ่ายงาน + ค้นจากชื่อ (Thai FTS + vector)
     ข้อมูลภายใน (ฝ่ายงาน รอบประเมิน หมายเหตุ ประเด็นข้อมูล) เห็นเฉพาะเจ้าหน้าที่"""

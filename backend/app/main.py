@@ -2,7 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -37,8 +37,10 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins, allow_methods=["*"],
-                   allow_headers=["*"], expose_headers=["X-Request-Id"])
+# production เสิร์ฟหน้าเว็บและ API จากโดเมนเดียวกัน (nginx) → ไม่ต้องเปิด CORS (CORS_ORIGINS ว่าง)
+app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins,
+                   allow_methods=["GET", "POST", "PUT", "DELETE"],
+                   allow_headers=["Content-Type", "Authorization", "If-Match", "X-Demo-User"], expose_headers=["X-Request-Id"])
 
 
 @app.exception_handler(HTTPException)
@@ -70,12 +72,12 @@ def me(user: User = Depends(current_user)):
 
 
 @app.get("/api/v1/audit-events")
-def audit_events(limit: int = 50, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+def audit_events(limit: int = Query(default=50, ge=1, le=500), user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     if user.role != "ADM":
         raise HTTPException(403, detail={"code": "FORBIDDEN_ACTION", "detail": "เฉพาะผู้ดูแลระบบ"})
     ok, broken = audit.verify_chain(conn)
     items = rows(conn, """SELECT seq, occurred_at, actor_id, actor_role, action, resource, outcome, detail
-                          FROM audit_event ORDER BY seq DESC LIMIT :n""", n=min(limit, 500))
+                          FROM audit_event ORDER BY seq DESC LIMIT :n""", n=limit)
     return {"chain_valid": ok, "broken_at": broken, "items": items}
 
 

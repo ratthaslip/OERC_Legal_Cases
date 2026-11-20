@@ -7,7 +7,7 @@ from sqlalchemy.engine import Connection
 
 from .. import audit, authz
 from ..auth import DEMO_USERS, User, current_user
-from ..config import get_settings
+from ..config import Q_MAX, get_settings
 from ..db import get_conn, one, rows
 from ..law.lookup import provision_labels
 from ..search.hybrid import hybrid_search
@@ -55,7 +55,7 @@ def workflow_definition():
 
 
 @router.get("")
-def list_appeals(q: str | None = None, sector: str | None = None, case_type: str | None = None,
+def list_appeals(q: str | None = Query(default=None, max_length=Q_MAX), sector: str | None = None, case_type: str | None = None,
                  status: str | None = Query(default=None, pattern="^(IN_PROGRESS|CLOSED)$"),
                  step: int | None = None, attention: str | None = None, mine: bool = False,
                  user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
