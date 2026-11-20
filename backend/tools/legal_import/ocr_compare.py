@@ -121,7 +121,7 @@ def files_by_sha(shas: list[str]) -> list[dict]:
 
 
 def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None = None,
-        extra: list[str] | None = None) -> None:
+        extra: list[str] | None = None, redo_gaps: bool = False) -> None:
     if src_dir:
         todo = files_from_dir(src_dir)
     elif (WORK / "inventory.json").exists():
@@ -142,7 +142,9 @@ def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None 
         for k, t in enumerate(todo, 1):
             raw_p, meta_p = d / f"{t['sha256']}.raw.txt", d / f"{t['sha256']}.json"
             if raw_p.exists() and meta_p.exists() and not force:
-                continue
+                # --redo-gaps: OCR ใหม่เฉพาะไฟล์ที่ผลเดิมมีหัวข้อหาย (หลังปรับการจัดบรรทัด)
+                if not (redo_gaps and metrics(raw_p.read_text(encoding="utf-8"))["missing_headings"] > 0):
+                    continue
             t0 = time.perf_counter()
             try:
                 raw = ocr_pdf(t["disk"], eng)
@@ -224,11 +226,13 @@ def main() -> None:
     ap.add_argument("--force", action="store_true", help="OCR ใหม่แม้มีผลแล้ว")
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--dir", help="OCR ไฟล์ PDF ทั้งหมดในโฟลเดอร์นี้แทนไฟล์ของทะเบียน")
+    ap.add_argument("--redo-gaps", action="store_true", help="OCR ใหม่เฉพาะไฟล์ที่ผลเดิมมีหัวข้อหาย")
     ap.add_argument("--extra-sha", default="", help="sha256 ของไฟล์ในคลังที่ต้องการเพิ่ม คั่นด้วย ,")
     a = ap.parse_args()
     engines = [e.strip() for e in a.engines.split(",") if e.strip()]
     if not a.report_only:
-        run(engines, a.limit, a.force, a.dir, [x.strip() for x in a.extra_sha.split(",") if x.strip()])
+        run(engines, a.limit, a.force, a.dir, [x.strip() for x in a.extra_sha.split(",") if x.strip()],
+            a.redo_gaps)
     ready = [e for e in engines if (OUT / e).exists() and any((OUT / e).glob("*.json"))]
     if ready:
         report(ready)

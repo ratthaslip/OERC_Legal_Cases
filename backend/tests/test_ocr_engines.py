@@ -68,3 +68,13 @@ def test_openthai_joins_boxes_on_the_same_row():
         {"text": "ให้สำนักงานตรวจสอบ", "confidence": 0.96, "row": 0, "box": [560, 0, 1500, 40]},
         {"text": "ภายในเจ็ดวัน", "confidence": 0.95, "row": 1, "box": [250, 50, 800, 90]}]}
     assert ocr.openthai_page_layout(r, W) == ["    ข้อ ๔ ให้สำนักงานตรวจสอบ", "ภายในเจ็ดวัน"]
+
+
+def test_short_clause_heading_kept_despite_low_confidence_or_skip_label():
+    lines = [_ln("ข้อ ๒ ประกาศนี้ให้ใช้บังคับ", 400), _ln("ข้อ ๓ ในประกาศนี้", 400, 0.3),
+             _ln("ข้อ ๔ ให้การไฟฟ้ารับซื้อ", 400)]
+    blocks = [NS(label="text", order=0, line_ids=[0], text=None, html=None, bbox=None),
+              NS(label="number", order=1, line_ids=[1], text=None, html=None, bbox=None),
+              NS(label="text", order=2, line_ids=[2], text=None, html=None, bbox=None)]
+    out = ocr.akson_page_layout(NS(lines=lines, blocks=blocks, width=W))
+    assert [x.strip() for x in out] == ["ข้อ ๒ ประกาศนี้ให้ใช้บังคับ", "ข้อ ๓ ในประกาศนี้", "ข้อ ๔ ให้การไฟฟ้ารับซื้อ"]
