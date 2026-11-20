@@ -21,8 +21,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/ → import app.law.ocr
-from app.law.ocr import (ENGINES, THAI, _external, _layout_lines, clean, is_noise, ocr_endpoint,  # noqa: E402,F401
-                         ocr_tesseract)
+from app.config import llm_is_external  # noqa: E402
+from app.law.ocr import ENGINES, THAI, clean, is_noise, ocr_endpoint, ocr_tesseract  # noqa: E402
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
 INV = WORK / "inventory.json"
@@ -35,7 +35,7 @@ def targets(only: set[str] | None) -> list[dict]:
     sys.path.insert(0, str(Path(__file__).parent))
     from convert_bulk import best_file, paragraphs  # noqa: E402
 
-    from app.law.docparse import category_of, tone_ratio
+    from app.law.docparse import MIN_TONE_RATIO, is_internal_title, tone_ratio
 
     inv = json.loads(INV.read_text(encoding="utf-8"))
     out, seen = [], set()
@@ -45,13 +45,13 @@ def targets(only: set[str] | None) -> list[dict]:
         if only and r["reg_key"] not in only:
             continue
         f = best_file(r["files"])
-        if f is not None and (f["ext"] != ".pdf" or tone_ratio("\n".join(paragraphs(f))) >= 0.06):
+        if f is not None and (f["ext"] != ".pdf" or tone_ratio("\n".join(paragraphs(f))) >= MIN_TONE_RATIO):
             continue  # มีข้อความที่ใช้ได้แล้ว
         for p in r["files"]:
             if p["ext"] == ".pdf" and p["sha256"] not in seen:
                 seen.add(p["sha256"])
                 out.append({"reg": r["reg_key"], "sha256": p["sha256"], "disk": p["disk"], "pages": p["pages"] or 0,
-                            "internal": category_of(r["title_th"]) == "การบริหารองค์กร", "title": r["title_th"][:80]})
+                            "internal": is_internal_title(r["title_th"]), "title": r["title_th"][:80]})
     return out
 
 
@@ -81,7 +81,7 @@ def main() -> None:
     if a.engine in ("akson", "openthai"):
         a.workers = 1   # โมเดลโหลดครั้งเดียวและใช้หลายเธรดภายในเอง
     if a.engine == "endpoint":
-        external = _external(os.environ["OCR_BASE_URL"])
+        external = llm_is_external("openai_compat", os.environ["OCR_BASE_URL"])
         if external and not a.allow_external:
             sys.exit("OCR_BASE_URL เป็นบริการภายนอก — ต้องใส่ --allow-external (ส่งได้เฉพาะเอกสารสาธารณะ)")
         if external:

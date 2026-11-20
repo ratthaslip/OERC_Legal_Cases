@@ -12,11 +12,12 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+from .docparse import th2ar
+
 # ทะเบียนไม่ระบุสถานะ → ถือว่า "ใช้บังคับ" ไว้ก่อน (ตัดสินใจของผู้ดูแลโครงการ 16 พ.ย. 2569) และทำเครื่องหมายว่าสันนิษฐาน
 # ตั้ง REGISTER_ASSUME_IN_FORCE=0 เพื่อกลับไปแสดงเป็น "ไม่ระบุ"
 ASSUME_IN_FORCE = os.environ.get("REGISTER_ASSUME_IN_FORCE", "1") != "0"
 
-THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 MONTHS = {m: i + 1 for i, m in enumerate(
     "มกราคม กุมภาพันธ์ มีนาคม เมษายน พฤษภาคม มิถุนายน กรกฎาคม สิงหาคม กันยายน ตุลาคม พฤศจิกายน ธันวาคม".split())}
 MONTHS_SHORT = {m: i + 1 for i, m in enumerate("ม.ค. ก.พ. มี.ค. เม.ย. พ.ค. มิ.ย. ก.ค. ส.ค. ก.ย. ต.ค. พ.ย. ธ.ค.".split())}
@@ -59,7 +60,7 @@ def parse_thai_date(s) -> date | None:
     """'6 มกราคม 2566', '๑๒ มีนาคม ๒๕๖๐\\n(เมื่อพ้น ๖๐ วัน)', '๑ มกราคม พ.ศ. ๒๕๖๕' → date (ค.ศ.)"""
     if isinstance(s, date):
         return s
-    t = str(s or "").translate(THAI_DIGITS).replace("พ.ศ.", " ")
+    t = th2ar(str(s or "")).replace("พ.ศ.", " ")
     m = re.search(r"(\d{1,2})\s*([ก-๙.]+?)\s*-?\s*(\d{4})", t)
     if not m:
         return None
@@ -76,7 +77,7 @@ def parse_thai_date(s) -> date | None:
 
 def parse_sections(s) -> list[int]:
     """'11 (1) (4)' → [11]; '33, 50' → [33, 50]; '14 วรรคหก' → [14] (ตัดเลขในวงเล็บ/หลังคำว่าวรรค/อนุ)"""
-    t = str(s or "").translate(THAI_DIGITS)
+    t = th2ar(str(s or ""))
     t = re.sub(r"\([^)]*\)", " ", t)
     t = re.sub(r"(วรรค|อนุ)\S*", " ", t)
     out: list[int] = []

@@ -61,7 +61,7 @@ def summary(conn: Connection) -> dict:
                                       {base} GROUP BY 1 ORDER BY 2 DESC""")
     for s in reg["by_status"]:
         s["label"] = STATUS_TH.get(s["key"], s["key"])
-    reg["by_group"] = rows(conn, f"""
+    reg["by_group"] = rows(conn, """
         SELECT r.group_no AS key, coalesce(g.title_th, (array_agg(r.title_th ORDER BY r.sheet_row))[1]) AS label, count(*) AS total, count(*) FILTER (WHERE r.instrument_eli IS NOT NULL) AS with_text
         FROM law_register r LEFT JOIN law_register g ON g.group_no = r.group_no AND g.status = 'GROUP'
         WHERE r.status <> 'GROUP' GROUP BY r.group_no, g.title_th

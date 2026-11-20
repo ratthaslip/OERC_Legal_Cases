@@ -15,6 +15,7 @@ from typing import Callable
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from ..config import get_settings
 from ..db import get_engine, rows
 
 _TTL_S = 10.0
@@ -132,6 +133,16 @@ def reset(conn: Connection, group: Group) -> int:
     n = conn.execute(text("DELETE FROM app_setting WHERE key LIKE :p"), {"p": group.prefix + "%"}).rowcount
     invalidate(group.prefix)
     return n
+
+
+def public_view(group: Group, cfg, providers, allow_env: str, conn: Connection | None = None) -> dict:
+    """สิ่งที่หน้าเว็บเห็นของค่าตั้งกลุ่มหนึ่ง — ทุกช่องของ cfg ยกเว้น API key (แสดงเพียง 4 ตัวท้าย)"""
+    _, _, last = values(group, get_settings(), conn)
+    d = {k: v for k, v in cfg.__dict__.items() if k != "api_key"}
+    d.update(has_key=bool(cfg.api_key), key_hint=f"…{cfg.api_key[-4:]}" if len(cfg.api_key) >= 8 else None,
+             providers=list(providers), allowed_base_urls=allowed_urls(allow_env), secret_configured=secret_configured(),
+             updated_by=last["updated_by"] if last else None, updated_at=last["updated_at"] if last else None)
+    return d
 
 
 # ---------------------------------------------------------------- validators

@@ -5,7 +5,7 @@ import pytest
 
 from app.appeals import sla
 from app.appeals import clocks
-from app.appeals.workflow import Step, WorkflowError, complete, new_steps, revert
+from app.appeals.workflow import WorkflowError, complete, new_steps, revert
 from app.assistant.validator import check_sentence, split_sentences
 from app.auth import DEMO_USERS
 from app.authz import can_edit_workflow, can_read_case, can_read_law_version

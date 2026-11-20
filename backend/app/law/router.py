@@ -334,7 +334,7 @@ def get_register(register_id: int, user: User = Depends(current_user), conn: Con
     if not item or item["status"] == "GROUP":
         raise HTTPException(404, detail={"code": "NOT_FOUND", "detail": "ไม่พบระเบียนนี้"})
     # ระเบียนในกลุ่มเดียวกัน (ฉบับแก้ไข/ฉบับที่ออกตามกัน) เรียงตามแถวในทะเบียน
-    related = rows(conn, f"""SELECT register_id, reg_no, doc_type, title_th, effective_text, effective_date, status, status_assumed
+    related = rows(conn, """SELECT register_id, reg_no, doc_type, title_th, effective_text, effective_date, status, status_assumed
                              FROM law_register WHERE group_no = :g AND register_id <> :i AND status <> 'GROUP'
                              ORDER BY sheet_row""", g=item["group_no"], i=register_id)
     heading = one(conn, "SELECT title_th FROM law_register WHERE group_no = :g AND status = 'GROUP' LIMIT 1",

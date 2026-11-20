@@ -15,7 +15,6 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 
-from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from .. import authz
@@ -24,7 +23,7 @@ from ..db import one, rows
 from ..law import relations
 from ..law.router import PARENT_ACT, subordinate_of
 from ..search.hybrid import Hit, hybrid_search
-from ..search.thai import content_terms, normalize, tokenize
+from ..search.thai import content_terms, normalize, term_overlap, tokenize
 
 TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
 ACT_TITLE = "พ.ร.บ.การประกอบกิจการพลังงาน พ.ศ. 2550"
@@ -88,11 +87,6 @@ def _provision_at(conn: Connection, user: User, eli: str, as_of: date) -> Hit | 
     return _hit(r) if r else None
 
 
-def _overlap(q_terms: set[str], title: str) -> float:
-    t = set(tokenize(title))
-    return len(q_terms & t) / (len(q_terms) or 1)
-
-
 def _phrase_score(q: str, title: str) -> tuple[float, int, float]:
     """(สัดส่วนคำที่ตรง, จำนวนคู่คำติดกันที่ตรง) — คู่คำแยกชื่อฉบับที่มีคำเหมือนกันแต่เรียงต่างกันได้
     เช่น "ข้อพิพาทระหว่างผู้รับใบอนุญาต" vs "ข้อพิพาทระหว่างผู้ใช้พลังงานกับผู้รับใบอนุญาต"
@@ -103,7 +97,7 @@ def _phrase_score(q: str, title: str) -> tuple[float, int, float]:
     qb, tb = set(zip(qt, qt[1:])), set(zip(tt, tt[1:]))
     t_terms = content_terms(title)
     precision = len(t_terms & set(qt)) / len(t_terms) if t_terms else 0.0  # ชื่อที่ไม่มีคำเกินจากคำถามได้เปรียบ
-    return _overlap(content_terms(q), title), len(qb & tb), round(precision, 2)
+    return term_overlap(content_terms(q), title), len(qb & tb), round(precision, 2)
 
 
 # ---------------------------------------------------------------- subordinate

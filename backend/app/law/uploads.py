@@ -7,7 +7,6 @@
 import json
 import logging
 import re
-import subprocess
 import tempfile
 import threading
 from datetime import date
@@ -60,10 +59,6 @@ def _view(u: dict, full: bool = False) -> dict:
 
 
 # ---------------------------------------------------------------- extract + parse
-def _pdf_text(path: str) -> str:
-    return subprocess.run(["pdftotext", "-q", "-layout", path, "-"], capture_output=True, text=True, timeout=300).stdout
-
-
 def extract(path: str, ext: str, force_ocr: bool = False) -> tuple[list[str], str, str]:
     """→ (ย่อหน้า, วิธีที่ใช้, ข้อความดิบสำหรับหาหัวราชกิจจาฯ)"""
     if ext == ".docx":
@@ -74,10 +69,10 @@ def extract(path: str, ext: str, force_ocr: bool = False) -> tuple[list[str], st
         if not ps:
             raise ValueError("แปลงไฟล์ .doc ไม่ได้บนเซิร์ฟเวอร์นี้ — บันทึกเป็น .docx หรือ PDF แล้วนำเข้าใหม่")
         return ps, "doc", "\n".join(ps)
-    raw = "" if force_ocr else _pdf_text(path)
+    raw = "" if force_ocr else docparse.pdf_text(path)
     ps = docparse.layout_paragraphs(raw) if raw.strip() else []
     thai = len(docparse.THAI_RE.findall("\n".join(ps)))
-    if force_ocr or thai < 300 or docparse.tone_ratio("\n".join(ps)) < 0.06:
+    if force_ocr or thai < 300 or docparse.tone_ratio("\n".join(ps)) < docparse.MIN_TONE_RATIO:
         from .ocr import clean, engine_name, ocr_pdf
         with _ocr_slot:
             raw = clean(ocr_pdf(path))   # OCR_ENGINE: tesseract | akson | openthai

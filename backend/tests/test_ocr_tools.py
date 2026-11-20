@@ -1,9 +1,15 @@
-"""เครื่องมือ OCR (tools/legal_import/ocr.py): รักษาการเยื้องย่อหน้า ตัดบรรทัดขยะ และแก้วรรณยุกต์ที่ OCR ตกหล่นแบบไม่เดาคำ"""
+"""OCR (app/law/ocr.py ที่ tools/legal_import/ocr.py ใช้): รักษาการเยื้องย่อหน้า ตัดบรรทัดขยะ และแก้วรรณยุกต์ที่ OCR ตกหล่นแบบไม่เดาคำ"""
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "legal_import"))
-import ocr  # noqa: E402
+from app.config import llm_is_external
+from app.law import ocr
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "legal_import"))   # ocr_compare
+
+
+def _external(url: str) -> bool:
+    return llm_is_external("openai_compat", url)
 
 HEAD = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n"
 
@@ -35,9 +41,9 @@ def test_clean_repairs_only_unambiguous_forms():
 
 
 def test_external_endpoint_detection():
-    assert ocr._external("https://api.opentyphoon.ai/v1")
-    assert not ocr._external("http://ocr:8000/v1") and not ocr._external("http://10.1.2.3/v1")
-    assert not ocr._external("http://host.docker.internal:11434/v1")
+    assert _external("https://api.opentyphoon.ai/v1")
+    assert not _external("http://ocr:8000/v1") and not _external("http://10.1.2.3/v1")
+    assert not _external("http://host.docker.internal:11434/v1")
 
 
 def test_compare_metrics_penalise_broken_thai():

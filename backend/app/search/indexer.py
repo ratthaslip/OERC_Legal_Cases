@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..db import rows
+from ..law.docparse import INTERNAL_CATEGORY
 from .embeddings import hash_embed
 from .thai import to_document
 
@@ -66,7 +67,7 @@ WEIGHT_REGISTER_WITH_TEXT = 0.85
 
 def source_weight(eli: str, provision_no: str, category: str | None) -> float:
     w = WEIGHT_ACT if "/act/" in eli else 1.0
-    if category == "การบริหารองค์กร":
+    if category == INTERNAL_CATEGORY:
         w *= WEIGHT_ADMIN
     if provision_no == "แนบท้าย":
         w *= WEIGHT_ANNEX

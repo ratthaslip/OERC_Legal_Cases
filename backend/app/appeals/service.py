@@ -10,10 +10,10 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..db import one, rows
-from .clocks import APPEAL_FILING_DAYS, SUBC_DAYS, SUBC_MAX_EXTENSION, legal_clocks, request_state, step_clocks
+from .clocks import SUBC_DAYS, SUBC_MAX_EXTENSION, legal_clocks, request_state, step_clocks
 from .sla import BusinessDays
 from .legal import CONSUMER_DECISION_DAYS, DEFAULT_GROUND, GROUNDS, ground
-from .workflow import BY_NO, STEPS, Step, WorkflowError, complete, new_steps, revert
+from .workflow import BY_NO, Step, WorkflowError, complete, new_steps, revert
 
 PREFIX = {"APPEAL": "อธ.", "COMPLAINT": "รร."}  # รูปแบบเลขรับ — ปรับตามที่ฝ่ายคดีใช้จริง
 REQUIRED_DOCS = {

@@ -21,12 +21,12 @@ import tempfile
 import threading
 import unicodedata
 from pathlib import Path
-from urllib.parse import urlparse
+
+from .docparse import SKIPPED_PAGE, THAI_RE as THAI
 
 DPI = 300
 INDENT_PX = 40          # ช่องว่างนำหน้า 1 ตัวต่อระยะเยื้อง 40 px (ที่ 300 dpi) — convert_bulk ถือ ≥ 4 ตัวเป็นย่อหน้าใหม่
 MIN_CONF = 45           # บรรทัดสั้นที่ความมั่นใจเฉลี่ยต่ำกว่านี้ = ขยะจากตราประทับ/ลายเซ็น
-THAI = re.compile(r"[ก-๙]")
 
 
 # ---------------------------------------------------------------- tesseract
@@ -155,9 +155,6 @@ def _pdf_pages(pdf: str, tmp: str, dpi: int = DPI, gray: bool = True):
         finally:
             if img:
                 img.unlink(missing_ok=True)
-
-
-SKIPPED_PAGE = "[หน้านี้เรนเดอร์ไม่สำเร็จ — ต้องตรวจจากต้นฉบับ]"
 
 
 class OcrUnavailable(RuntimeError):
@@ -327,12 +324,6 @@ def ocr_pdf(pdf: str, engine: str | None = None) -> str:
 
 
 # ---------------------------------------------------------------- endpoint (vision LLM)
-def _external(url: str) -> bool:
-    h = (urlparse(url).hostname or "").lower()
-    return not (h in ("localhost", "host.docker.internal") or "." not in h or h.endswith((".local", ".internal", ".lan"))
-                or re.match(r"^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)", h))
-
-
 def ocr_endpoint(pdf: str, pages: int) -> str:
     import httpx
     base, model, key = os.environ["OCR_BASE_URL"].rstrip("/"), os.environ["OCR_MODEL"], os.environ.get("OCR_API_KEY", "")
