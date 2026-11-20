@@ -78,3 +78,58 @@ def test_short_clause_heading_kept_despite_low_confidence_or_skip_label():
               NS(label="text", order=2, line_ids=[2], text=None, html=None, bbox=None)]
     out = ocr.akson_page_layout(NS(lines=lines, blocks=blocks, width=W))
     assert [x.strip() for x in out] == ["ข้อ ๒ ประกาศนี้ให้ใช้บังคับ", "ข้อ ๓ ในประกาศนี้", "ข้อ ๔ ให้การไฟฟ้ารับซื้อ"]
+
+
+def _blank_pdf(path, pages):
+    """PDF ว่าง n หน้า (ไม่ต้องพึ่งไลบรารีสร้าง PDF)"""
+    objs = ["<< /Type /Catalog /Pages 2 0 R >>",
+            "<< /Type /Pages /Kids [" + " ".join(f"{3 + i} 0 R" for i in range(pages)) + f"] /Count {pages} >>"]
+    objs += ["<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] >>"] * pages
+    out, offs = b"%PDF-1.4\n", []
+    for i, o in enumerate(objs, 1):
+        offs.append(len(out))
+        out += f"{i} 0 obj\n{o}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    out += b"".join(f"{o:010d} 00000 n \n".encode() for o in offs)
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    path.write_bytes(out)
+
+
+def test_pdf_pages_renders_one_page_at_a_time(tmp_path):
+    pdf = tmp_path / "a.pdf"
+    _blank_pdf(pdf, 3)
+    work = tmp_path / "w"
+    work.mkdir()
+    seen = []
+    for img in ocr._pdf_pages(str(pdf), str(work), dpi=50):
+        assert img is not None and img.exists()
+        assert len(list(work.glob("*.png"))) == 1   # ไม่เก็บภาพทั้งเล่มไว้พร้อมกัน
+        seen.append(img.name)
+    assert seen == ["p-1.png", "p-2.png", "p-3.png"] and not list(work.glob("*.png"))
+
+
+def test_page_that_times_out_is_skipped_not_hung(tmp_path, monkeypatch):
+    pdf = tmp_path / "a.pdf"
+    _blank_pdf(pdf, 3)
+    real = ocr._render_page
+    calls = []
+
+    def fake(pdf_, n, base, dpi, gray):
+        calls.append((n, dpi))
+        return None if n == 2 else real(pdf_, n, base, 50, gray)   # หน้า 2 ค้างทุกความละเอียด
+
+    monkeypatch.setattr(ocr, "_render_page", fake)
+    out = list(ocr._pdf_pages(str(pdf), str(tmp_path)))
+    assert [x is None for x in out] == [False, True, False]
+    assert (2, ocr.DPI) in calls and (2, ocr.FALLBACK_DPI) in calls   # ลองความละเอียดต่ำก่อนยอมข้าม
+
+    monkeypatch.setattr(ocr, "_akson_conv", lambda: NS(convert=lambda p: [NS(lines=[_ln("ข้อ ๑ ทดสอบ", 400)],
+                                                                            blocks=[], width=W)]))
+    text = ocr.ocr_akson(str(pdf))
+    pages = text.split("\n\f\n")
+    assert len(pages) == 3 and pages[1] == ocr.SKIPPED_PAGE
+    inst, _, warn = docparse.build_instrument(
+        ["ข้อ ๑ ทดสอบ", ocr.SKIPPED_PAGE, "ข้อ ๒ ทดสอบ"], doc_type="ประกาศ", reg_title="ประกาศ ทดสอบ", key="t1",
+        effective_date="2020-01-01", gaz=None, pub=None, ocr=True, ext=".pdf", short="ทดสอบ", source_default="x")
+    assert any("ข้าม 1 หน้า" in w for w in warn)
