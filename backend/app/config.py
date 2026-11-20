@@ -25,6 +25,11 @@ def llm_is_external(provider: str, base_url: str, override: str = "auto") -> boo
         return True  # ชื่อโดเมนสาธารณะ เช่น api.openai.com
 
 
+def is_production() -> bool:
+    """APP_ENV=production: เครื่องใช้งานจริงของสำนักงาน — ห้ามคำสั่งที่ล้างฐานหรือใส่ข้อมูลสาธิต"""
+    return os.getenv("APP_ENV", "development").strip().lower() == "production"
+
+
 def public_data_only() -> bool:
     """PUBLIC_DATA_ONLY=true: เครื่องนี้เก็บเฉพาะข้อมูลที่เผยแพร่ได้ (เช่น เครื่องพัฒนาส่วนตัว/คลาวด์)
     — ไม่นำเข้าตราสารภายใน คอลัมน์ภายในของทะเบียน ไฟล์ต้นฉบับภายใน และเอกสารภายในจากหน้าเว็บ"""

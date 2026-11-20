@@ -7,7 +7,12 @@
 ⚠ ข้อความตัวบทในชุดนี้เป็นข้อความสาธิต (is_demo = TRUE) ไม่ใช่ตัวบทจริงจากราชกิจจานุเบกษา
    ก่อนสาธิตกับผู้ใช้จริงให้แทนด้วยข้อมูลที่นิติกรตรวจแล้วผ่าน `python -m app.seed.load_laws <ไฟล์.json>`
 
-ใช้งาน: python -m app.seed.seed   (ล้างฐานแล้วสร้างใหม่ทั้งหมด)
+ใช้งาน
+  python -m app.seed.seed               ล้างฐานแล้วสร้างใหม่ทั้งหมด + ข้อมูลสาธิต (เครื่องพัฒนา/สาธิตเท่านั้น)
+  python -m app.seed.seed --laws-only   นำเข้าตัวบทและทะเบียนใหม่ — ไม่แตะงานอุทธรณ์ คดี audit log และร่างนำเข้า
+                                        (ใช้บนเครื่องจริง หลังได้ไฟล์ตัวบท/ทะเบียนชุดใหม่)
+
+การป้องกันข้อมูลจริง: โหมดสาธิตไม่ทำงานเมื่อ APP_ENV=production หรือเมื่อพบเรื่องอุทธรณ์/คดีที่ไม่ใช่ข้อมูลสาธิต
 """
 import hashlib
 import json
@@ -21,8 +26,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..appeals.workflow import STEPS
-from ..config import laws_internal_dir, public_data_only
-from ..db import get_engine, reset_schema
+from ..config import is_production, laws_internal_dir, public_data_only
+from ..db import get_engine, init_schema, reset_schema
 from ..law.resolver import NotYetInForce, Repealed, VersionWindow, pick_version
 from ..law import relations
 from ..search.indexer import reindex_cases, reindex_laws
@@ -467,17 +472,29 @@ def generate_cases(conn: Connection, appeals: list[dict], windows, rng: random.R
         })
 
 
-def run(conn: Connection, today: date | None = None) -> dict:
-    today = today or date.today()
-    rng = random.Random(42)
-    reset_schema(conn)
-    for sd in STEPS:
-        conn.execute(text("""INSERT INTO workflow_step_def (step_no, code, name_th, optional, anchors, limit_days, day_type,
-                                                         limit_text, basis)
-                             VALUES (:n, :c, :name, :opt, :anch, :days, :dt, :lt, :b)"""),
-                     {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
-                      "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
-    data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
+class SeedRefused(RuntimeError):
+    pass
+
+
+def real_records(conn: Connection) -> int:
+    """จำนวนเรื่องอุทธรณ์/คดีที่ไม่ใช่ข้อมูลสาธิต (0 ถ้ายังไม่มีตาราง)"""
+    n = 0
+    for t in ("appeal", "court_case"):
+        if conn.execute(text("SELECT to_regclass(:t)"), {"t": t}).scalar():
+            n += conn.execute(text(f"SELECT count(*) FROM {t} WHERE NOT is_demo")).scalar()
+    return n
+
+
+def check_demo_reset_allowed(conn: Connection) -> None:
+    if is_production():
+        raise SeedRefused("APP_ENV=production: ห้ามล้างฐานและใส่ข้อมูลสาธิต — ใช้ python -m app.seed.seed --laws-only")
+    if n := real_records(conn):
+        raise SeedRefused(f"พบเรื่องอุทธรณ์/คดีจริง {n} รายการ — seed โหมดสาธิตจะลบทิ้ง จึงไม่ทำงาน "
+                          "(ใช้ --laws-only เพื่อนำเข้าตัวบทอย่างเดียว)")
+
+
+def _law_corpus() -> tuple[list[Path], list[dict]]:
+    """ไฟล์ตัวบทที่จะนำเข้า: seed/laws (สาธารณะ, ใน repo) + LAWS_INTERNAL_DIR (ภายใน, นอก repo)"""
     files = sorted((HERE / "laws").rglob("*.json"))  # laws/*.json + laws/legal-team/*.json (ไฟล์จากฝ่ายกฎหมาย)
     # ตราสารภายในอยู่นอก repo (LAWS_INTERNAL_DIR) — เครื่องที่ตั้ง PUBLIC_DATA_ONLY ไม่นำเข้าเลย
     idir = Path(laws_internal_dir())
@@ -489,13 +506,64 @@ def run(conn: Connection, today: date | None = None) -> dict:
         real = [i for i in real if i.get("classification") != "internal"]
         if skipped:
             print(f"PUBLIC_DATA_ONLY: ข้ามตราสารภายใน {skipped} ฉบับ")
-    windows = load_laws(conn, real + data["instruments"])
+    return files, real
+
+
+def _finish_laws(conn: Connection, files: list[Path]) -> None:
     for f in files:
         log_law_file(conn, f)
     from ..law.uploads import load_approved
     load_approved(conn)  # เอกสารที่อนุมัติจากหน้านำเข้าบนเว็บ (ร่างเก็บใน law_upload ซึ่ง seed ไม่ล้าง)
     load_review_notes(conn)
     relations.rebuild(conn)
+
+
+def _load_register(conn: Connection) -> int:
+    """ทะเบียนกฎหมายลำดับรองจริง (ถ้ามีไฟล์)"""
+    reg_path = Path(os.environ.get("REGISTER_XLSX", "/data/register.xlsx"))
+    reg_json = Path(os.environ.get("REGISTER_PUBLIC_JSON", "/data/raw/register-public.json"))
+    if reg_path.is_file():
+        from .import_register import load_register
+        return load_register(conn, str(reg_path))["rows"]
+    if reg_json.is_file():  # เครื่องที่ไม่มีไฟล์ทะเบียนต้นฉบับ: ใช้ทะเบียนฉบับเฉพาะคอลัมน์สาธารณะ (public_only export-register)
+        from .import_register import load_register_json
+        return load_register_json(conn, reg_json)["rows"]
+    return 0
+
+
+LAW_TABLES = "provision_version, provision, legal_instrument, legal_relation, law_open_issue, raw_file_link, law_relation"
+
+
+def run_laws(conn: Connection) -> dict:
+    """นำเข้าตัวบทและทะเบียนใหม่ทั้งหมด โดยไม่แตะงานอุทธรณ์ คดี audit log ร่างนำเข้า และค่าตั้ง
+    (การอ้างอิงตัวบทในสำนวนผูกด้วย ELI ไม่มี FK จึงคงอยู่ได้)"""
+    init_schema(conn)
+    conn.execute(text(f"TRUNCATE {LAW_TABLES} CASCADE"))
+    files, real = _law_corpus()
+    load_laws(conn, real)
+    _finish_laws(conn, files)
+    n_law = reindex_laws(conn)
+    n_reg = _load_register(conn)
+    counts = {t: conn.execute(text(f"SELECT count(*) FROM {t}")).scalar() for t in ("legal_instrument", "provision_version")}
+    return {**counts, "law_chunks": n_law, "register_rows": n_reg}
+
+
+def run(conn: Connection, today: date | None = None) -> dict:
+    """ล้างฐานแล้วสร้างใหม่ + ข้อมูลสาธิต (ไม่ทำงานบนเครื่องจริง — ดู check_demo_reset_allowed)"""
+    check_demo_reset_allowed(conn)
+    today = today or date.today()
+    rng = random.Random(42)
+    reset_schema(conn)
+    for sd in STEPS:
+        conn.execute(text("""INSERT INTO workflow_step_def (step_no, code, name_th, optional, anchors, limit_days, day_type,
+                                                         limit_text, basis)
+                             VALUES (:n, :c, :name, :opt, :anch, :days, :dt, :lt, :b)"""),
+                     {"n": sd.step_no, "c": sd.code, "name": sd.name_th, "opt": sd.optional, "anch": list(sd.anchors),
+                      "days": sd.limit_days, "dt": sd.day_type, "lt": sd.limit_text, "b": sd.basis})
+    data = json.loads((HERE / "prototype_data.json").read_text(encoding="utf-8"))
+    files, real = _law_corpus()
+    windows = load_laws(conn, real + data["instruments"])
+    _finish_laws(conn, files)
     proto_ids = load_prototype(conn, data, windows, today, rng)
     generated, extra = generate(conn, windows, today, rng)
     load_prototype_cases(conn, data, proto_ids, extra)
@@ -507,22 +575,17 @@ def run(conn: Connection, today: date | None = None) -> dict:
     n_case = reindex_cases(conn)
     counts = {t: conn.execute(text(f"SELECT count(*) FROM {t}")).scalar()
               for t in ("provision_version", "appeal", "court_case", "citation_link")}
-    # ทะเบียนกฎหมายลำดับรองจริง (ถ้ามีไฟล์) — seed ล้างตารางทุกครั้ง จึงต้องนำเข้าซ้ำที่นี่
-    reg_path = Path(os.environ.get("REGISTER_XLSX", "/data/register.xlsx"))
-    reg_json = Path(os.environ.get("REGISTER_PUBLIC_JSON", "/data/raw/register-public.json"))
-    n_reg = 0
-    if reg_path.is_file():
-        from .import_register import load_register
-        n_reg = load_register(conn, str(reg_path))["rows"]
-    elif reg_json.is_file():  # เครื่องที่ไม่มีไฟล์ทะเบียนต้นฉบับ: ใช้ทะเบียนฉบับเฉพาะคอลัมน์สาธารณะ (public_only export-register)
-        from .import_register import load_register_json
-        n_reg = load_register_json(conn, reg_json)["rows"]
+    n_reg = _load_register(conn)  # seed ล้างตารางทุกครั้ง จึงต้องนำเข้าทะเบียนซ้ำที่นี่
     return {**counts, "law_chunks": n_law, "case_chunks": n_case, "register_rows": n_reg}
 
 
 if __name__ == "__main__":
-    with get_engine().begin() as c:
-        print(run(c))
+    import sys
+    try:
+        with get_engine().begin() as c:
+            print(run_laws(c) if "--laws-only" in sys.argv else run(c))
+    except SeedRefused as e:
+        sys.exit(f"ไม่ได้ทำอะไร: {e}")
     # embedding index จากโมเดลที่ active: สร้างเวกเตอร์เฉพาะเนื้อหาใหม่ (เวกเตอร์เดิมผูกกับ content_sha จึงใช้ต่อได้)
     if os.environ.get("SEED_SKIP_EMBED") != "1":
         from ..search.vector_index import update_active_cli
