@@ -91,6 +91,9 @@ def _left(box) -> float:
     return float(box[0])
 
 
+CLAUSE_HEAD = re.compile(r"^\s*(ข้อ|มาตรา)\s*[๐-๙\d]")
+
+
 def lines_to_layout(items: list[tuple[str, float, float | None]], width: float,
                     min_conf: float = 0.5, para_starts: set[int] | None = None) -> list[str]:
     """[(ข้อความ, ขอบซ้าย, ความมั่นใจ 0–1)] ตามลำดับการอ่าน → บรรทัดที่มีช่องว่างนำหน้าตามระยะเยื้อง
@@ -105,9 +108,10 @@ def lines_to_layout(items: list[tuple[str, float, float | None]], width: float,
         if not t:
             continue
         thai = len(THAI.findall(t))
-        if conf is not None and conf < min_conf and (len(t) < 30 or thai < len(t) * 0.4):
+        head = bool(CLAUSE_HEAD.match(t))  # หัวข้อ/มาตราสั้น ๆ (เช่น "ข้อ ๓ ในประกาศนี้") ห้ามตัดทิ้ง
+        if not head and conf is not None and conf < min_conf and (len(t) < 30 or thai < len(t) * 0.4):
             continue
-        if is_noise(t):
+        if not head and is_noise(t):
             continue
         n = max(0, round((left - margin) / unit))
         if para_starts and i in para_starts:
@@ -170,6 +174,12 @@ def akson_page_layout(page) -> list[str]:
         ids = [i for i in (b.line_ids or []) if 0 <= i < len(lines)]
         used.update(ids)
         if b.label in SKIP_LABELS:
+            # layout อาจจัดบรรทัดหัวข้อสั้น ๆ เป็น number/aside_text — เก็บไว้ถ้าขึ้นต้นด้วย "ข้อ/มาตรา + เลข"
+            for i in ids:
+                ln = lines[i]
+                if CLAUSE_HEAD.match(ln.text or ""):
+                    starts.add(len(items))
+                    items.append((ln.text, _left(ln.bbox), ln.confidence))
             continue
         if b.label == "table" and getattr(b, "html", None):
             tables[len(items)] = _table_rows(b.html)

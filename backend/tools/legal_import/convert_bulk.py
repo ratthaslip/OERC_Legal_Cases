@@ -104,7 +104,8 @@ def main() -> None:
         paras = paragraphs(f)
         if tone_ratio("\n".join(paras)) < 0.06 and not f.get("ocr") and (g := ocr_file(r["files"])):
             f, paras = g, paragraphs(g)   # ข้อความจาก PDF เพี้ยน (ฟอนต์เก่า) → ใช้ผล OCR
-        if tone_ratio("\n".join(paras)) < 0.06:
+        # ข้อความเพี้ยนจากฟอนต์เก่ามีวรรณยุกต์น้อยมาก; ผล OCR ที่ดีแต่มีตาราง/ตัวเลขมากก็ต่ำกว่า 0.06 ได้ จึงใช้เกณฑ์ต่ำกว่า
+        if tone_ratio("\n".join(paras)) < (0.03 if f.get("ocr") else 0.06):
             rep["skipped"].append({"reg": r["reg_key"], "group": r["group_no"], "why": "ข้อความจาก PDF เพี้ยน (รอ OCR)",
                                    "title": r["title_th"][:90]})
             continue
