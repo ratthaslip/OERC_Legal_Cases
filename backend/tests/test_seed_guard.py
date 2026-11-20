@@ -15,13 +15,14 @@ def conn(seeded_client):
 
 def test_demo_seed_refused_in_production(conn, monkeypatch):
     from app.seed import seed
-    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("APP_ENV", "production")   # SEED_ALLOW_DATA_LOSS ไม่มีผลบนเครื่องจริง
     with pytest.raises(seed.SeedRefused):
         seed.run(conn)
 
 
-def test_demo_seed_refused_when_real_appeals_exist(conn):
+def test_demo_seed_refused_when_real_appeals_exist(conn, monkeypatch):
     from app.seed import seed
+    monkeypatch.delenv("SEED_ALLOW_DATA_LOSS", raising=False)
     conn.execute(text("UPDATE appeal SET is_demo = FALSE WHERE appeal_id = (SELECT min(appeal_id) FROM appeal)"))
     with pytest.raises(seed.SeedRefused):
         seed.run(conn)

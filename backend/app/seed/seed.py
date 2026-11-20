@@ -488,6 +488,9 @@ def real_records(conn: Connection) -> int:
 def check_demo_reset_allowed(conn: Connection) -> None:
     if is_production():
         raise SeedRefused("APP_ENV=production: ห้ามล้างฐานและใส่ข้อมูลสาธิต — ใช้ python -m app.seed.seed --laws-only")
+    # SEED_ALLOW_DATA_LOSS=1: ฐานข้อมูลทดสอบที่เทสต์สร้างเรื่องผ่าน API (ไม่มีผลเมื่อ APP_ENV=production)
+    if os.environ.get("SEED_ALLOW_DATA_LOSS") == "1":
+        return
     if n := real_records(conn):
         raise SeedRefused(f"พบเรื่องอุทธรณ์/คดีจริง {n} รายการ — seed โหมดสาธิตจะลบทิ้ง จึงไม่ทำงาน "
                           "(ใช้ --laws-only เพื่อนำเข้าตัวบทอย่างเดียว)")

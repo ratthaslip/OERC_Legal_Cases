@@ -1,0 +1,5 @@
+# เครื่องมือพัฒนา/ทดสอบ (ไม่ติดตั้งใน image production)
+#   uv pip compile requirements-dev.in --python-version 3.12 -c requirements.txt --generate-hashes -o requirements-dev.txt
+pytest>=8
+pip-audit>=2.7
+pillow>=10   # tests สร้าง PDF สแกนจำลอง

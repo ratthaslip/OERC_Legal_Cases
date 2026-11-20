@@ -2,6 +2,9 @@ import os
 
 import pytest
 
+# ฐานข้อมูลทดสอบ: เทสต์รับเรื่องอุทธรณ์ผ่าน API (ไม่ใช่ข้อมูลสาธิต) แล้ว seed ใหม่ในโมดูลถัดไป
+os.environ.setdefault("SEED_ALLOW_DATA_LOSS", "1")
+
 
 @pytest.fixture(scope="module")
 def seeded_client():
