@@ -53,7 +53,8 @@ def metrics(raw: str) -> dict:
     cleaned = clean(raw)
     paras = docparse.fix_lost_am("\n".join(docparse.layout_paragraphs(cleaned))).split("\n")
     renum: list[str] = []
-    _, _, provs, *_ = docparse.parse(paras, "ข้อ", "", ocr=True, renumbered=renum)
+    gaps: list[str] = []
+    _, _, provs, *_ = docparse.parse(paras, "ข้อ", "", ocr=True, renumbered=renum, gaps=gaps)
     seen = [int(docparse.th2ar(m.group(1))) for p in paras for m in [re.match(r"^ข้อ\s*([๐-๙\d]+)\s", p)] if m]
     top = max([x for x in seen if x <= 200], default=0)
     n_clauses = sum(1 for p in provs if p["no"] and p["no"] != "__annex__")
@@ -64,7 +65,7 @@ def metrics(raw: str) -> dict:
         "latin_in_thai_per_1k": per_k(len(LATIN_IN_THAI.findall(raw))),
         "clauses": n_clauses, "max_clause_seen": top,
         "clause_coverage": round(min(n_clauses, top) / top, 3) if top else None,
-        "renumbered": len(renum),
+        "renumbered": len(renum), "missing_headings": len(gaps),
     }
 
 
@@ -168,7 +169,7 @@ def report(engines: list[str]) -> None:
     shas = sorted(shas or [])
     for eng in engines:
         acc = {"files": 0, "pages": 0, "seconds": 0.0, "thai": 0, "inv": 0.0, "rep": 0.0, "lat": 0.0,
-               "cov": [], "renum": 0}
+               "cov": [], "renum": 0, "gaps": 0}
         for sha in shas:
             meta = json.loads((OUT / eng / f"{sha}.json").read_text(encoding="utf-8"))
             m = metrics((OUT / eng / f"{sha}.raw.txt").read_text(encoding="utf-8"))
@@ -183,6 +184,7 @@ def report(engines: list[str]) -> None:
             acc["rep"] += m["repairs_per_1k"] * w
             acc["lat"] += m["latin_in_thai_per_1k"] * w
             acc["renum"] += m["renumbered"]
+            acc["gaps"] += m["missing_headings"]
             if m["clause_coverage"] is not None:
                 acc["cov"].append(m["clause_coverage"])
         t = acc["thai"] or 1
@@ -193,7 +195,7 @@ def report(engines: list[str]) -> None:
             "invalid_per_1k": round(acc["inv"] / t, 2), "repairs_per_1k": round(acc["rep"] / t, 2),
             "latin_in_thai_per_1k": round(acc["lat"] / t, 2),
             "clause_coverage": round(sum(acc["cov"]) / len(acc["cov"]), 3) if acc["cov"] else None,
-            "renumbered": acc["renum"],
+            "renumbered": acc["renum"], "missing_headings": acc["gaps"],
         }
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "report.json").write_text(json.dumps({"files": len(shas), "summary": summary}, ensure_ascii=False, indent=1),
@@ -205,7 +207,7 @@ def report(engines: list[str]) -> None:
             w.writerows(rows)
     cols = [("sec_per_page", "วินาที/หน้า ↓"), ("thai_chars", "อักษรไทย ↑"), ("invalid_per_1k", "ผิดอักขรวิธี/1k ↓"),
             ("repairs_per_1k", "ต้องแก้คำ/1k ↓"), ("latin_in_thai_per_1k", "ละตินปนไทย/1k ↓"),
-            ("clause_coverage", "แยกข้อครบ ↑"), ("renumbered", "เลขข้อผิดลำดับ ↓")]
+            ("clause_coverage", "แยกข้อครบ ↑"), ("renumbered", "เลขข้อผิดลำดับ ↓"), ("missing_headings", "หัวข้อหาย ↓")]
     md = [f"# เทียบ OCR — {len(shas)} ไฟล์ที่ทุก engine มีผล", "",
           "| ตัวชี้วัด | " + " | ".join(engines) + " |", "|---|" + "---|" * len(engines)]
     for k, label in cols:

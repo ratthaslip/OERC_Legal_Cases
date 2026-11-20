@@ -175,12 +175,15 @@ def category_of(title: str) -> str:
     return "กิจการพลังงานทั่วไป"
 
 
-OCR_CLAUSE = re.compile(r"^(?:ข้อ|มาตรา)\s*([^\s.]{1,3})\s+(.*)$")
+OCR_CLAUSE = re.compile(r"^(?:ข้อ|มาตรา)\s*([^\s.()]{1,3})\s+(.*)$")  # ไม่รับ "(๑)" (อนุข้อที่ขึ้นบรรทัดใหม่)
 
 
-def parse(paras: list[str], kind: str, reg_title: str, ocr: bool = False, renumbered: list | None = None):
-    """ocr=True: เลขข้อที่ OCR อ่านผิด (๔↔๕↔๖, "of") ในย่อหน้าที่ขึ้นต้นด้วย "ข้อ" → กำหนดเป็นข้อถัดไปตามลำดับ
-    (บันทึกใน renumbered เพื่อแจ้งในประเด็นรอตรวจ)"""
+def parse(paras: list[str], kind: str, reg_title: str, ocr: bool = False, renumbered: list | None = None,
+          gaps: list | None = None):
+    """ocr=True: เลขข้อไม่ต่อจากข้อก่อนหน้า → ดูเลขของหัวข้อถัดไปเพื่อแยกสองกรณี
+      - หัวข้อหายไป (OCR อ่านหัวข้อไม่ออก เช่น ข้อ ๓ รวมอยู่กับข้อ ๒) → ใช้เลขที่อ่านได้ บันทึกเลขที่หายใน gaps
+      - เลขอ่านผิด (๔↔๕↔๖, "of") → กำหนดเป็นข้อถัดไปตามลำดับ บันทึกใน renumbered
+    ทั้งสองรายการใช้แจ้งในประเด็นรอตรวจ"""
     # ชื่อเรื่อง: ตั้งแต่ต้นจนบรรทัด "พ.ศ. ๒๕xx" (ภายใน 8 ย่อหน้าแรก)
     title, start = None, 0
     for i, p in enumerate(paras[:8]):
@@ -209,6 +212,19 @@ def parse(paras: list[str], kind: str, reg_title: str, ocr: bool = False, renumb
             ok = last is None and major in (1, 2) or last is not None and (
                 (major == last[0] + 1 and "/" not in no) or (major == last[0] and "/" in no) or ("/" in no and major == last[0]))
             if ok and not any(x["no"] == no for x in provs):
+                provs.append({"no": no, "lines": [m.group(2)] if m.group(2) else [], "part": part})
+                last = (major, no)
+                depth = max(0, p.count("“") - p.count("”"))
+                i += 1
+                continue
+        if m and not ok and ocr and last is not None and "/" not in no and not any(x["no"] == no for x in provs):
+            # เลขไม่ต่อเนื่อง: หัวข้อหาย หรือเลขอ่านผิด? ดูเลขของหัวข้อถัดไป
+            nxt_no = next((int(th2ar(mm.group(1)).split("/")[0]) for q in paras[i + 1: i + 60]
+                           for mm in [cls.match(q)] if mm), None)
+            gap_ok = last[0] + 1 < major <= last[0] + 3 and (nxt_no is None or nxt_no == major + 1)
+            if gap_ok:
+                if gaps is not None:
+                    gaps.extend(str(k) for k in range(last[0] + 1, major))
                 provs.append({"no": no, "lines": [m.group(2)] if m.group(2) else [], "part": part})
                 last = (major, no)
                 depth = max(0, p.count("“") - p.count("”"))
@@ -264,7 +280,8 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
     """
     kind = kind_of(doc_type)
     renum: list[str] = []
-    title, pre, provs, signed, tail, annex = parse(paras, kind, reg_title, ocr=ocr, renumbered=renum)
+    gaps: list[str] = []
+    title, pre, provs, signed, tail, annex = parse(paras, kind, reg_title, ocr=ocr, renumbered=renum, gaps=gaps)
     sig_date = iso(DATE_RE.search(signed)) if signed and DATE_RE.search(signed) else None
     eff = effective_date or pub or sig_date
     warn = []
@@ -289,6 +306,8 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
             warn.append("เอกสารแนบท้ายยาวเกิน 40,000 อักษร — นำเข้าเฉพาะส่วนต้น ดูฉบับเต็มในไฟล์ต้นฉบับ")
         provs.append({"no": "__annex__", "lines": [annex_text], "part": "เอกสารแนบท้าย"})
         warn.append("เอกสารแนบท้าย (ตาราง/แบบฟอร์ม) นำเข้าเป็นข้อความ — รูปแบบตารางอาจไม่ครบ")
+    if gaps:
+        warn.append(f"ไม่พบหัว{kind} {', '.join(gaps[:8])} ในข้อความ OCR — เนื้อความอาจรวมอยู่กับ{kind}ก่อนหน้า ตรวจกับต้นฉบับ")
     if renum:
         warn.append(f"เลข{kind}จาก OCR ไม่ต่อเนื่อง กำหนดตามลำดับ ({', '.join(renum[:6])}{' …' if len(renum) > 6 else ''}) — ตรวจกับต้นฉบับ")
     if ocr:

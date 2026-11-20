@@ -48,3 +48,20 @@ def test_compare_metrics_penalise_broken_thai():
     assert g["invalid_per_1k"] == 0 and b["invalid_per_1k"] > 0
     assert b["repairs_per_1k"] > g["repairs_per_1k"] and b["latin_in_thai_per_1k"] > 0
     assert g["clause_coverage"] == 1.0 and g["renumbered"] == 0 and b["renumbered"] >= 1
+
+
+def test_missing_heading_does_not_cascade_renumbering():
+    from app.law import docparse
+    paras = ["ข้อ ๑ ชื่อประกาศ", "ข้อ ๒ ใช้บังคับ", "ในประกาศนี้ คำว่า ก หมายความว่า ข",  # หัว "ข้อ ๓" อ่านไม่ออก
+             "ข้อ ๔ ผู้รับใบอนุญาตต้องรายงาน", "ข้อ ๕ ให้สำนักงานตรวจสอบ", "ข้อ ๖ ให้ประธานรักษาการ"]
+    renum, gaps = [], []
+    _, _, provs, *_ = docparse.parse(paras, "ข้อ", "", ocr=True, renumbered=renum, gaps=gaps)
+    assert [p["no"] for p in provs] == ["1", "2", "4", "5", "6"] and gaps == ["3"] and renum == []
+
+
+def test_misread_number_is_renumbered():
+    from app.law import docparse
+    paras = ["ข้อ ๑ ก", "ข้อ ๒ ข", "ข้อ ๕ ค", "ข้อ ๔ ง", "ข้อ ๕ จ"]   # ข้อ ๓ อ่านเป็น ๕
+    renum, gaps = [], []
+    _, _, provs, *_ = docparse.parse(paras, "ข้อ", "", ocr=True, renumbered=renum, gaps=gaps)
+    assert [p["no"] for p in provs] == ["1", "2", "3", "4", "5"] and gaps == [] and len(renum) == 1
