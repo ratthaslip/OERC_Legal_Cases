@@ -1,5 +1,6 @@
 """OCR engine ทางเลือก (AksonOCR-Lite, OpenThai2.0-OCR-Text): แปลงผลบรรทัด+กรอบเป็นข้อความที่รักษาย่อหน้า
 และเลือก engine ผ่าน OCR_ENGINE — เทสต์ด้วยผลจำลอง ไม่ต้องติดตั้งโมเดล"""
+import shutil
 from types import SimpleNamespace as NS
 
 import pytest
@@ -96,6 +97,11 @@ def _blank_pdf(path, pages):
     path.write_bytes(out)
 
 
+needs_poppler = pytest.mark.skipif(not (shutil.which("pdftoppm") and shutil.which("pdfinfo")),
+                                   reason="ต้องมี poppler-utils (pdftoppm, pdfinfo)")
+
+
+@needs_poppler
 def test_pdf_pages_renders_one_page_at_a_time(tmp_path):
     pdf = tmp_path / "a.pdf"
     _blank_pdf(pdf, 3)
@@ -109,6 +115,7 @@ def test_pdf_pages_renders_one_page_at_a_time(tmp_path):
     assert seen == ["p-1.png", "p-2.png", "p-3.png"] and not list(work.glob("*.png"))
 
 
+@needs_poppler
 def test_page_that_times_out_is_skipped_not_hung(tmp_path, monkeypatch):
     pdf = tmp_path / "a.pdf"
     _blank_pdf(pdf, 3)
