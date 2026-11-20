@@ -13,6 +13,8 @@ def get_engine() -> Engine:
     global _engine
     if _engine is None:
         _engine = create_engine(get_settings().database_url, pool_pre_ping=True, future=True)
+        from .audit_sink import install
+        install(_engine)   # สำเนา audit log ออกนอกฐานเมื่อ commit
     return _engine
 
 

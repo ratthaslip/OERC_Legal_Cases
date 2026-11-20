@@ -92,8 +92,8 @@ jobs:
           EMBED_PROVIDER=hash
           HTTP_PORT=8088
           ENV
-          mkdir -p data/raw data/laws-internal data/import data/models
-          sudo chown -R 10001:10001 data/raw
+          mkdir -p data/raw data/audit data/laws-internal data/import data/models
+          sudo chown -R 10001:10001 data/raw data/audit
       - name: build and start
         run: docker compose -f docker-compose.prod.yml up -d --build --wait --wait-timeout 900
       - name: import laws (production command)
@@ -130,6 +130,8 @@ jobs:
           up() { curl -s -o /dev/null -w '%{http_code}' -H 'X-Demo-User: lgl1' -F "file=@$1" -F 'doc_type=ประกาศ' http://localhost:8088/api/v1/laws/uploads; }
           test "$(up eicar.docx)" = 422
           test "$(up clean.docx)" = 200
+      - name: audit log copy outside the database matches
+        run: docker compose -f docker-compose.prod.yml exec -T api python -m app.ops audit-verify --file /data/audit/audit.jsonl
       - name: containers run as non-root
         run: |
           test "$(docker compose -f docker-compose.prod.yml exec -T api id -u)" = 10001
