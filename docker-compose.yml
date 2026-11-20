@@ -9,9 +9,11 @@ services:
   db:
     image: pgvector/pgvector:pg16   # postgres 16 + pgvector (ใช้ volume เดิมได้)
     environment:
-      POSTGRES_PASSWORD: postgres
+      # ตั้งรหัสผ่านที่เดายากใน .env (POSTGRES_PASSWORD) — ห้ามใช้ค่าเริ่มต้น
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ตั้ง POSTGRES_PASSWORD ใน .env}
       POSTGRES_DB: erc
-    ports: ["5432:5432"]
+    # ฐานข้อมูลเปิดเฉพาะในเครื่อง (ห้ามเปิดสู่อินเทอร์เน็ต) — container อื่นต่อผ่านเครือข่ายภายในของ docker
+    ports: ["127.0.0.1:5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -25,9 +27,9 @@ services:
       args: { OCR_PIP: "${OCR_PIP:-}" }
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/erc
+      DATABASE_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD:?ตั้ง POSTGRES_PASSWORD ใน .env}@db:5432/erc
       CORS_ORIGINS: http://localhost:5173
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:8000:8000"]   # หน้าเว็บเรียก API ผ่าน proxy ภายใน (API_URL) — ไม่ต้องเปิดพอร์ตนี้ออกนอกเครื่อง
     depends_on:
       db: { condition: service_healthy }
     extra_hosts: ["host.docker.internal:host-gateway"]
