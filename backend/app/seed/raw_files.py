@@ -37,6 +37,9 @@ def pdf_pages(path: Path) -> int | None:
 def add_file(conn: Connection, src: Path, classification: str, source: str | None = None,
              received_from: str | None = None, received_at: date | None = None, note: str | None = None,
              original_name: str | None = None, store: RawStore | None = None, added_by: str | None = None) -> dict:
+    from ..config import public_data_only
+    if public_data_only() and classification == "internal":
+        raise ValueError(f"PUBLIC_DATA_ONLY: ไม่เก็บไฟล์ภายใน ({original_name or src.name}) บนเครื่องนี้")
     store = store or RawStore()
     st = store.put_file(src, classification)
     name = original_name or src.name

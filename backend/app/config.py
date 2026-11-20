@@ -25,6 +25,17 @@ def llm_is_external(provider: str, base_url: str, override: str = "auto") -> boo
         return True  # ชื่อโดเมนสาธารณะ เช่น api.openai.com
 
 
+def public_data_only() -> bool:
+    """PUBLIC_DATA_ONLY=true: เครื่องนี้เก็บเฉพาะข้อมูลที่เผยแพร่ได้ (เช่น เครื่องพัฒนาส่วนตัว/คลาวด์)
+    — ไม่นำเข้าตราสารภายใน คอลัมน์ภายในของทะเบียน ไฟล์ต้นฉบับภายใน และเอกสารภายในจากหน้าเว็บ"""
+    return os.getenv("PUBLIC_DATA_ONLY", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def laws_internal_dir() -> str:
+    """ตราสารภายใน (classification internal) อยู่นอก repo — วางไว้เฉพาะเครื่องของสำนักงาน"""
+    return os.getenv("LAWS_INTERNAL_DIR", "/data/laws-internal")
+
+
 class Settings:
     def __init__(self) -> None:
         self.database_url = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/erc")

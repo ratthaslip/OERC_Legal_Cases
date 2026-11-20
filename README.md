@@ -299,3 +299,23 @@ docker compose exec api python -m app.seed.raw_files verify   # ไฟล์ค�
 
 ทะเบียน Excel ที่นำเข้าจะถูกเก็บสำเนาใน `internal/` ให้อัตโนมัติ · สำรอง `data/raw` พร้อมฐานข้อมูลเสมอ ·
 ย้ายไป object storage ภายหลังได้โดยใช้ key เดียวกัน (`{public|internal}/{sha[:2]}/{sha}.ext`)
+
+
+## ข้อมูลภายในกับเครื่องที่ติดตั้ง
+
+ตราสารภายในของสำนักงาน (ระเบียบบริหารงานภายใน 56 ฉบับ) **ไม่อยู่ใน repo** — ส่งเป็นชุดไฟล์แยก แล้ววางที่ `data/laws-internal/` บนเครื่องของสำนักงานเท่านั้น
+(seed นำเข้าให้อัตโนมัติ, `LAWS_INTERNAL_DIR` เปลี่ยนที่อยู่ได้)
+
+เครื่องพัฒนาส่วนตัวหรือบนคลาวด์ให้ตั้ง `PUBLIC_DATA_ONLY=true` ใน `.env`:
+- seed ข้ามตราสารภายใน และนำเข้าทะเบียนเฉพาะคอลัมน์ที่ประชาชนเห็น (ไม่เก็บหน่วยงาน หมายเหตุ การทบทวน ไฟล์แนบ ข้อสังเกต และไม่เก็บสำเนาไฟล์ทะเบียน)
+- คลังไฟล์ต้นฉบับไม่รับไฟล์ภายใน; หน้านำเข้าเอกสารไม่รับเอกสารภายใน
+
+ล้างข้อมูลภายในที่มีอยู่แล้วบนเครื่อง:
+```bash
+docker compose up -d api                                         # หลังตั้ง PUBLIC_DATA_ONLY=true
+docker compose exec api python -m app.seed.seed                  # ยังใช้ register.xlsx — นำเข้าเฉพาะคอลัมน์สาธารณะ
+docker compose exec api python -m app.seed.public_only export-register   # → data/raw/register-public.json
+docker compose exec api python -m app.seed.public_only purge     # ดูก่อนว่าจะลบอะไร แล้ว ... purge --yes
+shred -u data/register.xlsx                                       # ไฟล์ต้นฉบับมีคอลัมน์ภายใน
+docker compose exec api python -m app.seed.seed                  # ใช้ register-public.json แทน
+```

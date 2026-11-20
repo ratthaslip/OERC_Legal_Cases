@@ -119,6 +119,10 @@ def build_draft(u: dict, path: str) -> dict:
         inst["classification"] = "internal"
     if method.startswith("ocr:"):
         inst["importNotes"].append(f"OCR engine: {method[4:]}")
+    from ..config import public_data_only
+    if public_data_only() and inst.get("classification") == "internal":
+        raise ValueError("เอกสารนี้เข้าหมวดบริหารงานภายใน — เครื่องนี้เก็บเฉพาะข้อมูลสาธารณะ (PUBLIC_DATA_ONLY) "
+                         "นำเข้าบนเครื่องของสำนักงานแทน แล้วลบรายการนี้")
     inst["sourceFiles"] = [{"sha256": u["sha256"], "name": u["original_name"], "role": "text"}]
     inst["importNotes"].append(f"นำเข้าจากหน้าเว็บโดย {u['uploaded_by']} (รายการที่ {u['upload_id']})")
     return {"draft": inst, "method": method}
@@ -173,9 +177,10 @@ def load_approved(conn: Connection) -> int:
     except Exception:  # noqa: BLE001 — ฐานข้อมูลเก่าที่ยังไม่มีตาราง
         return 0
     have = {r[0] for r in conn.execute(text("SELECT eli_id FROM legal_instrument"))}
+    from ..config import public_data_only
     n = 0
     for u in ups:
-        if u["draft"]["id"] in have:
+        if u["draft"]["id"] in have or (public_data_only() and u["draft"].get("classification") == "internal"):
             continue
         _publish(conn, u["draft"], u["reviewed_by"] or "seed", f"web/upload-{u['upload_id']}")
         n += 1
@@ -225,6 +230,9 @@ async def upload(file: UploadFile = File(...), doc_type: str = Form(...), classi
         raise HTTPException(400, f"ประเภทเอกสารต้องเป็น {', '.join(DOC_TYPES)}")
     if classification not in ("public", "internal"):
         raise HTTPException(400, "ชั้นข้อมูลต้องเป็น public หรือ internal")
+    from ..config import public_data_only
+    if public_data_only() and classification == "internal":
+        raise HTTPException(400, "เครื่องนี้ตั้งค่าเก็บเฉพาะข้อมูลสาธารณะ (PUBLIC_DATA_ONLY) — นำเข้าเอกสารภายในบนเครื่องของสำนักงาน")
     reg_title = None
     if register_id is not None:
         reg = rows(conn, "SELECT title_th, effective_date, instrument_eli FROM law_register WHERE register_id = :r",
