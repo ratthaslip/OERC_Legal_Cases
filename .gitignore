@@ -9,3 +9,5 @@ data/
 *.xls
 backend/eval/results.json
 backups/
+frontend/test-results/
+frontend/playwright-report/

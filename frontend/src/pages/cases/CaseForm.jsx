@@ -36,8 +36,8 @@ export default function CaseForm({ opts, initial, onSaved, onCancel }) {
   // เรียกเป็นฟังก์ชัน (ไม่ใช่ <T/>) เพื่อไม่ให้ช่องกรอกถูกสร้างใหม่และเสียโฟกัสทุกครั้งที่พิมพ์
   const T = ({ k, label, req, className, ...p }) => (
     <div className={className} key={k}>
-      <Label>{label}{req && <span className="text-rose-600"> *</span>}</Label>
-      <input className={inputCls} value={f[k] ?? ''} onChange={set(k)} {...p} />
+      <Label htmlFor={`case-${k}`}>{label}{req && <span className="text-rose-600" aria-hidden="true"> *</span>}</Label>
+      <input id={`case-${k}`} required={req} className={inputCls} value={f[k] ?? ''} onChange={set(k)} {...p} />
     </div>
   );
 
@@ -61,31 +61,31 @@ export default function CaseForm({ opts, initial, onSaved, onCancel }) {
         {T({ k: 'black_no', label: 'เลขคดีดำ', req: true, placeholder: 'คบ. 425/2568' })}
         {T({ k: 'red_no', label: 'เลขคดีแดง', placeholder: 'เมื่อมีคำพิพากษา' })}
         <div>
-          <Label>ชั้นศาล <span className="text-rose-600">*</span></Label>
-          <select className={inputCls} value={f.court_level} onChange={set('court_level')}>
+          <Label htmlFor="case-court_level">ชั้นศาล <span className="text-rose-600" aria-hidden="true">*</span></Label>
+          <select id="case-court_level" className={inputCls} value={f.court_level} onChange={set('court_level')}>
             {opts.court_levels.map((x) => <option key={x}>{x}</option>)}
           </select>
         </div>
         <div>
-          <Label>ศาล <span className="text-rose-600">*</span></Label>
-          <input className={inputCls} list="court-names" value={f.court_name} onChange={set('court_name')} />
+          <Label htmlFor="case-court_name">ศาล <span className="text-rose-600" aria-hidden="true">*</span></Label>
+          <input id="case-court_name" className={inputCls} list="court-names" value={f.court_name} onChange={set('court_name')} />
           <datalist id="court-names">{opts.courts.map((x) => <option key={x} value={x} />)}</datalist>
         </div>
       </div>
       <div>
-        <Label>เรื่อง (ประเด็นพิพาท) <span className="text-rose-600">*</span></Label>
-        <input className={inputCls} value={f.subject} onChange={set('subject')} />
+        <Label htmlFor="case-subject">เรื่อง (ประเด็นพิพาท) <span className="text-rose-600" aria-hidden="true">*</span></Label>
+        <input id="case-subject" className={inputCls} value={f.subject} onChange={set('subject')} />
       </div>
       <div>
-        <Label>สรุปข้อเท็จจริงและสาระสำคัญ</Label>
-        <textarea className={inputCls} rows={4} value={f.summary ?? ''} onChange={set('summary')} />
+        <Label htmlFor="case-summary">สรุปข้อเท็จจริงและสาระสำคัญ</Label>
+        <textarea id="case-summary" className={inputCls} rows={4} value={f.summary ?? ''} onChange={set('summary')} />
       </div>
       <div className="grid md:grid-cols-4 gap-3">
         {T({ k: 'party_code', label: 'รหัสคู่กรณี (นามแฝง)', req: true, placeholder: 'EL-VSPP-218' })}
         {T({ k: 'party_label', label: 'คำเรียกคู่กรณี', placeholder: 'ผู้ฟ้องคดี (ผู้ผลิตไฟฟ้า รหัส ...)', className: 'md:col-span-2' })}
         <div>
-          <Label>ประเภทกิจการพลังงาน <span className="text-rose-600">*</span></Label>
-          <input className={inputCls} list="sectors" value={f.energy_sector} onChange={set('energy_sector')} />
+          <Label htmlFor="case-energy_sector">ประเภทกิจการพลังงาน <span className="text-rose-600" aria-hidden="true">*</span></Label>
+          <input id="case-energy_sector" className={inputCls} list="sectors" value={f.energy_sector} onChange={set('energy_sector')} />
           <datalist id="sectors">{opts.sectors.map((x) => <option key={x} value={x} />)}</datalist>
         </div>
         {T({ k: 'defendant', label: 'ผู้ถูกฟ้องคดี', className: 'md:col-span-2' })}
@@ -95,16 +95,16 @@ export default function CaseForm({ opts, initial, onSaved, onCancel }) {
         {T({ k: 'filed_date', label: 'วันยื่นฟ้อง', type: 'date' })}
         {T({ k: 'judgment_date', label: 'วันพิพากษา', type: 'date' })}
         <div>
-          <Label>สถานะ</Label>
-          <select className={inputCls} value={f.status} onChange={set('status')}>
+          <Label htmlFor="case-status">สถานะ</Label>
+          <select id="case-status" className={inputCls} value={f.status} onChange={set('status')}>
             {Object.entries(opts.statuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
         {T({ k: 'stage_text', label: 'ขั้นตอนคดี', placeholder: 'อยู่ระหว่างแสวงหาข้อเท็จจริง', className: 'md:col-span-2' })}
         {T({ k: 'result', label: 'ผลคดี', className: 'md:col-span-2' })}
         <div className="md:col-span-2">
-          <Label>ชั้นความลับ</Label>
-          <select className={inputCls} value={f.classification} onChange={set('classification')}>
+          <Label htmlFor="case-classification">ชั้นความลับ</Label>
+          <select id="case-classification" className={inputCls} value={f.classification} onChange={set('classification')}>
             {Object.entries(opts.classes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>

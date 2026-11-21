@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, BookOpen, ChevronRight, FileText, Filter, Layers, Download, Search, X } from 'lucide-react';
 import { api, downloadRegisterExport } from '../../api.js';
 import { Card, ErrorBox, inputCls, Label, Spinner, thDate, useDebounced } from '../../components/ui.jsx';
@@ -39,6 +39,7 @@ export default function RegisterPanel({ me, initialId, go, initialFilter }) {
   useEffect(() => {
     if (initialFilter?.section || initialFilter?.issues)
       setF((x) => ({ ...x, section: initialFilter.section ? String(initialFilter.section) : x.section, issues_only: !!initialFilter.issues || x.issues_only }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ใช้ตัวกรองที่ส่งมาเฉพาะเมื่อมีการนำทางเข้ามาใหม่
   }, [initialFilter?.nonce]);
   const doExport = async () => {
     setExporting(true);

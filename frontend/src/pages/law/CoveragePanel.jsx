@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Database, Download, FileText, History, Layers, Paperclip } from 'lucide-react';
 import { api, downloadRegisterExport } from '../../api.js';
 import { Card, ErrorBox, Spinner, thDate } from '../../components/ui.jsx';

@@ -1,11 +1,11 @@
-import React from 'react';
+import { Component } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 /**
  * กันไม่ให้ error ระหว่าง render ของหน้าใดหน้าหนึ่งทำให้ทั้งแอปว่างเปล่า
  * แสดงข้อความ error ให้ผู้ใช้/ผู้พัฒนาเห็น แทนการ unmount ทั้ง React tree
  */
-export default class ErrorBoundary extends React.Component {
+export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { error: null };

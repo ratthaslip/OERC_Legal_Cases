@@ -75,6 +75,7 @@ export function ModelSection({ name, notify, onLoaded }) {
     setForm(Object.fromEntries(FIELDS[name].map((k) => [k, v[k]])));
     setKey('');
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดเมื่อเปลี่ยนกลุ่มการตั้งค่าเท่านั้น
   useEffect(() => { api.adminModel(name).then(load).catch(setError); }, [name]);
 
   const run = async (fn, msg) => {

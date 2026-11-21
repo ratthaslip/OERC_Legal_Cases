@@ -18,7 +18,7 @@ const ACTION = {
 const Badge = ({ m, k }) => <span className={`px-2 py-0.5 rounded text-[11px] font-medium whitespace-nowrap ${m[k]?.[1] || ''}`}>{m[k]?.[0] || k}</span>;
 
 /** นำเข้าทะเบียนคดีจาก Excel: แม่แบบ → อัปโหลด → ตรวจทีละแถว → ส่งตรวจ → ผู้อื่นอนุมัติ */
-export default function CaseImport({ me, opts, onClose, notify }) {
+export default function CaseImport({ opts, onClose, notify }) {
   const [list, setList] = useState(null);
   const [open, setOpen] = useState(null);
   const [error, setError] = useState(null);
@@ -33,7 +33,7 @@ export default function CaseImport({ me, opts, onClose, notify }) {
     catch (e) { setError(e); } finally { setBusy(false); if (ref.current) ref.current.value = ''; }
   };
 
-  if (open) return <ImportDetail id={open} me={me} notify={notify} onBack={() => { setOpen(null); refresh(); }} />;
+  if (open) return <ImportDetail id={open} notify={notify} onBack={() => { setOpen(null); refresh(); }} />;
   return (
     <Card className="p-5 sm:p-6 space-y-4">
       <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export default function CaseImport({ me, opts, onClose, notify }) {
   );
 }
 
-function ImportDetail({ id, me, notify, onBack }) {
+function ImportDetail({ id, notify, onBack }) {
   const [r, setR] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);

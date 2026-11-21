@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ArrowRight, CheckCircle2, Circle, Clock, FileText, Gavel, Lock, Mail, MinusCircle } from 'lucide-react';
 import { api } from '../../api.js';
 import { Card, ClassBadge, DocView, ErrorBox, Field, thDate, todayIso, DemoBadge } from '../../components/ui.jsx';

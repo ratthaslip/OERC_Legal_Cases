@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowRight, FileText, GitBranch, Layers, Paperclip, Search } from 'lucide-react';
 import { openRawFile } from '../../api.js';
 import { StatusPill } from './RegisterPanel.jsx';

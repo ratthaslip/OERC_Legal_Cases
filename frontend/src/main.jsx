@@ -1,4 +1,3 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 // ฟอนต์เก็บในระบบเอง (ไม่โหลดจาก Google Fonts — ไม่ส่ง IP ผู้ใช้ออกนอกระบบ และใช้ได้ในเครือข่ายปิด)

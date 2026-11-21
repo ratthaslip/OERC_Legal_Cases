@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, BookOpen, FileText, Calendar, Gavel, Info, Loader2, Lock, Power, SearchX, Shield, Sparkles, Timer } from 'lucide-react';
 import { askAssistant } from '../api.js';
 import { Card, thDate, todayIso, DemoBadge } from '../components/ui.jsx';

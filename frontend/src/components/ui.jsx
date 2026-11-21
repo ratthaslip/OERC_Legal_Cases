@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { Lock, AlertTriangle, Loader2 } from 'lucide-react';
 
 const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
@@ -52,8 +52,8 @@ export function Card({ className = '', children }) {
   return <div className={`bg-white rounded-[14px] shadow-card border border-slate-200/70 ${className}`}>{children}</div>;
 }
 
-export function Label({ children }) {
-  return <label className="block text-xs font-semibold text-slate-700 mb-1.5">{children}</label>;
+export function Label({ children, htmlFor }) {
+  return <label htmlFor={htmlFor} className="block text-xs font-semibold text-slate-700 mb-1.5">{children}</label>;
 }
 
 export const inputCls =
@@ -116,8 +116,8 @@ export function LockedPanel({ title, onLogin, onBack, color = 'amber' }) {
 }
 
 export function useDebounced(value, ms = 350) {
-  const [v, setV] = React.useState(value);
-  React.useEffect(() => {
+  const [v, setV] = useState(value);
+  useEffect(() => {
     const t = setTimeout(() => setV(value), ms);
     return () => clearTimeout(t);
   }, [value, ms]);

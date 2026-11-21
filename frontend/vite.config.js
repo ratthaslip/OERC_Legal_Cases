@@ -8,5 +8,11 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: { '/api': { target: process.env.API_URL || 'http://localhost:8000', changeOrigin: true } }
+  },
+  // เทสต์หน่วย (vitest) — เทสต์ end-to-end อยู่ใน e2e/ (Playwright)
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
+    include: ['src/**/*.test.{js,jsx}']
   }
 });

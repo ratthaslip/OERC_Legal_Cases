@@ -205,10 +205,12 @@ function Review({ id, me, go, notify, onBack, onOpen }) {
     } : null);
   };
   const refresh = () => api.upload(id).then(load).catch(setError);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดเมื่อเปิดรายการใหม่เท่านั้น
   useEffect(() => { refresh(); return () => clearTimeout(timer.current); }, [id]);
   useEffect(() => {
     clearTimeout(timer.current);
     if (u?.status === 'processing') timer.current = setTimeout(refresh, 3000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ตั้งเวลาโหลดซ้ำจากสถานะล่าสุดเท่านั้น
   }, [u]);
 
   const run = async (fn, msg) => {
