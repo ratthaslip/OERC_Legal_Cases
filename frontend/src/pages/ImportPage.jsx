@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle, ArrowLeft, CheckCircle2, ExternalLink, FileText, FileUp, Loader2, Lock, Plus, RefreshCw, Save,
-  ScanText, Search, Trash2, Undo2, XCircle
+  AlertTriangle, ArrowLeft, CheckCircle2, CornerUpLeft, ExternalLink, FileText, FileUp, Loader2, Lock, PencilLine, Plus,
+  RefreshCw, Save, ScanText, Search, Send, Trash2, Undo2, XCircle
 } from 'lucide-react';
 import { api, openRawFile, uploadLawFile } from '../api.js';
 import { Card, ErrorBox, Label, Spinner, inputCls, thDate, useDebounced } from '../components/ui.jsx';
+import { UploadHistory, WorkflowSteps } from './law/UploadHistory.jsx';
 
 const STATUS = {
   processing: ['กำลังถอดข้อความ', 'bg-sky-100 text-sky-800'],
-  draft: ['ร่าง — รอตรวจทาน/อนุมัติ', 'bg-amber-100 text-amber-900'],
+  draft: ['ร่าง — กำลังตรวจทาน', 'bg-amber-100 text-amber-900'],
+  submitted: ['ส่งตรวจแล้ว — รออนุมัติ', 'bg-violet-100 text-violet-800'],
   approved: ['อนุมัติแล้ว — เผยแพร่', 'bg-emerald-100 text-emerald-800'],
-  rejected: ['ส่งกลับ', 'bg-slate-200 text-slate-700'],
+  superseded: ['ถูกแทนที่ด้วยฉบับแก้ไข', 'bg-slate-100 text-slate-500'],
+  rejected: ['ไม่รับ', 'bg-slate-200 text-slate-700'],
   failed: ['ถอดข้อความไม่สำเร็จ', 'bg-rose-100 text-rose-800']
 };
 const METHOD = { docx: 'Word', doc: 'Word (.doc)', pdf: 'PDF ข้อความ', ocr: 'OCR จากภาพสแกน' };
@@ -33,7 +36,7 @@ export default function ImportPage({ me, go, notify }) {
     if (list?.items?.some((i) => i.status === 'processing')) timer.current = setTimeout(refresh, 3000);
   }, [list]);
 
-  if (open) return <Review id={open} me={me} go={go} notify={notify} onBack={() => { setOpen(null); refresh(); }} />;
+  if (open) return <Review key={open} id={open} me={me} go={go} notify={notify} onOpen={setOpen} onBack={() => { setOpen(null); refresh(); }} />;
   if (!list) return error ? <ErrorBox error={error} /> : <Spinner />;
 
   return (
@@ -43,8 +46,8 @@ export default function ImportPage({ me, go, notify }) {
         <h2 className="text-lg font-bold text-slate-900">นำเข้าเอกสารกฎหมาย</h2>
       </div>
       <p className="text-xs text-slate-600 -mt-3">
-        อัปโหลด PDF หรือ Word → ระบบถอดข้อความและแยกเป็นข้อ/มาตรา (ไฟล์สแกนใช้ OCR ภายในเซิร์ฟเวอร์) → ผู้นำเข้าตรวจทาน →
-        นิติกรหรือผู้ดูแลอีกคนอนุมัติ จึงขึ้นในระบบค้นและผู้ช่วย AI
+        อัปโหลด PDF หรือ Word → ระบบถอดข้อความและแยกเป็นข้อ/มาตรา (ไฟล์สแกนใช้ OCR ภายในเซิร์ฟเวอร์) → ตรวจทานและแก้ร่าง
+        (ระบบเก็บทุกรุ่น) → ส่งตรวจ → นิติกรหรือผู้ดูแลที่ไม่ได้ร่วมทำร่างอนุมัติ จึงขึ้นในระบบค้นและผู้ช่วย AI
       </p>
       <UploadForm docTypes={list.doc_types} notify={notify} onDone={(u) => { refresh(); notify?.(`รับไฟล์ ${u.original_name} แล้ว — กำลังถอดข้อความ`); }} />
 
@@ -68,7 +71,8 @@ export default function ImportPage({ me, go, notify }) {
                   {u.method ? `${METHOD[u.method]} · ` : ''}{u.provision_count ? `${u.provision_count} บทบัญญัติ · ` : ''}
                   {u.uploaded_by} · {when(u.uploaded_at)}
                 </span>
-                {u.status === 'draft' && u.uploaded_by !== me.user_id && (
+                {u.amends_eli && <span className="text-[11px] px-1.5 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">คำขอแก้ไข</span>}
+                {u.can_approve && (
                   <span className="text-[11px] px-1.5 py-0.5 rounded bg-brand-600 text-white">รอคุณอนุมัติได้</span>
                 )}
               </button>
@@ -181,17 +185,18 @@ function UploadForm({ docTypes, onDone }) {
   );
 }
 
-function Review({ id, me, go, notify, onBack }) {
+function Review({ id, me, go, notify, onBack, onOpen }) {
   const [u, setU] = useState(null);
   const [form, setForm] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [version, setVersion] = useState(0);   // ให้ประวัติ/ความต่างโหลดใหม่หลังบันทึกหรือเปลี่ยนสถานะ
   const timer = useRef(null);
 
   const load = (v) => {
-    setU(v); setDirty(false);
+    setU(v); setDirty(false); setVersion((n) => n + 1);
     const d = v.draft;
     setForm(d && d.provisions ? {
       title: d.title, code: d.code, category: d.category, classification: d.classification || 'public',
@@ -228,6 +233,9 @@ function Review({ id, me, go, notify, onBack }) {
   if (!u) return error ? <ErrorBox error={error} /> : <Spinner />;
   const editable = u.status === 'draft';
   const mine = u.uploaded_by === me.user_id;
+  const submitter = u.submitted_by === me.user_id || me.role === 'ADM';
+  const why = u.can_approve ? '' : [u.uploaded_by, u.submitted_by, ...(u.editors || [])].includes(me.user_id)
+    ? 'คุณร่วมทำร่างนี้ (นำเข้า แก้ หรือส่งตรวจ) — ให้นิติกรหรือผู้ดูแลคนอื่นอนุมัติ (หลักสี่ตา)' : '';
   const src = u.draft?.sourceFiles?.[0]?.sha256 || u.sha256;
 
   return (
@@ -244,11 +252,24 @@ function Review({ id, me, go, notify, onBack }) {
           </button>
           <span className="ml-auto text-[11px] text-slate-500">
             นำเข้าโดย {u.uploaded_by} · {when(u.uploaded_at)}{u.edited_by ? ` · แก้ล่าสุด ${u.edited_by} ${when(u.edited_at)}` : ''}
-            {u.reviewed_by ? ` · ${u.status === 'approved' ? 'อนุมัติ' : 'ส่งกลับ'}โดย ${u.reviewed_by} ${when(u.reviewed_at)}` : ''}
+            {u.reviewed_by ? ` · ${u.status === 'approved' || u.status === 'superseded' ? 'อนุมัติ' : u.status === 'rejected' ? 'ไม่รับ' : 'ส่งกลับ'}โดย ${u.reviewed_by} ${when(u.reviewed_at)}` : ''}
           </span>
         </div>
+        <WorkflowSteps status={u.status} />
+        {u.amends_eli && (
+          <p className="text-xs p-2 rounded bg-sky-50 border border-sky-200 text-sky-900">
+            คำขอแก้ไขตัวบทที่เผยแพร่แล้ว (จากรายการ #{u.amends_upload}) — เมื่ออนุมัติจะแทนที่ฉบับเดิมในระบบค้นและผู้ช่วย AI
+          </p>
+        )}
         {u.register_title && <p className="text-xs text-slate-600">ทะเบียน: {u.register_title}</p>}
-        {u.review_note && <p className="text-xs p-2 rounded bg-slate-50 border border-slate-200">หมายเหตุผู้ตรวจ: {u.review_note}</p>}
+        {u.submitted_by && ['submitted', 'approved'].includes(u.status) && (
+          <p className="text-[11px] text-slate-500">ส่งตรวจโดย {u.submitted_by} · {when(u.submitted_at)}{u.editors?.length ? ` · ผู้แก้ร่าง: ${u.editors.join(', ')}` : ''}</p>
+        )}
+        {u.review_note && (
+          <p className={`text-xs p-2 rounded border ${u.status === 'draft' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-200'}`}>
+            {u.status === 'draft' ? `ส่งกลับให้แก้โดย ${u.reviewed_by}: ` : 'หมายเหตุผู้ตรวจ: '}{u.review_note}
+          </p>
+        )}
         {u.status === 'processing' && <div className="flex items-center gap-2 text-sm text-sky-800"><Loader2 className="w-4 h-4 animate-spin" /> กำลังถอดข้อความ — ไฟล์สแกนใช้เวลาราว 3 วินาทีต่อหน้า</div>}
         {u.error && <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-800">{u.error}</div>}
         {u.notes?.length > 0 && (
@@ -264,13 +285,19 @@ function Review({ id, me, go, notify, onBack }) {
               <CheckCircle2 className="w-3.5 h-3.5" /> เปิดตัวบทในระบบ
             </button>
           )}
-          {['draft', 'failed', 'rejected'].includes(u.status) && (
+          {u.status === 'approved' && (
+            <button onClick={async () => { const v = await run(() => api.correctLaw(u.eli_id), 'สร้างคำขอแก้ไขแล้ว'); if (v?.upload_id) onOpen(v.upload_id); }} disabled={busy}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1">
+              <PencilLine className="w-3.5 h-3.5" /> ขอแก้ไขฉบับนี้
+            </button>
+          )}
+          {['draft', 'failed', 'rejected'].includes(u.status) && !u.amends_eli && (
             <button onClick={() => run(() => api.reprocessUpload(id, true), 'เริ่มถอดใหม่ด้วย OCR')} disabled={busy}
               className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-xs flex items-center gap-1">
               <ScanText className="w-3.5 h-3.5" /> ถอดใหม่ด้วย OCR
             </button>
           )}
-          {u.status !== 'approved' && u.status !== 'processing' && (mine || me.role === 'ADM') && (
+          {!['approved', 'superseded', 'processing'].includes(u.status) && (mine || me.role === 'ADM') && (
             <button onClick={async () => { if (await run(() => api.deleteUpload(id), 'ลบรายการแล้ว')) onBack(); }} disabled={busy}
               className="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs flex items-center gap-1">
               <Trash2 className="w-3.5 h-3.5" /> ลบรายการ
@@ -278,6 +305,8 @@ function Review({ id, me, go, notify, onBack }) {
           )}
         </div>
       </Card>
+
+      {u.status !== 'processing' && u.status !== 'failed' && <UploadHistory id={id} version={version} />}
 
       {form && (
         <>
@@ -335,17 +364,37 @@ function Review({ id, me, go, notify, onBack }) {
               <button onClick={save} disabled={busy || !dirty} className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50">
                 <Save className="w-4 h-4" /> บันทึกร่าง
               </button>
-              <input className={`${inputCls} flex-1 min-w-[12rem]`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="หมายเหตุการตรวจ (ไม่บังคับ)" />
-              <button onClick={() => run(() => api.rejectUpload(id, note), 'ส่งกลับแล้ว')} disabled={busy || dirty}
-                className="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm flex items-center gap-1.5 disabled:opacity-50">
-                <Undo2 className="w-4 h-4" /> ส่งกลับ
+              <button onClick={() => run(() => api.submitUpload(id), 'ส่งตรวจแล้ว')} disabled={busy || dirty || !u.draft.effectiveDate}
+                title={dirty ? 'บันทึกร่างก่อน' : !u.draft.effectiveDate ? 'ระบุวันใช้บังคับก่อน' : ''}
+                className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50">
+                <Send className="w-4 h-4" /> ส่งตรวจ
               </button>
-              <button onClick={() => run(() => api.approveUpload(id, note), 'อนุมัติและเผยแพร่แล้ว')} disabled={busy || dirty || mine || !u.draft.effectiveDate}
-                title={mine ? 'ผู้อนุมัติต้องไม่ใช่ผู้นำเข้า' : dirty ? 'บันทึกร่างก่อน' : !u.draft.effectiveDate ? 'ระบุวันใช้บังคับก่อน' : ''}
+              <span className="text-[11px] text-slate-500">ทุกครั้งที่บันทึก ระบบเก็บเป็นรุ่นใหม่ ผู้อนุมัติจะเห็นว่าแก้อะไรจากผลถอดข้อความ</span>
+            </Card>
+          )}
+          {u.status === 'submitted' && (
+            <Card className="p-4 flex flex-wrap items-center gap-2 sticky bottom-3 shadow-lg">
+              {submitter && (
+                <button onClick={() => run(() => api.withdrawUpload(id), 'ถอนกลับมาแก้แล้ว')} disabled={busy}
+                  className="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm flex items-center gap-1.5">
+                  <CornerUpLeft className="w-4 h-4" /> ถอนกลับมาแก้
+                </button>
+              )}
+              <input className={`${inputCls} flex-1 min-w-[12rem]`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="หมายเหตุการตรวจ (ต้องระบุเมื่อส่งกลับแก้)" />
+              <button onClick={() => run(() => api.returnUpload(id, note), 'ส่งกลับให้แก้แล้ว')} disabled={busy || !note.trim()}
+                className="px-3 py-2 rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-50 text-sm flex items-center gap-1.5 disabled:opacity-50">
+                <Undo2 className="w-4 h-4" /> ส่งกลับแก้
+              </button>
+              <button onClick={() => run(() => api.rejectUpload(id, note), 'บันทึกว่าไม่รับแล้ว')} disabled={busy}
+                className="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm flex items-center gap-1.5">
+                <XCircle className="w-4 h-4" /> ไม่รับ
+              </button>
+              <button onClick={() => run(() => api.approveUpload(id, note), u.amends_eli ? 'อนุมัติและแทนที่ฉบับเดิมแล้ว' : 'อนุมัติและเผยแพร่แล้ว')} disabled={busy || !u.can_approve}
+                title={why}
                 className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50">
-                <CheckCircle2 className="w-4 h-4" /> อนุมัติและเผยแพร่
+                <CheckCircle2 className="w-4 h-4" /> {u.amends_eli ? 'อนุมัติและแทนที่ฉบับเดิม' : 'อนุมัติและเผยแพร่'}
               </button>
-              {mine && <span className="w-full text-[11px] text-slate-500">คุณเป็นผู้นำเข้า — ให้นิติกรหรือผู้ดูแลคนอื่นอนุมัติ (หลักสี่ตา)</span>}
+              {why && <span className="w-full text-[11px] text-slate-500">{why}</span>}
             </Card>
           )}
         </>

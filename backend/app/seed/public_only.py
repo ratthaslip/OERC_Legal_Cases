@@ -56,6 +56,12 @@ def purge(apply: bool) -> None:
                 p.unlink()
         conn.execute(text("DELETE FROM raw_file_link WHERE sha256 = ANY(:s)"), {"s": list(shas)})
         conn.execute(text("DELETE FROM raw_file WHERE sha256 = ANY(:s)"), {"s": list(shas)})
+        conn.execute(text("SET LOCAL app.purge_internal = 'on'"))   # ประวัติร่างปกติลบไม่ได้ (trigger)
+        conn.execute(text("""DELETE FROM law_upload_revision WHERE upload_id IN (
+                               SELECT upload_id FROM law_upload WHERE classification = 'internal'
+                                   OR draft->>'classification' = 'internal')
+                             OR upload_id IN (SELECT upload_id FROM law_upload_revision
+                                              WHERE draft->>'classification' = 'internal')"""))
         conn.execute(text("""DELETE FROM law_upload WHERE classification = 'internal'
                              OR draft->>'classification' = 'internal'"""))
         for p in ocr:

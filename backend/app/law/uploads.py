@@ -1,9 +1,12 @@
 """นำเข้าเอกสารกฎหมาย (PDF / Word) จากหน้าเว็บ — นิติกร (LGL) และผู้ดูแล (ADM)
 
 อัปโหลด → ระบบถอดข้อความ (Word, PDF มีชั้นข้อความ หรือ OCR ในเครื่อง) และแยกเป็นข้อ/มาตรา → ร่าง
-→ ผู้อัปโหลดตรวจทาน/แก้ → ผู้อนุมัติ (LGL/ADM ที่ไม่ใช่ผู้อัปโหลด) อนุมัติ → เผยแพร่ในระบบค้นและผู้ช่วย AI
-ร่างและไฟล์ต้นฉบับไม่ถูกล้างตอน seed; ฉบับที่อนุมัติแล้วถูกนำเข้าซ้ำจากร่างทุกครั้งที่ seed (load_approved)
+→ ตรวจทาน/แก้ (บันทึกทุกรุ่น) → ส่งตรวจ → ผู้อนุมัติอนุมัติ → เผยแพร่ในระบบค้นและผู้ช่วย AI
+ผู้อนุมัติต้องไม่ใช่ผู้นำเข้า ผู้แก้ร่าง หรือผู้ส่งตรวจ (หลักสี่ตา); ผู้อนุมัติส่งกลับให้แก้ได้
+ฉบับที่เผยแพร่แล้วแก้ผ่าน "คำขอแก้ไข" ซึ่งวนขั้นตอนเดียวกัน แล้วแทนที่ตัวบทเดิม (ฉบับเดิมเป็น superseded)
+ร่าง ประวัติร่าง และไฟล์ต้นฉบับไม่ถูกล้างตอน seed; ฉบับที่อนุมัติแล้วถูกนำเข้าซ้ำจากร่างทุกครั้งที่ seed (load_approved)
 """
+import difflib
 import json
 import logging
 import re
@@ -33,6 +36,8 @@ MAX_BYTES = 50 * 1024 * 1024
 DOC_TYPES = ("ประกาศ", "ระเบียบ", "ข้อบังคับ", "คำสั่ง", "พระราชกฤษฎีกา", "พระราชบัญญัติ", "กฎกระทรวง")
 SOURCE = "ไฟล์นำเข้าจากหน้าเว็บ สำนักงาน กกพ."
 _ocr_slot = threading.Semaphore(1)  # OCR ใช้ CPU มาก — ทำทีละไฟล์
+INST_FIELDS = ("title", "code", "category", "classification", "effectiveDate", "publishedDate", "source")
+BASE_KINDS = ("extract", "reprocess", "correction")   # รุ่นตั้งต้นที่ใช้เทียบกับร่างล่าสุด
 
 
 def require_importer(user: User) -> None:
@@ -47,16 +52,127 @@ def _get(conn: Connection, upload_id: int) -> dict:
     return r[0]
 
 
-def _view(u: dict, full: bool = False) -> dict:
+def _editors(conn: Connection, ids: list[int]) -> dict[int, list[str]]:
+    if not ids:
+        return {}
+    return {r["upload_id"]: r["editors"] for r in rows(conn, """
+        SELECT upload_id, array_agg(DISTINCT actor ORDER BY actor) AS editors FROM law_upload_revision
+        WHERE kind = 'edit' AND upload_id = ANY(:ids) GROUP BY upload_id""", ids=ids)}
+
+
+def participants(u: dict, editors: list[str]) -> set[str]:
+    """ผู้ที่มีส่วนทำร่าง — อนุมัติรายการนี้ไม่ได้ (หลักสี่ตา)"""
+    return {x for x in (u["uploaded_by"], u.get("submitted_by"), *editors) if x}
+
+
+def _view(u: dict, full: bool = False, me: User | None = None, editors: list[str] | None = None) -> dict:
     d = {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in u.items() if k != "draft"}
     dr = u.get("draft") or {}
     d["title"] = dr.get("title")
     d["eli_id"] = dr.get("id")
     d["provision_count"] = len(dr.get("provisions") or [])
     d["notes"] = dr.get("importNotes") or []
+    if editors is not None:
+        d["editors"] = editors
+        d["can_approve"] = bool(me and u["status"] == "submitted" and me.user_id not in participants(u, editors))
     if full:
         d["draft"] = dr
     return d
+
+
+def _full(conn: Connection, upload_id: int, me: User) -> dict:
+    u = _get(conn, upload_id)
+    return _view(u, full=True, me=me, editors=_editors(conn, [upload_id]).get(upload_id, []))
+
+
+# ---------------------------------------------------------------- revisions + diff
+def add_revision(conn: Connection, upload_id: int, kind: str, draft: dict, actor: str, summary: dict | None = None) -> int:
+    n = conn.execute(text("SELECT coalesce(max(rev_no), 0) + 1 FROM law_upload_revision WHERE upload_id = :i"),
+                     {"i": upload_id}).scalar()
+    conn.execute(text("""INSERT INTO law_upload_revision (upload_id, rev_no, kind, draft, actor, summary)
+                         VALUES (:i, :n, :k, CAST(:d AS jsonb), :a, CAST(:s AS jsonb))"""),
+                 {"i": upload_id, "n": n, "k": kind, "d": json.dumps(draft, ensure_ascii=False), "a": actor,
+                  "s": json.dumps(summary or {}, ensure_ascii=False)})
+    return n
+
+
+def _keyed(d: dict) -> dict[str, dict]:
+    """บทบัญญัติตามเลขข้อ (เลขซ้ำ → ต่อท้าย #2, #3) — id เปลี่ยนเมื่อแก้เลขข้อ จึงจับคู่ด้วยเลขข้อ"""
+    out: dict[str, dict] = {}
+    for p in d.get("provisions") or []:
+        k, n = p["number"], 2
+        while k in out:
+            k, n = f"{p['number']} #{n}", n + 1
+        out[k] = {"number": p["number"], "part": p.get("part") or "", "text": p["versions"][0]["text"]}
+    return out
+
+
+_CLUSTER = re.compile(r"[เแโใไ]?[\u0e01-\u0e2e\u0e4f-\u0e5b][\u0e30-\u0e3a\u0e45\u0e47-\u0e4e]*|\s+|[^\u0e00-\u0e7f\s]+|.", re.S)
+
+
+def _words(t: str) -> list[str]:
+    """แบ่งคำไทยให้ผลเทียบอ่านได้ (ไม่ตัดกลางสระ/วรรณยุกต์); ถ้าตัดคำไม่ได้ใช้กลุ่มอักษร"""
+    try:
+        from pythainlp.tokenize import word_tokenize
+        w = word_tokenize(t, engine="newmm", keep_whitespace=True)
+        if "".join(w) == t:
+            return w
+    except Exception:  # noqa: BLE001
+        pass
+    return _CLUSTER.findall(t)
+
+
+def _segments(a: str, b: str) -> list[dict]:
+    """ส่วนที่เหมือน/ลบ/เพิ่ม — เทียบทีละบรรทัดก่อน แล้วเทียบทีละคำในช่วงที่ต่างกัน"""
+    out: list[dict] = []
+
+    def push(op: str, t: str) -> None:
+        if not t:
+            return
+        if out and out[-1]["op"] == op:
+            out[-1]["text"] += t
+        else:
+            out.append({"op": op, "text": t})
+
+    la, lb = a.splitlines(keepends=True), b.splitlines(keepends=True)
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, la, lb, autojunk=False).get_opcodes():
+        x, y = "".join(la[i1:i2]), "".join(lb[j1:j2])
+        if tag == "equal":
+            push("eq", x)
+        elif tag == "replace" and len(x) <= 8000 and len(y) <= 8000:
+            tx, ty = _words(x), _words(y)
+            for t2, a1, a2, b1, b2 in difflib.SequenceMatcher(None, tx, ty, autojunk=False).get_opcodes():
+                if t2 == "equal":
+                    push("eq", "".join(tx[a1:a2]))
+                else:
+                    push("del", "".join(tx[a1:a2]))
+                    push("ins", "".join(ty[b1:b2]))
+        else:
+            push("del", x)
+            push("ins", y)
+    return out
+
+
+def diff_drafts(old: dict, new: dict) -> dict:
+    fields = [{"field": k, "old": old.get(k), "new": new.get(k)} for k in INST_FIELDS if old.get(k) != new.get(k)]
+    ko, kn = _keyed(old), _keyed(new)
+    provs = []
+    for k, p in kn.items():
+        o = ko.get(k)
+        if o is None:
+            provs.append({"key": k, "change": "added", "new": p, "segments": [{"op": "ins", "text": p["text"]}]})
+        elif o != p:
+            provs.append({"key": k, "change": "changed", "old": o, "new": p,
+                          "part_changed": o["part"] != p["part"], "segments": _segments(o["text"], p["text"])})
+    provs += [{"key": k, "change": "removed", "old": o, "segments": [{"op": "del", "text": o["text"]}]}
+              for k, o in ko.items() if k not in kn]
+    return {"fields": fields, "provisions": provs}
+
+
+def summarize(diff: dict) -> dict:
+    by = lambda c: [p["key"] for p in diff["provisions"] if p["change"] == c][:50]  # noqa: E731
+    return {"fields": [f["field"] for f in diff["fields"]], "added": by("added"), "removed": by("removed"),
+            "changed": by("changed")}
 
 
 # ---------------------------------------------------------------- extract + parse
@@ -135,6 +251,9 @@ def process(upload_id: int) -> None:
             c.execute(text("""UPDATE law_upload SET status = 'draft', method = :m, draft = CAST(:d AS jsonb), error = NULL
                               WHERE upload_id = :i"""),
                       {"m": res["method"].split(":")[0], "d": json.dumps(res["draft"], ensure_ascii=False), "i": upload_id})
+            again = c.execute(text("SELECT 1 FROM law_upload_revision WHERE upload_id = :i LIMIT 1"), {"i": upload_id}).scalar()
+            add_revision(c, upload_id, "reprocess" if again else "extract", res["draft"], "system",
+                         {"method": res["method"]})
     except Exception as e:  # noqa: BLE001 — แสดงสาเหตุให้ผู้นำเข้าเห็น
         log.warning("law upload %s failed: %s", upload_id, e)
         with eng.begin() as c:
@@ -147,14 +266,14 @@ def process_in_background(upload_id: int) -> None:
 
 
 # ---------------------------------------------------------------- publish
-def _publish(conn: Connection, inst: dict, actor: str, src: str) -> None:
+def _publish(conn: Connection, inst: dict, actor: str, src: str, kind: str = "web_upload") -> None:
     from ..seed.seed import load_laws
     load_laws(conn, [inst])
     conn.execute(text("""
         INSERT INTO law_import_log (kind, source_name, source_sha256, instrument_eli, title_th, provisions, versions,
                                     actor, detail)
-        VALUES ('web_upload', :src, :sha, :eli, :title, :np, :nv, :actor, CAST(:detail AS jsonb))"""), {
-        "src": src, "sha": inst["sourceFiles"][0]["sha256"], "eli": inst["id"], "title": inst["title"],
+        VALUES (:kind, :src, :sha, :eli, :title, :np, :nv, :actor, CAST(:detail AS jsonb))"""), {
+        "kind": kind, "src": src, "sha": inst["sourceFiles"][0]["sha256"], "eli": inst["id"], "title": inst["title"],
         "np": len(inst["provisions"]), "nv": sum(len(p["versions"]) for p in inst["provisions"]), "actor": actor,
         "detail": json.dumps({"origin": inst.get("source"), "source_files": inst["sourceFiles"]}, ensure_ascii=False)})
     for note in inst.get("importNotes", []):
@@ -163,6 +282,23 @@ def _publish(conn: Connection, inst: dict, actor: str, src: str) -> None:
     for f in inst["sourceFiles"]:
         conn.execute(text("""INSERT INTO raw_file_link (sha256, instrument_eli, role) VALUES (:s, :e, :r)
                              ON CONFLICT DO NOTHING"""), {"s": f["sha256"], "e": inst["id"], "r": f["role"]})
+
+
+def _unpublish(conn: Connection, eli: str) -> None:
+    """ลบตัวบทที่เผยแพร่ (ก่อนแทนที่ด้วยฉบับแก้ไข) — ทุกตารางที่อ้างถึงมี FK เป็นลูกโซ่ instrument → provision → version"""
+    conn.execute(text("""DELETE FROM search_chunk WHERE kind = 'provision' AND ref_id IN (
+                           SELECT pv.version_id FROM provision_version pv JOIN provision p USING (provision_id)
+                           JOIN legal_instrument i USING (instrument_id) WHERE i.eli_id = :e)"""), {"e": eli})
+    conn.execute(text("""DELETE FROM legal_relation WHERE version_id IN (
+                           SELECT pv.version_id FROM provision_version pv JOIN provision p USING (provision_id)
+                           JOIN legal_instrument i USING (instrument_id) WHERE i.eli_id = :e)"""), {"e": eli})
+    conn.execute(text("""DELETE FROM provision_version WHERE provision_id IN (
+                           SELECT p.provision_id FROM provision p JOIN legal_instrument i USING (instrument_id)
+                           WHERE i.eli_id = :e)"""), {"e": eli})
+    conn.execute(text("""DELETE FROM provision WHERE instrument_id IN (
+                           SELECT instrument_id FROM legal_instrument WHERE eli_id = :e)"""), {"e": eli})
+    conn.execute(text("DELETE FROM legal_instrument WHERE eli_id = :e"), {"e": eli})
+    conn.execute(text("DELETE FROM law_open_issue WHERE instrument_eli = :e AND kind = 'import_note'"), {"e": eli})
 
 
 def load_approved(conn: Connection) -> int:
@@ -198,7 +334,9 @@ def _after_publish_embedding() -> None:
 @router.get("")
 def list_uploads(user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     require_importer(user)
-    items = [_view(u) for u in rows(conn, "SELECT * FROM law_upload ORDER BY upload_id DESC LIMIT 200")]
+    us = rows(conn, "SELECT * FROM law_upload ORDER BY upload_id DESC LIMIT 200")
+    eds = _editors(conn, [u["upload_id"] for u in us])
+    items = [_view(u, me=user, editors=eds.get(u["upload_id"], [])) for u in us]
     return {"items": items, "doc_types": list(DOC_TYPES), "me": user.user_id}
 
 
@@ -272,7 +410,7 @@ async def upload(file: UploadFile = File(...), doc_type: str = Form(...), classi
 @router.get("/{upload_id}")
 def get_upload(upload_id: int, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     require_importer(user)
-    return _view(_get(conn, upload_id), full=True)
+    return _full(conn, upload_id, user)
 
 
 class ProvisionEdit(BaseModel):
@@ -317,6 +455,9 @@ def edit_draft(upload_id: int, body: DraftEdit, user: User = Depends(current_use
     if body.classification is not None:
         if body.classification not in ("public", "internal"):
             raise HTTPException(400, "ชั้นข้อมูลต้องเป็น public หรือ internal")
+        from ..config import public_data_only
+        if body.classification == "internal" and public_data_only():
+            raise HTTPException(400, "เครื่องนี้ตั้งค่าเก็บเฉพาะข้อมูลสาธารณะ (PUBLIC_DATA_ONLY)")
         d["classification"] = body.classification
     if body.publishedDate is not None:
         d["publishedDate"] = body.publishedDate.isoformat()
@@ -339,11 +480,14 @@ def edit_draft(upload_id: int, body: DraftEdit, user: User = Depends(current_use
                            for p in body.provisions if p.text.strip()]
     for p in d["provisions"]:  # วันใช้บังคับเปลี่ยน → ทุกบทบัญญัติเริ่มมีผลวันเดียวกัน
         p["versions"][0]["validFrom"] = d["effectiveDate"]
+    summary = summarize(diff_drafts(u["draft"], d))
+    if not any(summary.values()):
+        return _full(conn, upload_id, user)   # ไม่มีอะไรเปลี่ยน — ไม่สร้างรุ่นใหม่
     conn.execute(text("""UPDATE law_upload SET draft = CAST(:d AS jsonb), edited_by = :u, edited_at = now()
                          WHERE upload_id = :i"""), {"d": json.dumps(d, ensure_ascii=False), "u": user.user_id, "i": upload_id})
-    audit.record(conn, user, "law.upload.edit", f"law_upload/{upload_id}",
-                 detail={"fields": sorted(k for k, v in body.model_dump(exclude_none=True).items())})
-    return _view(_get(conn, upload_id), full=True)
+    rev = add_revision(conn, upload_id, "edit", d, user.user_id, summary)
+    audit.record(conn, user, "law.upload.edit", f"law_upload/{upload_id}", detail={"rev": rev, **summary})
+    return _full(conn, upload_id, user)
 
 
 class Review(BaseModel):
@@ -354,19 +498,28 @@ class Review(BaseModel):
 def approve(upload_id: int, body: Review, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     require_importer(user)
     u = _get(conn, upload_id)
-    if u["status"] != "draft":
-        raise HTTPException(409, "อนุมัติได้เฉพาะรายการที่เป็นร่าง")
-    if u["uploaded_by"] == user.user_id:
-        raise HTTPException(403, "ผู้อนุมัติต้องไม่ใช่ผู้นำเข้า (หลักสี่ตา)")
+    if u["status"] != "submitted":
+        raise HTTPException(409, "อนุมัติได้เฉพาะรายการที่ส่งตรวจแล้ว")
+    who = participants(u, _editors(conn, [upload_id]).get(upload_id, []))
+    if user.user_id in who:
+        raise HTTPException(403, "ผู้อนุมัติต้องไม่ใช่ผู้นำเข้า ผู้แก้ร่าง หรือผู้ส่งตรวจ (หลักสี่ตา)")
     inst = u["draft"]
     if not inst.get("effectiveDate"):
         raise HTTPException(400, "ระบุวันใช้บังคับก่อนอนุมัติ")
-    if conn.execute(text("SELECT 1 FROM legal_instrument WHERE eli_id = :e"), {"e": inst["id"]}).scalar():
-        raise HTTPException(409, f"มีตราสาร {inst['id']} ในระบบแล้ว")
     from ..search.indexer import reindex_laws, reindex_register
     from . import relations
-    _publish(conn, inst, user.user_id, f"web/upload-{upload_id}")
-    if u["register_id"] is not None:
+    if u["amends_eli"]:
+        if inst["id"] != u["amends_eli"]:
+            raise HTTPException(409, "รหัสตราสารของคำขอแก้ไขไม่ตรงกับฉบับเดิม")
+        _unpublish(conn, inst["id"])
+        _publish(conn, inst, user.user_id, f"web/upload-{upload_id}", kind="web_correction")
+        conn.execute(text("UPDATE law_upload SET status = 'superseded' WHERE upload_id = :o AND status = 'approved'"),
+                     {"o": u["amends_upload"]})
+    elif conn.execute(text("SELECT 1 FROM legal_instrument WHERE eli_id = :e"), {"e": inst["id"]}).scalar():
+        raise HTTPException(409, f"มีตราสาร {inst['id']} ในระบบแล้ว")
+    else:
+        _publish(conn, inst, user.user_id, f"web/upload-{upload_id}")
+    if u["register_id"] is not None and not u["amends_eli"]:
         conn.execute(text("""UPDATE law_register SET instrument_eli = :e
                              WHERE register_id = :r AND instrument_eli IS NULL"""), {"e": inst["id"], "r": u["register_id"]})
         reindex_register(conn)
@@ -375,38 +528,150 @@ def approve(upload_id: int, body: Review, user: User = Depends(current_user), co
     conn.execute(text("""UPDATE law_upload SET status = 'approved', reviewed_by = :u, reviewed_at = now(), review_note = :n
                          WHERE upload_id = :i"""), {"u": user.user_id, "n": body.note, "i": upload_id})
     audit.record(conn, user, "law.upload.approve", f"law_upload/{upload_id}",
-                 detail={"eli": inst["id"], "provisions": len(inst["provisions"]), "uploaded_by": u["uploaded_by"]})
+                 detail={"eli": inst["id"], "provisions": len(inst["provisions"]), "uploaded_by": u["uploaded_by"],
+                         "participants": sorted(who), "correction_of": u["amends_upload"]})
     _after_publish_embedding()
-    return _view(_get(conn, upload_id), full=True)
+    return _full(conn, upload_id, user)
+
+
+@router.post("/{upload_id}/submit")
+def submit(upload_id: int, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    """ส่งร่างให้ผู้อนุมัติ — หลังส่งแล้วแก้ไม่ได้ จนกว่าจะถอนหรือถูกส่งกลับ"""
+    require_importer(user)
+    u = _get(conn, upload_id)
+    if u["status"] != "draft":
+        raise HTTPException(409, "ส่งตรวจได้เฉพาะรายการที่เป็นร่าง")
+    if not u["draft"].get("effectiveDate"):
+        raise HTTPException(400, "ระบุวันใช้บังคับก่อนส่งตรวจ")
+    conn.execute(text("""UPDATE law_upload SET status = 'submitted', submitted_by = :u, submitted_at = now(),
+                         reviewed_by = NULL, reviewed_at = NULL, review_note = NULL WHERE upload_id = :i"""),
+                 {"u": user.user_id, "i": upload_id})
+    rev = conn.execute(text("SELECT max(rev_no) FROM law_upload_revision WHERE upload_id = :i"), {"i": upload_id}).scalar()
+    audit.record(conn, user, "law.upload.submit", f"law_upload/{upload_id}", detail={"rev": rev})
+    return _full(conn, upload_id, user)
+
+
+@router.post("/{upload_id}/withdraw")
+def withdraw(upload_id: int, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    """ผู้ส่งตรวจถอนกลับมาแก้ต่อ (ก่อนมีผู้อนุมัติ)"""
+    require_importer(user)
+    u = _get(conn, upload_id)
+    if u["status"] != "submitted":
+        raise HTTPException(409, "ถอนได้เฉพาะรายการที่ส่งตรวจแล้ว")
+    if user.user_id != u["submitted_by"] and user.role != "ADM":
+        raise HTTPException(403, "ถอนได้เฉพาะผู้ส่งตรวจหรือผู้ดูแล")
+    conn.execute(text("UPDATE law_upload SET status = 'draft' WHERE upload_id = :i"), {"i": upload_id})
+    audit.record(conn, user, "law.upload.withdraw", f"law_upload/{upload_id}")
+    return _full(conn, upload_id, user)
+
+
+@router.post("/{upload_id}/return")
+def return_for_edit(upload_id: int, body: Review, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    """ผู้ตรวจส่งกลับให้แก้ — กลับเป็นร่าง พร้อมหมายเหตุ"""
+    require_importer(user)
+    u = _get(conn, upload_id)
+    if u["status"] != "submitted":
+        raise HTTPException(409, "ส่งกลับแก้ได้เฉพาะรายการที่ส่งตรวจแล้ว")
+    if not (body.note or "").strip():
+        raise HTTPException(400, "ระบุสิ่งที่ต้องแก้")
+    conn.execute(text("""UPDATE law_upload SET status = 'draft', reviewed_by = :u, reviewed_at = now(), review_note = :n
+                         WHERE upload_id = :i"""), {"u": user.user_id, "n": body.note.strip(), "i": upload_id})
+    audit.record(conn, user, "law.upload.return", f"law_upload/{upload_id}", detail={"note": body.note.strip()})
+    return _full(conn, upload_id, user)
 
 
 @router.post("/{upload_id}/reject")
 def reject(upload_id: int, body: Review, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
     require_importer(user)
     u = _get(conn, upload_id)
-    if u["status"] not in ("draft", "failed"):
-        raise HTTPException(409, "ส่งกลับได้เฉพาะรายการที่เป็นร่าง")
+    if u["status"] not in ("draft", "submitted", "failed"):
+        raise HTTPException(409, "ไม่รับได้เฉพาะรายการที่ยังไม่อนุมัติ")
     conn.execute(text("""UPDATE law_upload SET status = 'rejected', reviewed_by = :u, reviewed_at = now(), review_note = :n
                          WHERE upload_id = :i"""), {"u": user.user_id, "n": body.note, "i": upload_id})
     audit.record(conn, user, "law.upload.reject", f"law_upload/{upload_id}", detail={"note": body.note})
-    return _view(_get(conn, upload_id), full=True)
+    return _full(conn, upload_id, user)
 
 
 @router.post("/{upload_id}/reprocess")
 def reprocess(upload_id: int, force_ocr: bool = False, user: User = Depends(current_user),
               conn: Connection = Depends(get_conn)):
-    """ถอดข้อความใหม่ (เช่น บังคับ OCR) — ทับร่างเดิม"""
+    """ถอดข้อความใหม่ (เช่น บังคับ OCR) — ร่างเดิมทุกรุ่นยังอยู่ในประวัติ"""
     require_importer(user)
     u = _get(conn, upload_id)
+    if u["amends_eli"]:
+        raise HTTPException(409, "คำขอแก้ไขตั้งต้นจากฉบับที่เผยแพร่ — ถอดข้อความใหม่ไม่ได้")
     if u["status"] not in ("draft", "failed", "rejected"):
-        raise HTTPException(409, "ถอดใหม่ได้เฉพาะรายการที่ยังไม่อนุมัติ")
+        raise HTTPException(409, "ถอดใหม่ได้เฉพาะร่างที่ยังไม่ส่งตรวจ")
     with get_engine().begin() as c2:
         c2.execute(text("""UPDATE law_upload SET status = 'processing', force_ocr = :o, error = NULL, draft = NULL,
+                           submitted_by = NULL, submitted_at = NULL,
                            reviewed_by = NULL, reviewed_at = NULL, review_note = NULL WHERE upload_id = :i"""),
                    {"o": force_ocr or u["force_ocr"], "i": upload_id})
     audit.record(conn, user, "law.upload.reprocess", f"law_upload/{upload_id}", detail={"force_ocr": force_ocr})
     process_in_background(upload_id)
     return _view(_get(conn, upload_id))
+
+
+@router.get("/{upload_id}/revisions")
+def revisions(upload_id: int, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    require_importer(user)
+    _get(conn, upload_id)
+    items = rows(conn, """SELECT rev_no, kind, actor, summary, created_at FROM law_upload_revision
+                          WHERE upload_id = :i ORDER BY rev_no""", i=upload_id)
+    for r in items:
+        r["created_at"] = r["created_at"].isoformat()
+    return {"items": items}
+
+
+@router.get("/{upload_id}/diff")
+def diff(upload_id: int, base: int | None = Query(default=None, ge=1), head: int | None = Query(default=None, ge=1),
+         user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    """เทียบร่าง 2 รุ่น — ค่าเริ่มต้น: รุ่นตั้งต้นล่าสุด (ผลถอดข้อความหรือฉบับที่เผยแพร่) กับร่างปัจจุบัน"""
+    require_importer(user)
+    u = _get(conn, upload_id)
+
+    def rev(sql: str, **kw) -> dict | None:
+        r = rows(conn, f"SELECT rev_no, kind, actor, created_at, draft FROM law_upload_revision WHERE upload_id = :i {sql}",
+                 i=upload_id, **kw)
+        return r[0] if r else None
+    b = rev("AND rev_no = :n", n=base) if base else rev(f"AND kind IN {BASE_KINDS} ORDER BY rev_no DESC LIMIT 1")
+    h = rev("AND rev_no = :n", n=head) if head else rev("ORDER BY rev_no DESC LIMIT 1")
+    if not b or not h:
+        raise HTTPException(404, "ไม่พบรุ่นของร่างที่ต้องการเทียบ")
+    meta = lambda r: {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in r.items() if k != "draft"}  # noqa: E731
+    d = diff_drafts(b["draft"], h["draft"])
+    return {"base": meta(b), "head": meta(h), **d, "summary": summarize(d), "status": u["status"]}
+
+
+class CorrectionRequest(BaseModel):
+    eli: str = Field(max_length=200)
+
+
+@router.post("/corrections")
+def create_correction(body: CorrectionRequest, user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+    """คำขอแก้ไขตัวบทที่เผยแพร่แล้ว: ตั้งร่างจากฉบับปัจจุบัน → แก้ → ส่งตรวจ → อนุมัติ → แทนที่ฉบับเดิม"""
+    require_importer(user)
+    orig = rows(conn, """SELECT * FROM law_upload WHERE status = 'approved' AND draft->>'id' = :e
+                         ORDER BY upload_id DESC LIMIT 1""", e=body.eli)
+    if not orig:
+        raise HTTPException(409, "ตัวบทนี้ไม่ได้นำเข้าจากหน้าเว็บ (มาจากชุดข้อมูลตั้งต้น) — แก้ที่ไฟล์ต้นทางแล้วนำเข้าใหม่")
+    o = orig[0]
+    if rows(conn, """SELECT upload_id FROM law_upload WHERE amends_eli = :e AND status IN ('draft', 'submitted')""",
+            e=body.eli):
+        raise HTTPException(409, "มีคำขอแก้ไขตัวบทนี้ค้างอยู่แล้ว")
+    draft = dict(o["draft"])
+    draft["importNotes"] = [n for n in draft.get("importNotes", []) if not n.startswith("คำขอแก้ไขโดย")]
+    draft["importNotes"].append(f"คำขอแก้ไขโดย {user.user_id} (แก้จากรายการที่ {o['upload_id']})")
+    uid = conn.execute(text("""
+        INSERT INTO law_upload (sha256, original_name, ext, classification, doc_type, register_id, register_title,
+                                effective_date, status, method, draft, uploaded_by, amends_eli, amends_upload)
+        VALUES (:s, :n, :e, :c, :t, :r, :rt, :d, 'draft', :m, CAST(:dr AS jsonb), :u, :eli, :o) RETURNING upload_id"""),
+        {"s": o["sha256"], "n": o["original_name"], "e": o["ext"], "c": o["classification"], "t": o["doc_type"],
+         "r": o["register_id"], "rt": o["register_title"], "d": o["effective_date"], "m": o["method"],
+         "dr": json.dumps(draft, ensure_ascii=False), "u": user.user_id, "eli": body.eli, "o": o["upload_id"]}).scalar()
+    add_revision(conn, uid, "correction", draft, user.user_id, {"from_upload": o["upload_id"]})
+    audit.record(conn, user, "law.upload.correction", f"law_upload/{uid}", detail={"eli": body.eli, "from_upload": o["upload_id"]})
+    return _full(conn, uid, user)
 
 
 @router.delete("/{upload_id}")
