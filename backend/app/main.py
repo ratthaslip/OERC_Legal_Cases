@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -10,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.engine import Connection
 
 from . import audit
+from .observability import RequestContextMiddleware, request_id_var, setup_logging
 from .appeals.router import router as appeals_router
 from .assistant.router import router as assistant_router
 from .auth import DEMO_USERS, User, current_user
@@ -20,6 +22,9 @@ from .law.router import router as law_router
 from .rawfiles import router as raw_router
 from .admin.router import router as admin_router
 from .law.uploads import router as uploads_router
+
+setup_logging()
+
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -42,7 +47,19 @@ app = FastAPI(title="ERC Legal & Case Platform — POC", version="0.1.0", lifesp
 # production เสิร์ฟหน้าเว็บและ API จากโดเมนเดียวกัน (nginx) → ไม่ต้องเปิด CORS (CORS_ORIGINS ว่าง)
 app.add_middleware(CORSMiddleware, allow_origins=get_settings().cors_origins,
                    allow_methods=["GET", "POST", "PUT", "DELETE"],
-                   allow_headers=["Content-Type", "Authorization", "If-Match", "X-Demo-User"], expose_headers=["X-Request-Id"])
+                   allow_headers=["Content-Type", "Authorization", "If-Match", "X-Demo-User", "X-Request-Id"],
+                   expose_headers=["X-Request-Id"])
+app.add_middleware(RequestContextMiddleware)   # ชั้นนอกสุด: request ID + access log ครอบทุกคำขอ
+
+
+@app.exception_handler(Exception)
+async def unhandled(request: Request, exc: Exception):
+    """ข้อผิดพลาดที่ไม่คาดคิด: บันทึก stack trace ใน log, ผู้ใช้เห็นแค่รหัสคำขอสำหรับแจ้งผู้ดูแล"""
+    rid = request_id_var.get()
+    logging.getLogger("erc.error").exception("unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, media_type="application/problem+json", headers={"X-Request-Id": rid},
+                        content={"status": 500, "code": "INTERNAL_ERROR", "request_id": rid,
+                                 "detail": f"เกิดข้อผิดพลาดในระบบ — แจ้งผู้ดูแลพร้อมรหัสคำขอ {rid}"})
 
 
 @app.exception_handler(HTTPException)

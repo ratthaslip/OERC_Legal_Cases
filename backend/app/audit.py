@@ -1,6 +1,7 @@
 """Audit log แบบ append-only + hash chain (SDD 3.3 ops_db, NFR-AUD)
 
 hash = SHA-256(prev_hash || เนื้อหา canonical JSON) ทำให้แก้หรือลบแถวกลางทางแล้วตรวจพบได้ด้วย verify_chain()
+ฐานข้อมูลห้าม UPDATE / DELETE / TRUNCATE ตารางนี้ (trigger) และทุกเหตุการณ์ถูกส่งสำเนาออกนอกฐานเมื่อ commit (audit_sink)
 """
 import hashlib
 import json
@@ -29,14 +30,16 @@ def record(conn: Connection, user: User, action: str, resource: str, outcome: st
         "occurred_at": occurred_at, "actor_id": user.user_id, "actor_role": user.role,
         "action": action, "resource": resource, "outcome": outcome, "detail": detail or {},
     }
-    conn.execute(
+    digest = _digest(prev, payload)
+    seq = conn.execute(
         text("""INSERT INTO audit_event (occurred_at, actor_id, actor_role, action, resource, outcome, detail,
                                          prev_hash, hash)
                 VALUES (:occurred_at, :actor_id, :actor_role, :action, :resource, :outcome, CAST(:detail AS jsonb),
-                        :prev, :hash)"""),
-        {**payload, "detail": json.dumps(detail or {}, ensure_ascii=False), "prev": prev,
-         "hash": _digest(prev, payload)},
-    )
+                        :prev, :hash) RETURNING seq"""),
+        {**payload, "detail": json.dumps(detail or {}, ensure_ascii=False), "prev": prev, "hash": digest},
+    ).scalar()
+    from .audit_sink import PENDING
+    conn.info.setdefault(PENDING, []).append({"seq": seq, **payload, "prev_hash": prev, "hash": digest})
 
 
 def verify_chain(conn: Connection) -> tuple[bool, int | None]:

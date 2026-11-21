@@ -11,6 +11,8 @@ COLS = """SELECT table_name, column_name, data_type, is_nullable, coalesce(colum
           FROM information_schema.columns WHERE table_schema = 'public' AND table_name <> 'alembic_version'
           ORDER BY 1, 2"""
 IDX = "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' ORDER BY 1"
+TRG = """SELECT event_object_table, trigger_name, event_manipulation, action_timing FROM information_schema.triggers
+         WHERE trigger_schema = 'public' ORDER BY 1, 2, 3"""
 
 
 @pytest.fixture()
@@ -35,7 +37,7 @@ def two_dbs():
 
 def _shape(engine):
     with engine.connect() as c:
-        return [tuple(r) for r in c.execute(text(COLS))], [tuple(r) for r in c.execute(text(IDX))]
+        return tuple([tuple(r) for r in c.execute(text(q))] for q in (COLS, IDX, TRG))
 
 
 def test_migrations_match_schema_sql(two_dbs):
