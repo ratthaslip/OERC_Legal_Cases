@@ -64,6 +64,12 @@ def _upload(client, headers=LGL1, **form):
                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document")})
 
 
+def _submit(client, uid, headers=LGL1):
+    r = client.post(f"/api/v1/laws/uploads/{uid}/submit", headers=headers)
+    assert r.status_code == 200 and r.json()["status"] == "submitted", r.text
+    return r
+
+
 def test_only_lgl_and_adm(client):
     for u in ("pub", "stf1", "dir1"):
         h = {"X-Demo-User": u}
@@ -122,6 +128,10 @@ def test_upload_edit_approve_search_and_survive_seed(client):
     e = client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL1, json={"code": "ประกาศทดสอบเว็บ", "provisions": provs})
     assert e.status_code == 200 and e.json()["draft"]["code"] == "ประกาศทดสอบเว็บ"
 
+    # ยังไม่ส่งตรวจ → อนุมัติไม่ได้; ส่งตรวจแล้วแก้ไม่ได้
+    assert client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL2, json={}).status_code == 409
+    _submit(client, uid)
+    assert client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL1, json={"code": "y"}).status_code == 409
     # หลักสี่ตา: ผู้นำเข้าอนุมัติเองไม่ได้
     assert client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL1, json={}).status_code == 403
     a = client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL2, json={"note": "ตรวจแล้ว"})
@@ -150,6 +160,7 @@ def test_upload_edit_approve_search_and_survive_seed(client):
 
 def test_internal_upload_hidden_from_public(client):
     uid = _upload(client, classification="internal", effective_date="2026-03-02").json()["upload_id"]
+    _submit(client, uid)
     client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=ADM, json={})
     q = {"q": UNIQUE}
     pub = client.get("/api/v1/laws/search", params=q, headers={"X-Demo-User": "pub"}).json()["items"]
@@ -178,6 +189,7 @@ def test_register_link(client):
     uid = _upload(client, register_id=str(rid)).json()["upload_id"]
     d = client.get(f"/api/v1/laws/uploads/{uid}", headers=LGL1).json()["draft"]
     assert d["effectiveDate"] == "2026-04-01" and d["registerTitle"].endswith("(ทะเบียน)")
+    _submit(client, uid)
     eli = client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=ADM, json={}).json()["eli_id"]
     with get_engine().connect() as conn:
         assert conn.execute(text("SELECT instrument_eli FROM law_register WHERE register_id = :r"), {"r": rid}).scalar() == eli
@@ -223,7 +235,124 @@ def test_no_date_at_all(client, monkeypatch):
     uid = _upload(client).json()["upload_id"]
     v = client.get(f"/api/v1/laws/uploads/{uid}", headers=LGL1).json()
     assert v["status"] == "draft" and v["draft"]["effectiveDate"] is None and "ระบุก่อนอนุมัติ" in v["notes"][0]
-    assert client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL2, json={}).status_code == 400
+    assert client.post(f"/api/v1/laws/uploads/{uid}/submit", headers=LGL1).status_code == 400
     v = client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL1, json={"effectiveDate": "2026-05-01"}).json()
     assert v["draft"]["provisions"][0]["versions"][0]["validFrom"] == "2026-05-01"
+    _submit(client, uid)
     assert client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL2, json={}).status_code == 200
+
+
+def _provs(d):
+    return [{"number": p["number"], "part": p["part"], "text": p["versions"][0]["text"]} for p in d["provisions"]]
+
+
+def test_revisions_and_diff_show_what_changed(client):
+    uid = _upload(client, effective_date="2026-03-02").json()["upload_id"]
+    d = client.get(f"/api/v1/laws/uploads/{uid}", headers=LGL1).json()["draft"]
+    provs = _provs(d)
+    provs[2]["text"] = provs[2]["text"].replace("สามสิบวัน", "สิบห้าวัน")
+    provs.append({"number": "ข้อ 4", "part": None, "text": "ให้ประธานกรรมการรักษาการตามประกาศนี้"})
+    client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL1, json={"provisions": provs})
+    # บันทึกโดยไม่เปลี่ยนอะไร → ไม่สร้างรุ่นใหม่
+    client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL1, json={"provisions": provs})
+    client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL2, json={"code": "ชื่อย่อที่ lgl2 แก้"})
+
+    revs = client.get(f"/api/v1/laws/uploads/{uid}/revisions", headers=LGL1).json()["items"]
+    assert [(r["rev_no"], r["kind"], r["actor"]) for r in revs] == [(1, "extract", "system"), (2, "edit", "lgl1"),
+                                                                    (3, "edit", "lgl2")]
+    assert revs[1]["summary"]["changed"] == ["ข้อ 3"] and revs[1]["summary"]["added"] == ["ข้อ 4"]
+
+    df = client.get(f"/api/v1/laws/uploads/{uid}/diff", headers=LGL1).json()   # ผลถอดข้อความ → ร่างล่าสุด
+    assert df["base"]["rev_no"] == 1 and df["head"]["rev_no"] == 3
+    assert [f["field"] for f in df["fields"]] == ["code"]
+    ch = {p["key"]: p for p in df["provisions"]}
+    assert set(ch) == {"ข้อ 3", "ข้อ 4"} and ch["ข้อ 4"]["change"] == "added"
+    segs = ch["ข้อ 3"]["segments"]
+    assert "".join(x["text"] for x in segs if x["op"] != "ins") == d["provisions"][2]["versions"][0]["text"]
+    assert any(x["op"] == "del" and "สาม" in x["text"] for x in segs) and any(x["op"] == "ins" and "ห้า" in x["text"] for x in segs)
+    one = client.get(f"/api/v1/laws/uploads/{uid}/diff", params={"base": 2, "head": 3}, headers=LGL1).json()
+    assert one["provisions"] == [] and one["summary"]["fields"] == ["code"]
+
+    # ประวัติแก้/ลบไม่ได้
+    import sqlalchemy.exc
+    from sqlalchemy import text
+
+    from app.db import get_engine
+    with pytest.raises(sqlalchemy.exc.DBAPIError), get_engine().begin() as conn:
+        conn.execute(text("UPDATE law_upload_revision SET actor = 'x' WHERE upload_id = :i"), {"i": uid})
+    with pytest.raises(sqlalchemy.exc.DBAPIError), get_engine().begin() as conn:
+        conn.execute(text("DELETE FROM law_upload_revision WHERE upload_id = :i"), {"i": uid})
+
+
+def test_editor_and_submitter_cannot_approve(client):
+    uid = _upload(client, effective_date="2026-03-02").json()["upload_id"]
+    client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL2, json={"code": "แก้โดย lgl2"})
+    _submit(client, uid)
+    v = client.get(f"/api/v1/laws/uploads/{uid}", headers=LGL2).json()
+    assert v["editors"] == ["lgl2"] and v["can_approve"] is False
+    r = client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL2, json={})
+    assert r.status_code == 403 and "ผู้แก้ร่าง" in r.json()["detail"]
+    assert client.get(f"/api/v1/laws/uploads/{uid}", headers=ADM).json()["can_approve"] is True
+    assert client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=ADM, json={}).status_code == 200
+
+
+def test_return_withdraw_and_reprocess_keep_history(client):
+    uid = _upload(client, effective_date="2026-03-02").json()["upload_id"]
+    client.put(f"/api/v1/laws/uploads/{uid}", headers=LGL1, json={"code": "รุ่นที่แก้"})
+    _submit(client, uid)
+    assert client.post(f"/api/v1/laws/uploads/{uid}/withdraw", headers=LGL2).status_code == 403
+    assert client.post(f"/api/v1/laws/uploads/{uid}/withdraw", headers=LGL1).json()["status"] == "draft"
+    _submit(client, uid)
+    assert client.post(f"/api/v1/laws/uploads/{uid}/return", headers=LGL2, json={}).status_code == 400
+    v = client.post(f"/api/v1/laws/uploads/{uid}/return", headers=LGL2, json={"note": "ข้อ 3 ตกคำว่า ภายใน"}).json()
+    assert v["status"] == "draft" and v["review_note"].startswith("ข้อ 3") and v["reviewed_by"] == "lgl2"
+    client.post(f"/api/v1/laws/uploads/{uid}/reprocess", headers=LGL1)
+    kinds = [r["kind"] for r in client.get(f"/api/v1/laws/uploads/{uid}/revisions", headers=LGL1).json()["items"]]
+    assert kinds == ["extract", "edit", "reprocess"]   # ร่างที่แก้ไว้ยังอยู่ในประวัติ
+    df = client.get(f"/api/v1/laws/uploads/{uid}/diff", headers=LGL1).json()
+    assert df["base"]["kind"] == "reprocess" and df["provisions"] == [] and df["fields"] == []
+
+
+def test_correction_of_published_instrument(client):
+    from sqlalchemy import text
+
+    from app.db import get_engine
+    uid = _upload(client, effective_date="2026-03-02").json()["upload_id"]
+    _submit(client, uid)
+    eli = client.post(f"/api/v1/laws/uploads/{uid}/approve", headers=LGL2, json={}).json()["eli_id"]
+
+    # ตัวบทจากชุดข้อมูลตั้งต้นขอแก้ทางเว็บไม่ได้
+    with get_engine().connect() as conn:
+        seeded = conn.execute(text("SELECT eli_id FROM legal_instrument WHERE eli_id <> :e LIMIT 1"), {"e": eli}).scalar()
+    assert client.post("/api/v1/laws/uploads/corrections", headers=LGL1, json={"eli": seeded}).status_code == 409
+
+    c = client.post("/api/v1/laws/uploads/corrections", headers=ADM, json={"eli": eli})
+    assert c.status_code == 200, c.text
+    cid = c.json()["upload_id"]
+    assert c.json()["amends_eli"] == eli and c.json()["status"] == "draft"
+    assert client.post("/api/v1/laws/uploads/corrections", headers=LGL1, json={"eli": eli}).status_code == 409  # ค้างอยู่แล้ว
+    assert client.post(f"/api/v1/laws/uploads/{cid}/reprocess", headers=ADM).status_code == 409
+
+    provs = _provs(c.json()["draft"])
+    provs[2]["text"] = provs[2]["text"].replace(UNIQUE, "ทดสอบคำแก้ไขหลังเผยแพร่")
+    client.put(f"/api/v1/laws/uploads/{cid}", headers=ADM, json={"provisions": provs})
+    df = client.get(f"/api/v1/laws/uploads/{cid}/diff", headers=ADM).json()
+    assert df["base"]["kind"] == "correction" and [p["key"] for p in df["provisions"]] == ["ข้อ 3"]
+    _submit(client, cid, headers=ADM)
+    assert client.post(f"/api/v1/laws/uploads/{cid}/approve", headers=ADM, json={}).status_code == 403
+    a = client.post(f"/api/v1/laws/uploads/{cid}/approve", headers=LGL1, json={})
+    assert a.status_code == 200 and a.json()["status"] == "approved"
+    assert client.get(f"/api/v1/laws/uploads/{uid}", headers=LGL1).json()["status"] == "superseded"
+
+    def body():
+        with get_engine().connect() as conn:
+            return conn.execute(text("""SELECT pv.body_text FROM provision_version pv JOIN provision p USING (provision_id)
+                                        WHERE p.eli_id = :p"""), {"p": f"{eli}/clause-3"}).scalars().all()
+    assert len(body()) == 1 and "ทดสอบคำแก้ไขหลังเผยแพร่" in body()[0]
+    items = client.get("/api/v1/laws/search", params={"q": "ทดสอบคำแก้ไขหลังเผยแพร่"}, headers=LGL1).json()["items"]
+    assert items and items[0]["eli_id"].startswith(eli)
+
+    from app.seed import seed   # seed ใหม่ → ใช้ฉบับแก้ไข ไม่ใช่ฉบับเดิม
+    with get_engine().begin() as conn:
+        seed.run(conn)
+    assert len(body()) == 1 and "ทดสอบคำแก้ไขหลังเผยแพร่" in body()[0]
