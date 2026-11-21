@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { api } from '../../api.js';
 import { ErrorBox, todayIso } from '../../components/ui.jsx';

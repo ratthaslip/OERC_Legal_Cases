@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, Gavel, Mail, Plus, Search, Timer, UserCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, FileText, Gavel, Mail, Plus, Search, Timer, UserCheck } from 'lucide-react';
 import { api } from '../api.js';
 import { Card, ClassBadge, ErrorBox, inputCls, Label, LockedPanel, OmittedNote, Spinner, thDate, useDebounced, DemoBadge } from '../components/ui.jsx';
 import AppealDetail from './appeals/AppealDetail.jsx';
@@ -23,6 +23,7 @@ export default function AppealsPage({ me, go, notify, route, switchUser }) {
       setSelected(route.id);
       setFilters((f) => ({ ...f, status: '' }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำงานเฉพาะเมื่อมีการนำทางเข้ามาใหม่ (route.nonce) ไม่ใช่ทุกครั้งที่ route เปลี่ยน
   }, [route.nonce]);
 
   const loadList = () =>
@@ -36,6 +37,7 @@ export default function AppealsPage({ me, go, notify, route, switchUser }) {
 
   useEffect(() => {
     if (me.role !== 'PUB') loadList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดใหม่เมื่อคำค้นหรือตัวกรองเปลี่ยนเท่านั้น (ผู้ใช้คงที่ต่อหน้า)
   }, [q, filters.sector, filters.status, filters.case_type, filters.attention, filters.step, filters.mine]);
 
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function AppealsPage({ me, go, notify, route, switchUser }) {
     setDetail(null);
     setActionError(null);
     api.appeal(selected).then(setDetail).catch((e) => setError(e.status === 404 ? new Error('ไม่พบเรื่องนี้ หรือคุณไม่มีสิทธิ์เข้าถึง') : e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดรายละเอียดเมื่อเปลี่ยนเรื่องที่เลือกเท่านั้น (ผู้ใช้คงที่ต่อหน้า — หน้าโหลดใหม่เมื่อสลับผู้ใช้)
   }, [selected]);
 
   if (me.role === 'PUB')

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ImportPage from './ImportPage.jsx';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, GitBranch, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
@@ -27,6 +27,7 @@ function ProvisionView({ me, go, notify, route }) {
     if (route.eli) setEli(route.eli);
     if (route.asOf) setAsOf(route.asOf);
     setFrag(route.frag || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำงานเฉพาะเมื่อมีการนำทางเข้ามาใหม่ (route.nonce) ไม่ใช่ทุกครั้งที่ route เปลี่ยน
   }, [route.nonce]);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ function ProvisionView({ me, go, notify, route }) {
       setInstruments(r.items);
       if (!categories.length) setCategories(r.categories);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- รายการหมวดโหลดครั้งแรกครั้งเดียว ไม่ต้องโหลดใหม่เมื่อเปลี่ยนหมวด
   }, [category]);
 
   useEffect(() => {
@@ -498,6 +500,7 @@ export default function LawPage(props) {
   const [count, setCount] = useState(null);
   useEffect(() => {
     if (route.tab || route.reg) setTab(route.tab || 'register');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำงานเฉพาะเมื่อมีการนำทางเข้ามาใหม่ (route.nonce) ไม่ใช่ทุกครั้งที่ route เปลี่ยน
   }, [route.nonce]);
   useEffect(() => {
     api.register({ limit: 1 }).then((r) => setCount(r.facets?.meta?.total || 0)).catch(() => setCount(0));

@@ -1,7 +1,8 @@
 # ตรวจทุก PR และทุกครั้งที่ merge เข้า main:
 #   1) เทสต์ backend ทั้งหมด (pytest กับ PostgreSQL จริง)
 #   2) ชุดคำถามทดสอบ (golden set) — ล้มเหลวถ้าข้อที่เคยผ่านใน eval/baseline.json กลับไม่ผ่าน
-#   3) build หน้าเว็บ
+#   3) หน้าเว็บ: npm audit, eslint, เทสต์หน่วย (vitest), build
+#   4) end-to-end (Playwright) กับ API และฐานข้อมูลจริงที่ seed ข้อมูลสาธิต
 # ไม่ใช้ทะเบียนจริงของสำนักงาน (ข้อมูลภายใน) — eval รันโหมด public ข้ามข้อที่ต้องใช้ทะเบียน
 # ไม่เรียก LLM/embedding ภายนอก (LLM_PROVIDER=extractive, EMBED_PROVIDER=hash)
 name: ci
@@ -70,13 +71,69 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - name: dependency vulnerabilities (npm audit, production deps)
-        run: npm audit --omit=dev --audit-level=high
+      - name: dependency vulnerabilities (npm audit, all deps)
+        run: npm audit --audit-level=high
+      - name: lint (eslint)
+        run: npm run lint
+      - name: unit tests (vitest)
+        run: npm test
       - run: npm run build
+
+  # เทสต์ end-to-end: หน้าเว็บจริง + API จริง + ฐานข้อมูลที่ seed ข้อมูลสาธิตและตัวบทสาธารณะ (Playwright, Chromium)
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: erc
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/erc
+      RAW_STORE_DIR: /tmp/rawstore
+      LLM_PROVIDER: extractive
+      EMBED_PROVIDER: hash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: backend (seed + start API)
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          python -m app.seed.seed
+          nohup python -m uvicorn app.main:app --port 8000 > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS localhost:8000/api/v1/health && break; sleep 2; done
+      - name: frontend deps + browser
+        working-directory: frontend
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: e2e (playwright)
+        working-directory: frontend
+        run: npm run e2e
+      - name: API log on failure
+        if: failure()
+        run: tail -100 /tmp/api.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
 
   # ชุดติดตั้งระบบจริง (docker-compose.prod.yml): build image, เปิดบริการ, ตรวจ health / header / ผู้ใช้ไม่ใช่ root
   production-stack:

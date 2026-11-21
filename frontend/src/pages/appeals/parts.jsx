@@ -1,4 +1,3 @@
-import React from 'react';
 import { thDate } from '../../components/ui.jsx';
 
 export const CASE_TYPE = { APPEAL: 'อุทธรณ์', COMPLAINT: 'เรื่องร้องเรียน' };

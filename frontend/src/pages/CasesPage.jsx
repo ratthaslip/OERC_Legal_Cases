@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeftRight, CheckCircle2, FileSpreadsheet, Lock, Pencil, Plus, Search } from 'lucide-react';
 import { api } from '../api.js';
 import { Card, ClassBadge, ErrorBox, inputCls, Label, LockedPanel, OmittedNote, Spinner, thDate, useDebounced, DemoBadge } from '../components/ui.jsx';
@@ -21,11 +21,13 @@ export default function CasesPage({ me, go, route, switchUser, notify }) {
 
   useEffect(() => {
     if (me.role !== 'PUB') api.caseFormOptions().then(setOpts).catch(() => setOpts(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดครั้งเดียวตอนเปิดหน้า (ผู้ใช้คงที่ต่อหน้า)
   }, []);
   const reload = () => api.courtCase(selected).then((d) => { setDetail(d); setVersion((n) => n + 1); }).catch(setError);
 
   useEffect(() => {
     if (route.id) setSelected(route.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ทำงานเฉพาะเมื่อมีการนำทางเข้ามาใหม่ (route.nonce) ไม่ใช่ทุกครั้งที่ route เปลี่ยน
   }, [route.nonce]);
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function CasesPage({ me, go, route, switchUser, notify }) {
         if (!selected && r.items.length) setSelected(r.items[0].case_id);
       })
       .catch(setError);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดใหม่เมื่อคำค้นหรือตัวกรองเปลี่ยนเท่านั้น (ผู้ใช้คงที่ต่อหน้า)
   }, [q, filters.court_level, filters.sector, listNonce]);
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function CasesPage({ me, go, route, switchUser, notify }) {
     setDetail(null);
     setError(null);
     api.courtCase(selected).then(setDetail).catch((e) => setError(e.status === 404 ? new Error('ไม่พบสำนวนคดีนี้ หรือคุณไม่มีสิทธิ์เข้าถึง') : e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- โหลดรายละเอียดเมื่อเปลี่ยนเรื่องที่เลือกเท่านั้น (ผู้ใช้คงที่ต่อหน้า — หน้าโหลดใหม่เมื่อสลับผู้ใช้)
   }, [selected]);
 
   if (me.role === 'PUB')
@@ -57,7 +61,7 @@ export default function CasesPage({ me, go, route, switchUser, notify }) {
     if (cid === selected) reload(); else setSelected(cid);
   };
 
-  if (mode === 'import' && opts) return <CaseImport me={me} opts={opts} notify={notify} onClose={() => { setMode('view'); setListNonce((n) => n + 1); }} />;
+  if (mode === 'import' && opts) return <CaseImport opts={opts} notify={notify} onClose={() => { setMode('view'); setListNonce((n) => n + 1); }} />;
   if (mode === 'new' && opts) return <CaseForm opts={opts} initial={null} onSaved={saved} onCancel={() => setMode('view')} />;
   if (mode === 'edit' && opts && k) return <CaseForm opts={opts} initial={k} onSaved={saved} onCancel={() => setMode('view')} />;
 

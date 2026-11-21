@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BookOpen, CheckCircle2, Gavel, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
 import { api, setApiUser } from './api.js';
 import LawPage from './pages/LawPage.jsx';
@@ -69,7 +69,7 @@ export default function App() {
     setApiUser(userId);
     try {
       localStorage.setItem('erc.user', userId);
-    } catch {}
+    } catch { /* เบราว์เซอร์ปิด storage — ไม่จำผู้ใช้ */ }
     api.me().then((m) => {
       setMe(m);
       setUsers(m.demo_users);
@@ -83,7 +83,7 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('erc.page', route.page);
-    } catch {}
+    } catch { /* เบราว์เซอร์ปิด storage — ไม่จำหน้า */ }
   }, [route.page]);
 
   const notify = useCallback((msg) => {

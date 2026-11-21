@@ -42,9 +42,9 @@ export function Proceedings({ caseId, items, canEdit, onChange }) {
       </div>
       {canEdit && (
         <div className="mt-2.5 p-3 rounded-xl border border-dashed border-slate-300 grid md:grid-cols-12 gap-2 items-end">
-          <div className="md:col-span-3"><Label>วันที่</Label><input type="date" className={inputCls} value={f.proceeding_date} onChange={(e) => setF({ ...f, proceeding_date: e.target.value })} /></div>
-          <div className="md:col-span-4"><Label>รายการ</Label><input className={inputCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="ยื่นคำให้การ / นัดนั่งพิจารณา" /></div>
-          <div className="md:col-span-4"><Label>รายละเอียด</Label><input className={inputCls} value={f.detail} onChange={(e) => setF({ ...f, detail: e.target.value })} /></div>
+          <div className="md:col-span-3"><Label htmlFor="proc-proceeding_date">วันที่</Label><input id="proc-proceeding_date" type="date" className={inputCls} value={f.proceeding_date} onChange={(e) => setF({ ...f, proceeding_date: e.target.value })} /></div>
+          <div className="md:col-span-4"><Label htmlFor="proc-title">รายการ</Label><input id="proc-title" className={inputCls} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="ยื่นคำให้การ / นัดนั่งพิจารณา" /></div>
+          <div className="md:col-span-4"><Label htmlFor="proc-detail">รายละเอียด</Label><input id="proc-detail" className={inputCls} value={f.detail} onChange={(e) => setF({ ...f, detail: e.target.value })} /></div>
           <button onClick={add} disabled={busy || !f.proceeding_date || f.title.trim().length < 2}
             className="md:col-span-1 h-10 rounded-lg bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-50">
             <Plus className="w-4 h-4" /> เพิ่ม
@@ -70,6 +70,7 @@ export function Documents({ caseId, items, canEdit, docTypes, onChange }) {
     clearTimeout(timer.current);
     if (items.some((d) => d.status === 'processing')) timer.current = setTimeout(onChange, 3000);
     return () => clearTimeout(timer.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ตั้งเวลาโหลดซ้ำจากสถานะเอกสารล่าสุดเท่านั้น
   }, [items]);
   const doc = items[Math.min(idx, items.length - 1)];
   const run = async (fn) => { setError(null); try { await fn(); onChange(); } catch (e) { setError(e); } };
