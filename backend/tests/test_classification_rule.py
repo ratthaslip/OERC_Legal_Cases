@@ -43,7 +43,7 @@ def test_rule_examples(title, reg, internal):
 def test_public_title_with_internal_word_gets_review_note():
     paras = ["ระเบียบคณะกรรมการกำกับกิจการพลังงาน", "ว่าด้วยการพัสดุของกองทุนพัฒนาไฟฟ้า พ.ศ. 2555",
              "ข้อ 1 ระเบียบนี้เรียกว่า ระเบียบทดสอบ", "ข้อ 2 ให้ใช้บังคับตั้งแต่วันถัดจากวันประกาศ"]
-    inst, why, warn = docparse.build_instrument(
+    inst, _why, warn = docparse.build_instrument(
         paras, doc_type="ระเบียบ", reg_title="ระเบียบ กกพ. ว่าด้วยการพัสดุของกองทุนพัฒนาไฟฟ้า", key="t-fund",
         effective_date="2012-01-01", gaz=None, pub=None, ocr=False, ext=".docx", short="ทดสอบ", source_default="x")
     assert inst and "classification" not in inst and inst["category"] == "กองทุนพัฒนาไฟฟ้า"
