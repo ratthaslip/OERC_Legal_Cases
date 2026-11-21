@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { BookOpen, CheckCircle2, FileUp, Gavel, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
+import { BookOpen, CheckCircle2, Gavel, Scale, Settings, Shield, Sparkles, Timer, UserCheck } from 'lucide-react';
 import { api, setApiUser } from './api.js';
 import LawPage from './pages/LawPage.jsx';
 import AppealsPage from './pages/AppealsPage.jsx';
 import CasesPage from './pages/CasesPage.jsx';
 import AssistantPage from './pages/AssistantPage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
-import ImportPage from './pages/ImportPage.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const CLEARANCE = {
@@ -22,7 +21,6 @@ const NAV = [
   { key: 'appeal', label: 'สืบค้นและติดตามงานอุทธรณ์', icon: Timer, badge: 'SLA', internal: true },
   { key: 'court', label: 'สืบค้นงานคดี', icon: Gavel, internal: true },
   { key: 'assistant', label: 'ระบบช่วยค้นคว้าอัจฉริยะ', icon: Sparkles, dot: true },
-  { key: 'import', label: 'นำเข้าเอกสาร', icon: FileUp, roles: ['LGL', 'ADM'] },
   { key: 'admin', label: 'ตั้งค่าระบบ', icon: Settings, roles: ['ADM'] }
 ];
 
@@ -56,7 +54,11 @@ export default function App() {
   const [userId, setUserId] = useState(() => loadSaved('erc.user', 'lgl1'));
   const [users, setUsers] = useState([]);
   const [me, setMe] = useState(null);
-  const [route, setRoute] = useState({ page: loadSaved('erc.page', 'law') });
+  // หน้า "นำเข้าเอกสาร" ย้ายไปเป็นแท็บในสืบค้นกฎหมาย — หน้าที่บันทึกไว้แบบเดิมเปิดแท็บนั้นแทน
+  const [route, setRoute] = useState(() => {
+    const saved = loadSaved('erc.page', 'law');
+    return saved === 'import' ? { page: 'law', tab: 'import' } : { page: saved };
+  });
   const [toast, setToast] = useState(null);
   const [assistantOn, setAssistantOn] = useState(true);
   const [llm, setLlm] = useState(null);
@@ -205,7 +207,6 @@ export default function App() {
           {me && page === 'court' && <CasesPage key={k} {...pageProps} />}
           {me && page === 'assistant' && <AssistantPage key={k} {...pageProps} enabled={assistantOn} llm={llm} />}
           {me && page === 'admin' && me.role === 'ADM' && <AdminPage key={k} {...pageProps} />}
-          {me && page === 'import' && ['LGL', 'ADM'].includes(me.role) && <ImportPage key={k} {...pageProps} />}
         </ErrorBoundary>
       </main>
 

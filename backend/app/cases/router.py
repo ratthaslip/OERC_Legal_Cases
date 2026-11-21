@@ -36,7 +36,8 @@ def list_cases(q: str | None = Query(default=None, max_length=Q_MAX), court_leve
         omitted = res.restricted_omitted
     levels = [r["court_level"] for r in rows(conn, "SELECT DISTINCT court_level FROM court_case ORDER BY 1")]
     sectors = [r["energy_sector"] for r in rows(conn, "SELECT DISTINCT energy_sector FROM court_case ORDER BY 1")]
-    return {"items": base, "restricted_omitted": omitted, "court_levels": levels, "sectors": sectors}
+    return {"items": base, "restricted_omitted": omitted, "court_levels": levels, "sectors": sectors,
+            "can_create": user.role in ("LGL", "DIR")}
 
 
 @router.get("/{case_id}")
@@ -57,14 +58,17 @@ def get_case(case_id: int, user: User = Depends(current_user), conn: Connection 
         if not authz.can_read_case(user, k["origin_classification"], a_owners):
             k["appeal_id"], k["origin_appeal_no"] = None, None
     k.pop("origin_classification", None)
-    proceedings = rows(conn, """SELECT proceeding_date, title, detail FROM court_proceeding
-                                WHERE case_id = :i ORDER BY proceeding_date""", i=case_id)
-    docs = rows(conn, """SELECT document_id, doc_no, doc_type, doc_date, pages, excerpt FROM case_document
-                         WHERE owner_type = 'court_case' AND owner_id = :i ORDER BY doc_date""", i=case_id)
+    proceedings = rows(conn, """SELECT proceeding_id, proceeding_date, title, detail FROM court_proceeding
+                                WHERE case_id = :i ORDER BY proceeding_date, proceeding_id""", i=case_id)
+    docs = rows(conn, """SELECT document_id, doc_no, doc_type, doc_date, pages, excerpt, original_name, status, method,
+                                error, added_by, (sha256 IS NOT NULL) AS has_file
+                         FROM case_document WHERE owner_type = 'court_case' AND owner_id = :i
+                         ORDER BY doc_date NULLS LAST, document_id""", i=case_id)
     cits = rows(conn, """SELECT cited_eli_id, cited_version_no, note, state FROM citation_link
                          WHERE owner_type = 'court_case' AND owner_id = :i""", i=case_id)
     labels = provision_labels(conn, [c["cited_eli_id"] for c in cits])
     for c in cits:
         c["label"] = labels.get(c["cited_eli_id"], {}).get("label", c["cited_eli_id"])
     audit.record(conn, user, "court_case.view", f"court_case/{case_id}", detail={"classification": k["classification"]})
-    return {"case": {**k, "owners": owners}, "proceedings": proceedings, "documents": docs, "citations": cits}
+    return {"case": {**k, "owners": owners}, "proceedings": proceedings, "documents": docs, "citations": cits,
+            "can_edit": authz.can_edit_workflow(user, owners)}
