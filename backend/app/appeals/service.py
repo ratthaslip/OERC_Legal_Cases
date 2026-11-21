@@ -148,7 +148,7 @@ def _complete(steps: list[Step], step_no: int, **kw):
     try:
         return complete(steps, step_no, **kw)
     except WorkflowError as e:
-        raise ServiceError("WORKFLOW_INVALID_STEP", str(e))
+        raise ServiceError("WORKFLOW_INVALID_STEP", str(e)) from e
 
 
 def screen_result(a: dict, checks: dict) -> dict:
@@ -326,7 +326,7 @@ def revert_step(conn: Connection, actor: str, appeal_id: int, reason: str, on_da
     try:
         new, back = revert(load_steps(conn, appeal_id))
     except WorkflowError as e:
-        raise ServiceError("WORKFLOW_INVALID_STEP", str(e))
+        raise ServiceError("WORKFLOW_INVALID_STEP", str(e)) from e
     if back == 1:
         raise ServiceError("WORKFLOW_INVALID_STEP", "ย้อนกลับไปขั้นรับเรื่องไม่ได้ ให้ ผอ.คบ. มอบหมายใหม่แทน")
     drop = [c for c, n in MS_STEP.items() if n >= back]

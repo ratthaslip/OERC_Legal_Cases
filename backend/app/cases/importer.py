@@ -211,7 +211,7 @@ async def upload(file: UploadFile = File(...), user: User = Depends(current_user
     from openpyxl import load_workbook
     try:
         wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise HTTPException(400, detail={"code": "VALIDATION_FAILED", "detail": "เปิดไฟล์ Excel ไม่ได้"}) from e
     if CASE_SHEET not in wb.sheetnames:
         raise HTTPException(400, detail={"code": "VALIDATION_FAILED", "detail": f"ไม่พบชีต '{CASE_SHEET}' — ใช้แม่แบบของระบบ"})

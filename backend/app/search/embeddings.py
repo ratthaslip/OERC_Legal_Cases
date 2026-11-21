@@ -6,6 +6,7 @@
 """
 import hashlib
 import math
+from itertools import pairwise
 
 import httpx
 
@@ -16,7 +17,7 @@ from .thai import tokenize
 def _hash_embed(text: str, dim: int) -> list[float]:
     vec = [0.0] * dim
     toks = tokenize(text)
-    grams = toks + [a + "_" + b for a, b in zip(toks, toks[1:])]
+    grams = toks + [a + "_" + b for a, b in pairwise(toks)]
     for g in grams:
         h = int.from_bytes(hashlib.blake2b(g.encode(), digest_size=8).digest(), "big")
         vec[h % dim] += 1.0 if (h >> 63) == 0 else -1.0

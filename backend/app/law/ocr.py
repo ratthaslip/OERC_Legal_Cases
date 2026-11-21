@@ -126,7 +126,7 @@ FALLBACK_DPI = 150
 
 
 def pdf_page_count(pdf: str) -> int:
-    out = subprocess.run(["pdfinfo", pdf], capture_output=True, text=True, timeout=60).stdout
+    out = subprocess.run(["pdfinfo", pdf], check=False, capture_output=True, text=True, timeout=60).stdout
     m = re.search(r"^Pages:\s+(\d+)", out, flags=re.M)
     return int(m.group(1)) if m else 0
 
@@ -134,7 +134,7 @@ def pdf_page_count(pdf: str) -> int:
 def _render_page(pdf: str, n: int, base: str, dpi: int, gray: bool) -> Path | None:
     cmd = ["pdftoppm", "-r", str(dpi), "-f", str(n), "-l", str(n), "-singlefile", "-png"] + (["-gray"] if gray else [])
     try:
-        subprocess.run(cmd + [pdf, base], check=True, capture_output=True, timeout=PAGE_TIMEOUT)
+        subprocess.run([*cmd, pdf, base], check=True, capture_output=True, timeout=PAGE_TIMEOUT)
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
         return None
     img = Path(base + ".png")
@@ -175,7 +175,9 @@ def _akson_conv():
             try:
                 import aksonocr_lite
             except ImportError as e:
-                raise OcrUnavailable("ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip) — หรือใช้ OCR_ENGINE=tesseract") from e
+                raise OcrUnavailable(
+                    "ยังไม่ได้ติดตั้ง AksonOCR-Lite (pip install https://github.com/Remtir/AksonOCR-Lite/archive/refs/heads/main.zip)"
+                    " — หรือใช้ OCR_ENGINE=tesseract") from e
             _akson = aksonocr_lite.load(device=os.environ.get("AKSON_DEVICE", "cpu"),
                                         dewarp=os.environ.get("AKSON_DEWARP") == "1", tables=True)
     return _akson

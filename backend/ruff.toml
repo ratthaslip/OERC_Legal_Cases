@@ -1,0 +1,31 @@
+# ตรวจรูปแบบโค้ด backend (CI รัน `ruff check .`)
+line-length = 140            # ข้อความภาษาไทยในโค้ดยาว — 140 ครอบคลุมเกือบทั้งหมดโดยไม่ต้องตัดสตริง
+target-version = "py312"
+extend-exclude = ["migrations/versions/*.sql"]
+
+[lint]
+select = [
+    "E", "F", "W",        # pycodestyle + pyflakes
+    "B",                  # bugbear
+    "UP",                 # pyupgrade
+    "S",                  # bandit (ความปลอดภัย)
+    "SIM", "RUF",
+    "DTZ",                # วันที่/เวลาต้องระบุเขตเวลา (SLA นับวันตามเวลาไทย)
+    "PLE", "PLW1510",
+]
+ignore = [
+    "B008",     # FastAPI ใช้ Depends()/File() เป็นค่าเริ่มต้นของพารามิเตอร์ตามแบบของ framework
+    "B905",     # zip() ในโค้ดนี้ใช้กับลำดับที่ยาวเท่ากันโดยโครงสร้าง — ไม่บังคับ strict=
+    "E741",
+    "RUF001", "RUF002", "RUF003",  # อักขระไทย/ขีดยาวในข้อความเป็นเจตนา
+    "S603", "S607",  # เรียก pdftoppm/tesseract/pg_dump ด้วยรายการอาร์กิวเมนต์คงที่ ไม่ผ่าน shell
+    "S608",     # SQL ที่ประกอบสตริงใช้ชื่อคอลัมน์จากค่าคงที่ในโค้ด ค่าจากผู้ใช้ผ่าน bind parameter เสมอ
+    "SIM108",
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106", "S108", "S311", "DTZ", "E501"]
+"eval/**" = ["S101", "S311"]
+"tools/**" = ["S311"]
+"app/seed/seed.py" = ["S311", "E501"]   # ข้อมูลสาธิต: random แบบกำหนด seed และข้อความตัวอย่างยาว
+"eval/build_golden.py" = ["E501"]       # ชุดคำถาม-คำตอบอ้างอิง (ข้อความยาว)

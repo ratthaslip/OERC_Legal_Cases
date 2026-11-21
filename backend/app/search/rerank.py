@@ -105,7 +105,7 @@ def _model_scores(q: str, docs: list[str], cfg=None) -> list[float] | None:
             for item in r.json()["results"]:
                 out[item["index"]] = float(item.get("relevance_score", item.get("score", 0.0)))
             return out
-    except Exception as e:  # noqa: BLE001 — reranker ล่มต้องไม่ทำให้การค้นล่ม
+    except Exception as e:
         log.warning("reranker unavailable, keeping hybrid order: %s", e)
         return None
 

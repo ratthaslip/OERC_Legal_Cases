@@ -40,8 +40,8 @@ async def lifespan(_app):
             vector_index.mark_interrupted(c)
             uploads.mark_interrupted(c)
             case_manage.mark_interrupted(c)
-    except Exception:  # noqa: BLE001 — ฐานข้อมูลยังไม่พร้อม/ยังไม่ได้ seed
-        pass
+    except Exception:  # ฐานข้อมูลยังไม่พร้อมตอนเริ่ม — API ต้องขึ้นได้ (health check บอกสถานะเอง)
+        logging.getLogger("erc.startup").warning("could not mark interrupted background jobs at startup", exc_info=True)
     yield
 
 
@@ -81,7 +81,8 @@ async def validation_problem(request: Request, exc: RequestValidationError):
 
 
 # case_import / case_manage ก่อน cases_router: /court-cases/imports และ /form-options ต้องไม่ถูกจับเป็น /{case_id}
-for r in (uploads_router, law_router, appeals_router, case_import_router, case_manage_router, cases_router, assistant_router, raw_router, admin_router):
+for r in (uploads_router, law_router, appeals_router, case_import_router, case_manage_router, cases_router,
+          assistant_router, raw_router, admin_router):
     app.include_router(r)
 
 
@@ -94,7 +95,7 @@ def health():
     try:
         with get_engine().connect() as c:
             c.execute(text("SELECT 1"))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return JSONResponse(status_code=503, content={"ok": False, "db": False})
     return {"ok": True, "db": True}
 

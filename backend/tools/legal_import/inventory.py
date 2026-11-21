@@ -29,7 +29,7 @@ def extract(path: Path) -> str:
     ext = path.suffix.lower()
     try:
         if ext == ".pdf":
-            return subprocess.run(["pdftotext", "-q", str(path), "-"], capture_output=True, text=True, timeout=120).stdout
+            return subprocess.run(["pdftotext", "-q", str(path), "-"], check=False, capture_output=True, text=True, timeout=120).stdout
         if ext == ".docx":
             import docx
             return "\n".join(p.text for p in docx.Document(str(path)).paragraphs)
@@ -37,10 +37,10 @@ def extract(path: Path) -> str:
             out = TXT / "doc"
             out.mkdir(exist_ok=True)
             subprocess.run(["soffice", "--headless", "--convert-to", "txt:Text", "--outdir", str(out), str(path)],
-                           capture_output=True, timeout=180)
+                           check=False, capture_output=True, timeout=180)
             f = out / (path.stem + ".txt")
             return f.read_text(encoding="utf-8", errors="ignore") if f.exists() else ""
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return f"__ERROR__ {e}"
     return ""
 
@@ -145,7 +145,7 @@ def main() -> None:
                 "disk": x["disk"], "thai_chars": len(THAI.findall(text)),
                 "pages": None}
         if x["ext"] == ".pdf":
-            pi = subprocess.run(["pdfinfo", x["disk"]], capture_output=True, text=True).stdout
+            pi = subprocess.run(["pdfinfo", x["disk"]], check=False, capture_output=True, text=True, timeout=60).stdout
             m = re.search(r"Pages:\s+(\d+)", pi)
             info["pages"] = int(m.group(1)) if m else None
         info["scanned"] = x["ext"] == ".pdf" and info["thai_chars"] < 150 * max(1, (info["pages"] or 1) // 2)

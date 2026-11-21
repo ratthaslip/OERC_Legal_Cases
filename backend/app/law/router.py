@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from .. import audit, authz
+from .. import audit, authz, clock
 from ..auth import User, current_user
 from ..db import get_conn, one, rows
 from ..search.hybrid import hybrid_search
@@ -119,7 +119,7 @@ def list_instruments(category: str | None = None, user: User = Depends(current_u
 def search_laws(q: str = Query(min_length=1, max_length=Q_MAX), as_of: date | None = None, user: User = Depends(current_user),
                 conn: Connection = Depends(get_conn)):
     """ค้นตัวบท (hybrid) เฉพาะรุ่นที่มีผล ณ วันที่ที่เลือก"""
-    as_of = as_of or date.today()
+    as_of = as_of or clock.today()
     res = hybrid_search(conn, user, q, kinds=["provision"], as_of=as_of, limit=20)
     exact = _exact_provisions(conn, user, q, as_of)
     seen = {h["chunk_id"] for h in exact}
@@ -151,7 +151,7 @@ def _exact_provisions(conn: Connection, user: User, q: str, as_of: date) -> list
 @router.get("/provisions/{eli_id:path}")
 def get_provision(eli_id: str, as_of: date | None = Query(default=None), user: User = Depends(current_user),
                   conn: Connection = Depends(get_conn)):
-    as_of = as_of or date.today()
+    as_of = as_of or clock.today()
     prov = one(conn, """SELECT p.provision_id, p.eli_id, p.provision_no, p.part_heading,
                                i.eli_id AS instrument_eli, i.title_th AS instrument_title, i.instrument_type,
                                i.short_title, i.is_demo, i.classification
@@ -253,7 +253,8 @@ def list_register(q: str | None = Query(default=None, max_length=Q_MAX), doc_typ
         rank = {rid: i for i, rid in enumerate(ordered)}
         if not rank:
             return {"items": [], "total": 0, "facets": _register_facets(conn, internal)}
-        where.append("register_id = ANY(:ids)"); params["ids"] = list(rank)
+        where.append("register_id = ANY(:ids)")
+        params["ids"] = list(rank)
     sql_where = " AND ".join(where)
     total = conn.execute(text(f"SELECT count(*) FROM law_register WHERE {sql_where}"), params).scalar()
     items = rows(conn, f"SELECT {cols} FROM law_register WHERE {sql_where} {order}", **params)
@@ -269,13 +270,17 @@ def _register_where(internal: bool, doc_type=None, status=None, section=None, un
     where = [f"{a}status <> 'GROUP'"]
     params: dict = {}
     if doc_type:
-        where.append(f"{a}doc_type = :doc_type"); params["doc_type"] = doc_type
+        where.append(f"{a}doc_type = :doc_type")
+        params["doc_type"] = doc_type
     if status:
-        where.append(f"{a}status = :status"); params["status"] = status
+        where.append(f"{a}status = :status")
+        params["status"] = status
     if section:
-        where.append(f":section = ANY({a}authority_secs)"); params["section"] = section
+        where.append(f":section = ANY({a}authority_secs)")
+        params["section"] = section
     if unit and internal:
-        where.append(f"{a}owner_unit ILIKE :unit"); params["unit"] = f"%{unit}%"
+        where.append(f"{a}owner_unit ILIKE :unit")
+        params["unit"] = f"%{unit}%"
     if issues_only and internal:
         where.append(f"cardinality({a}issues) > 0")
     if has_text is not None:
@@ -300,7 +305,7 @@ def export_register(doc_type: str | None = None, status: str | None = None, sect
     data = law_coverage.missing_workbook(conn, " AND ".join(where), params)
     audit.record(conn, user, "law.register.export", "law_register",
                  detail={"has_text": has_text, "status": status, "section": section, "doc_type": doc_type})
-    name = f"register-{'missing-text' if has_text is False else 'all'}-{date.today().isoformat()}.xlsx"
+    name = f"register-{'missing-text' if has_text is False else 'all'}-{clock.today().isoformat()}.xlsx"
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 

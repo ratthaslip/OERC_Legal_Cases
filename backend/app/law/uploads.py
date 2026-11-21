@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from .. import audit
+from .. import audit, clock
 from ..auth import User, current_user
 from ..db import get_conn, get_engine, rows
 from ..storage import RawStore
@@ -117,8 +117,8 @@ def _words(t: str) -> list[str]:
         w = word_tokenize(t, engine="newmm", keep_whitespace=True)
         if "".join(w) == t:
             return w
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:  # ไม่มี pythainlp หรือตัดคำพลาด → ใช้กลุ่มอักษรแทน
+        log.debug("word_tokenize failed; falling back to clusters", exc_info=True)
     return _CLUSTER.findall(t)
 
 
@@ -213,7 +213,7 @@ def build_draft(u: dict, path: str) -> dict:
     inst, why, _ = docparse.build_instrument(paras, effective_date=eff, **args)
     if inst is None and why == "ไม่พบวันที่ใช้บังคับ":
         # ยังสร้างร่างได้ — ให้ผู้ตรวจทานระบุวันใช้บังคับก่อนอนุมัติ
-        inst, why, _ = docparse.build_instrument(paras, effective_date=date.today().isoformat(), **args)
+        inst, why, _ = docparse.build_instrument(paras, effective_date=clock.today().isoformat(), **args)
         if inst is not None:
             inst["effectiveDate"] = None
             for p in inst["provisions"]:
@@ -254,7 +254,7 @@ def process(upload_id: int) -> None:
             again = c.execute(text("SELECT 1 FROM law_upload_revision WHERE upload_id = :i LIMIT 1"), {"i": upload_id}).scalar()
             add_revision(c, upload_id, "reprocess" if again else "extract", res["draft"], "system",
                          {"method": res["method"]})
-    except Exception as e:  # noqa: BLE001 — แสดงสาเหตุให้ผู้นำเข้าเห็น
+    except Exception as e:
         log.warning("law upload %s failed: %s", upload_id, e)
         with eng.begin() as c:
             c.execute(text("UPDATE law_upload SET status = 'failed', error = :e WHERE upload_id = :i"),
@@ -306,7 +306,7 @@ def load_approved(conn: Connection) -> int:
     try:
         with conn.begin_nested():
             ups = rows(conn, "SELECT * FROM law_upload WHERE status = 'approved' ORDER BY upload_id")
-    except Exception:  # noqa: BLE001 — ฐานข้อมูลเก่าที่ยังไม่มีตาราง
+    except Exception:
         return 0
     have = {r[0] for r in conn.execute(text("SELECT eli_id FROM legal_instrument"))}
     from ..config import public_data_only
@@ -341,7 +341,8 @@ def list_uploads(user: User = Depends(current_user), conn: Connection = Depends(
 
 
 @router.get("/register-options")
-def register_options(q: str = Query(default="", max_length=Q_MAX), user: User = Depends(current_user), conn: Connection = Depends(get_conn)):
+def register_options(q: str = Query(default="", max_length=Q_MAX), user: User = Depends(current_user),
+                     conn: Connection = Depends(get_conn)):
     """แถวทะเบียนที่ยังไม่มีตัวบท — ให้ผู้นำเข้าเลือกผูก (ระบบใช้วันใช้บังคับจากทะเบียน)"""
     require_importer(user)
     return {"items": rows(conn, """

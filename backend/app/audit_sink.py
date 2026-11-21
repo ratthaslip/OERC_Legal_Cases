@@ -63,7 +63,7 @@ def emit(events: list[dict]) -> None:
                     h.emit(logging.makeLogRecord({"msg": line(ev), "levelno": logging.INFO, "levelname": "INFO"}))
             else:
                 log.error("AUDIT_SINK ไม่รู้จัก: %s", t)
-        except Exception:  # noqa: BLE001 — ส่งสำเนาไม่สำเร็จต้องไม่ทำให้คำขอล้ม
+        except Exception:
             log.exception("ส่งสำเนา audit log ไป %s ไม่สำเร็จ (seq %s–%s)", t, events[0].get("seq"), events[-1].get("seq"))
 
 

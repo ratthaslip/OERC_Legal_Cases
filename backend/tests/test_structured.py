@@ -61,7 +61,7 @@ def test_definition_respects_as_of(client):
 
 def test_graph_expansion_adds_parent_section(client):
     """ค้นได้ข้อของระเบียบ → ดึงมาตราแม่บทใน พ.ร.บ. มาด้วย (ทะเบียนว่างในเทสต์นี้ จึงต้องไม่มีอะไรเพิ่มและไม่ล่ม)"""
-    done, sents, srcs = ask(client, "การยื่นอุทธรณ์ด้วยวาจาต่อพนักงานของสำนักงาน")
+    done, _sents, srcs = ask(client, "การยื่นอุทธรณ์ด้วยวาจาต่อพนักงานของสำนักงาน")
     assert done["status"] == "ANSWERED" and all(s.get("via") is None for s in srcs)
 
 

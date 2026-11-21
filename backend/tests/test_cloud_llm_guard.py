@@ -79,11 +79,11 @@ def test_external_llm_never_receives_register_rows(client, monkeypatch):
 
 
 def test_internal_llm_receives_everything(client, monkeypatch):
-    eli, title = _internal_title()
+    _eli, title = _internal_title()
     ev, sent = _ask(client, monkeypatch, title[:80], external=False)
     assert title[:40] in sent and ev["done"][0]["withheld_from_llm"] == 0
 
 
 def test_public_law_still_goes_to_external_llm(client, monkeypatch):
-    ev, sent = _ask(client, monkeypatch, "การอุทธรณ์คำสั่ง กกพ. ต้องยื่นภายในกี่วัน", external=True, user="pub")
+    _ev, sent = _ask(client, monkeypatch, "การอุทธรณ์คำสั่ง กกพ. ต้องยื่นภายในกี่วัน", external=True, user="pub")
     assert "มาตรา 121" in sent or "ข้อ 9" in sent

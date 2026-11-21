@@ -14,7 +14,9 @@ MONTHS = {m: i for i, m in enumerate(["มกราคม", "กุมภาพ�
                                       "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"], 1)}
 DATE_RE = re.compile(r"([๐-๙\d]{1,2})\s*(" + "|".join(MONTHS) + r")\s*(?:พ\.ศ\.\s*)?([๐-๙\d]{4})")
 GAZ_RE = re.compile(r"เล่ม\s*([๐-๙\d]+)\s*ตอน(พิเศษ)?\s*(?:ที่\s*)?([๐-๙\d]+)\s*([กขคง])")
-HEADER_RE = re.compile(r"^\s*(?:หนา\s*[๐-๙\d]+|-\s*[๐-๙\d]+\s*-|[๐-๙\d]+)\s*$|เลม\s*[๐-๙\d]+\s*ตอน.*ราชกจจานเบกษา|^\s*ราชกจจานเบกษา\s*$|^\s*เลม\s*[๐-๙\d]+\s*ตอน|^\s*หนา\s*[๐-๙\d]+\s+เลม")
+HEADER_RE = re.compile(r"^\s*(?:หนา\s*[๐-๙\d]+|-\s*[๐-๙\d]+\s*-|[๐-๙\d]+)\s*$"
+                       r"|เลม\s*[๐-๙\d]+\s*ตอน.*ราชกจจานเบกษา|^\s*ราชกจจานเบกษา\s*$"
+                       r"|^\s*เลม\s*[๐-๙\d]+\s*ตอน|^\s*หนา\s*[๐-๙\d]+\s+เลม")
 SIGN_RE = re.compile(r"^(?:ประกาศ|ให้ไว้|สั่ง)\s*ณ\s*วันที่")
 PART_RE = re.compile(r"^(หมวด\s*[๐-๙\d]+.*|บทเฉพาะกาล|ส่วนที่\s*[๐-๙\d]+.*)$")
 NONINIT = "ะัาำิีึืฺุูๅ็่้๊๋์ํ๎"
@@ -49,7 +51,7 @@ def tone_ratio(t: str) -> float:
 
 
 def fix_chars(s: str) -> str:
-    s = unicodedata.normalize("NFC", s.translate(PUA)).replace(" ", " ").replace("​", "")
+    s = unicodedata.normalize("NFC", s.translate(PUA)).replace(" ", " ").replace("\u200b", "")
     s = re.sub(r"ํ\s*า", "ำ", s)                       # ํ า → ำ
     s = re.sub(r"\s+([" + NONINIT + "])", r"\1", s)                    # วรรณยุกต์/สระที่หลุดไปหลังช่องว่าง
     s = re.sub(r"([เแโใไ])\s+(?=[ก-ฮ])", r"\1", s)                     # สระหน้าแยกจากพยัญชนะ
@@ -64,7 +66,7 @@ AM_WORDS = ["กากับ", "กาหนด", "ดาเนิน", "จั�
             "นาส่ง", "นาเสนอ", "อานาจ", "ชานาญ", "กาไร", "ลาดับ", "ตาแหน่ง", "สารวจ", "สารอง", "ดารง", "บารุง",
             "จาหน่าย", "ซ้าซ้อน", "กาลัง", "ทาง่าย", "สาเนา", "สาเร็จ", "ทาหน้าที่", "จากัด", "อาเภอ", "กาเนิด",
             "นาเข้า", "ปฏิบัติตามคาสั่ง", "ข้อกาหนด", "ค้าประกัน", "คาแนะนา", "แนะนา", "ทาสัญญา", "ทาความ", "ทารายงาน"]
-AM_FIX = sorted(((w, w.replace("า", "ำ", 1) if not w.startswith(("ต่า", "ค้า", "ซ้า")) else w.replace("า", "ำ", 1)) for w in AM_WORDS),
+AM_FIX = sorted(((w, w.replace("า", "ำ", 1)) for w in AM_WORDS),
                 key=lambda kv: -len(kv[0]))
 
 
@@ -93,7 +95,7 @@ def unjustify(line: str) -> str:
 
 def pdf_text(path: str) -> str:
     """ชั้นข้อความของ PDF โดยรักษาตำแหน่งบรรทัด (pdftotext -layout)"""
-    return subprocess.run(["pdftotext", "-q", "-layout", path, "-"], capture_output=True, text=True, timeout=300).stdout
+    return subprocess.run(["pdftotext", "-q", "-layout", path, "-"], check=False, capture_output=True, text=True, timeout=300).stdout
 
 
 def pdf_paragraphs(path: str) -> list[str]:
@@ -139,7 +141,7 @@ def doc_paragraphs(path: str, tmp: Path | None = None) -> list[str]:
         out.mkdir(parents=True, exist_ok=True)
         try:
             subprocess.run(["soffice", "--headless", "--convert-to", "docx", "--outdir", str(out), path],
-                           capture_output=True, timeout=180)
+                           check=False, capture_output=True, timeout=180)
         except FileNotFoundError:
             return []
         f = out / (Path(path).stem + ".docx")
@@ -226,8 +228,8 @@ def parse(paras: list[str], kind: str, reg_title: str, ocr: bool = False, renumb
         if m:
             no = th2ar(m.group(1))
             major = int(no.split("/")[0])
-            ok = last is None and major in (1, 2) or last is not None and (
-                (major == last[0] + 1 and "/" not in no) or (major == last[0] and "/" in no) or ("/" in no and major == last[0]))
+            ok = (last is None and major in (1, 2)) or (last is not None and (
+                (major == last[0] + 1 and "/" not in no) or (major == last[0] and "/" in no) or ("/" in no and major == last[0])))
             if ok and not any(x["no"] == no for x in provs):
                 provs.append({"no": no, "lines": [m.group(2)] if m.group(2) else [], "part": part})
                 last = (major, no)
@@ -298,7 +300,7 @@ def build_instrument(paras: list[str], *, doc_type: str, reg_title: str, key: st
     kind = kind_of(doc_type)
     renum: list[str] = []
     gaps: list[str] = []
-    title, pre, provs, signed, tail, annex = parse(paras, kind, reg_title, ocr=ocr, renumbered=renum, gaps=gaps)
+    title, pre, provs, signed, _tail, annex = parse(paras, kind, reg_title, ocr=ocr, renumbered=renum, gaps=gaps)
     sig_date = iso(DATE_RE.search(signed)) if signed and DATE_RE.search(signed) else None
     eff = effective_date or pub or sig_date
     warn = []

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Iterator
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Connection, Engine
@@ -45,10 +45,12 @@ def init_schema(conn: Connection) -> None:
 
 
 def reset_schema(conn: Connection) -> None:
+    # law_import_log, raw_file, law_upload*, case_import ตั้งใจเก็บไว้ (ประวัติ/ทะเบียนไฟล์จริง)
     conn.execute(text(
         "DROP TABLE IF EXISTS audit_event, search_chunk, law_register, citation_link, case_document, court_proceeding, "
-        "court_case_owner, court_case, court_case_revision, appeal_request, appeal_milestone, appeal_step, appeal_owner, appeal, holiday, workflow_step_def, legal_relation, "
-        "provision_version, provision, legal_instrument, law_open_issue, raw_file_link, law_relation CASCADE"  # law_import_log, raw_file ตั้งใจเก็บไว้ (ประวัติ/ทะเบียนไฟล์จริง)
+        "court_case_owner, court_case, court_case_revision, appeal_request, appeal_milestone, appeal_step, appeal_owner, "
+        "appeal, holiday, workflow_step_def, legal_relation, "
+        "provision_version, provision, legal_instrument, law_open_issue, raw_file_link, law_relation CASCADE"
     ))
     init_schema(conn)
 

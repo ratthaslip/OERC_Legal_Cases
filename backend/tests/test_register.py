@@ -1,12 +1,11 @@
-import json
-from pathlib import Path
-
-from sqlalchemy import text as sql_text
 """ตัวนำเข้าทะเบียนกฎหมายลำดับรอง — ใช้ workbook สังเคราะห์ (ไม่ใช้ข้อมูลจริงของสำนักงาน)"""
+import json
 from datetime import date
+from pathlib import Path
 
 import openpyxl
 import pytest
+from sqlalchemy import text as sql_text
 
 from app.law.register import normalize_status, parse_sections, parse_thai_date, read_workbook
 from app.search.thai import expand_query
@@ -189,7 +188,8 @@ def test_apply_amendments(tmp_path):
                   {"number": "ข้อ 4", "versions": v("ให้ยกเลิกความในข้อ ๒ ของระเบียบ และให้ใช้ความต่อไปนี้แทน\n“ข้อ ๒ ความใหม่\nวรรคสอง”", "2015-06-27")},
                   {"number": "ข้อ 5", "versions": v("ให้ยกเลิกข้อ ๓ ของระเบียบ", "2015-06-27")}]}]
     bp, ap = tmp_path / "b.json", tmp_path / "a.json"
-    bp.write_text(json.dumps(base, ensure_ascii=False)); ap.write_text(json.dumps(amend, ensure_ascii=False))
+    bp.write_text(json.dumps(base, ensure_ascii=False))
+    ap.write_text(json.dumps(amend, ensure_ascii=False))
     mod.main(str(bp), [str(ap)])
     out = {p["number"]: p for p in json.loads(bp.read_text())[0]["provisions"]}
     assert list(out) == ["ข้อ 1", "ข้อ 2", "ข้อ 2/1", "ข้อ 3"]
