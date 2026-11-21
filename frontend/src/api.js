@@ -69,6 +69,19 @@ export const api = {
     request('POST', `/appeals/${id}/requests/${rid}:respond`, { body, headers: { 'If-Match': String(v) } }),
   cases: (params) => request('GET', '/court-cases', { params }),
   courtCase: (id) => request('GET', `/court-cases/${id}`),
+  caseFormOptions: () => request('GET', '/court-cases/form-options'),
+  createCase: (body) => request('POST', '/court-cases', { body }),
+  updateCase: (id, body) => request('PUT', `/court-cases/${id}`, { body }),
+  caseHistory: (id) => request('GET', `/court-cases/${id}/history`),
+  addProceeding: (id, body) => request('POST', `/court-cases/${id}/proceedings`, { body }),
+  deleteProceeding: (id, pid) => request('DELETE', `/court-cases/${id}/proceedings/${pid}`),
+  deleteCaseDoc: (id, did) => request('DELETE', `/court-cases/${id}/documents/${did}`),
+  reprocessCaseDoc: (id, did) => request('POST', `/court-cases/${id}/documents/${did}/reprocess`),
+  caseImports: () => request('GET', '/court-cases/imports'),
+  caseImport: (id) => request('GET', `/court-cases/imports/${id}`),
+  submitCaseImport: (id) => request('POST', `/court-cases/imports/${id}/submit`),
+  approveCaseImport: (id, note) => request('POST', `/court-cases/imports/${id}/approve`, { body: { note } }),
+  rejectCaseImport: (id, note) => request('POST', `/court-cases/imports/${id}/reject`, { body: { note } }),
   assistantStatus: () => request('GET', '/assistant/status')
 };
 
@@ -130,16 +143,40 @@ export async function downloadRegisterExport(params = {}) {
 }
 
 /** เปิดไฟล์ต้นฉบับ (PDF) ในแท็บใหม่ — ต้องส่ง header ผู้ใช้ จึงโหลดเป็น blob ก่อน */
-export async function openRawFile(sha) {
+export const openRawFile = (sha) => openFile(`/api/v1/raw/${sha}`);
+export const openCaseDoc = (caseId, docId) => openFile(`/api/v1/court-cases/${caseId}/documents/${docId}/file`);
+
+/** ดาวน์โหลดไฟล์ (แนบ header ผู้ใช้) แล้วบันทึกลงเครื่อง */
+export async function downloadFile(path, filename) {
+  const res = await fetch(`/api/v1${path}`, { headers: { 'X-Demo-User': currentUser } });
+  if (!res.ok) throw new ApiError(res.status, await res.json().catch(() => null));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await res.blob());
+  a.download = filename;
+  a.click();
+}
+
+/** ส่ง multipart (ไฟล์ + ช่องข้อมูล) */
+export async function postForm(path, file, fields = {}) {
+  const fd = new FormData();
+  fd.append('file', file);
+  Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') fd.append(k, v); });
+  const res = await fetch(`/api/v1${path}`, { method: 'POST', headers: { 'X-Demo-User': currentUser }, body: fd });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data);
+  return data;
+}
+
+async function openFile(url) {
   const win = window.open('', '_blank');
-  const res = await fetch(`/api/v1/raw/${sha}`, { headers: { 'X-Demo-User': currentUser } });
+  const res = await fetch(url, { headers: { 'X-Demo-User': currentUser } });
   if (!res.ok) {
     win?.close();
     throw new ApiError(res.status, await res.json().catch(() => null));
   }
-  const url = URL.createObjectURL(await res.blob());
-  if (win) win.location.href = url;
-  else window.location.href = url;
+  const blobUrl = URL.createObjectURL(await res.blob());
+  if (win) win.location.href = blobUrl;
+  else window.location.href = blobUrl;
 }
 
 /** อัปโหลดไฟล์กฎหมาย (multipart) — fields: doc_type, classification, register_id, effective_date, force_ocr */

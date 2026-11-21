@@ -121,8 +121,9 @@ def _case_chunks(kind: str, ref_id: int, title: str, body: str, docs: list[dict]
     base = {"kind": kind, "ref_id": ref_id, "classification": cls, "owners": owners, "energy_sector": sector,
             "is_demo": bool(is_demo)}
     out = [{**base, "title": title, "chunk_text": body}]
-    for d in docs:
-        out.append({**base, "title": f"{title} · {d['doc_type']}", "chunk_text": d["excerpt"]})
+    for d in docs:   # คำพิพากษาฉบับเต็มยาว → แบ่งเป็นท่อน
+        for part in split_long(d["excerpt"]) if d["excerpt"] else []:
+            out.append({**base, "title": f"{title} · {d['doc_type']}", "chunk_text": part})
     return out
 
 
@@ -147,7 +148,8 @@ def reindex_cases(conn: Connection, only: tuple[str, int] | None = None) -> int:
     for k in rows(conn, """SELECT k.*, ARRAY(SELECT user_id FROM court_case_owner o WHERE o.case_id = k.case_id) AS owners
                            FROM court_case k WHERE (CAST(:k AS text) IS NULL OR (:k = 'court_case' AND k.case_id = :i))""",
                   k=kind_only, i=id_only):
-        docs = rows(conn, "SELECT doc_type, excerpt FROM case_document WHERE owner_type='court_case' AND owner_id=:i",
+        docs = rows(conn, """SELECT doc_type, excerpt FROM case_document
+                             WHERE owner_type='court_case' AND owner_id=:i AND status = 'ready'""",
                     i=k["case_id"])
         no = f"คดีหมายเลขดำที่ {k['black_no']}" + (f" หมายเลขแดงที่ {k['red_no']}" if k["red_no"] else "")
         body = (f"เรื่อง {k['subject']}\n{k['court_level']}\nผู้ฟ้องคดี: {k['party_label']}\nสรุป: {k['summary']}\n"

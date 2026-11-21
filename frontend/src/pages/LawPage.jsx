@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ImportPage from './ImportPage.jsx';
 import { AlertTriangle, ArrowRight, Calendar, ChevronRight, Clock, Copy, Gavel, GitBranch, History, Lock, Scale, Search, Timer } from 'lucide-react';
 import { api } from '../api.js';
 import RegisterPanel from './law/RegisterPanel.jsx';
@@ -502,10 +503,12 @@ export default function LawPage(props) {
     api.register({ limit: 1 }).then((r) => setCount(r.facets?.meta?.total || 0)).catch(() => setCount(0));
   }, []);
   const internal = props.me?.role && props.me.role !== 'PUB';
+  const importer = ['LGL', 'ADM'].includes(props.me?.role);
   const tabs = [
     ['provision', 'ตัวบทรายมาตรา (ตรวจย้อนหลังตามวันที่)'],
     ['register', `ทะเบียนกฎหมายลำดับรอง${count ? ` (${count})` : ''}`],
-    ...(internal ? [['coverage', 'ความครอบคลุมข้อมูล']] : [])
+    ...(internal ? [['coverage', 'ความครอบคลุมข้อมูล']] : []),
+    ...(importer ? [['import', 'นำเข้าเอกสาร']] : [])
   ];
   return (
     <div className="space-y-4">
@@ -528,6 +531,7 @@ export default function LawPage(props) {
           initialFilter={{ section: route.section, issues: route.issues, nonce: route.nonce }} />
       )}
       {tab === 'coverage' && internal && <CoveragePanel go={props.go} />}
+      {tab === 'import' && importer && <ImportPage {...props} />}
     </div>
   );
 }
