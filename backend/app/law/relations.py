@@ -181,7 +181,7 @@ def extract_refs(body: str, own_no: str, *, erc_subordinate: bool = False) -> li
         if not to_parent and (_OTHER_LAW.match(tail) or
                               re.match(r"\s*(?:แห่ง)?\s*(?:ประมวล|พระราชกฤษฎีกา|กฎกระทรวง)", tail)):
             continue
-        for no in [m.group(2)] + _MORE.findall(m.group(3) or ""):
+        for no in [m.group(2), *_MORE.findall(m.group(3) or "")]:
             ref = (m.group(1), no, to_parent)
             if (to_parent or f"{ref[0]} {ref[1]}" != own_no) and ref not in out:
                 out.append(ref)

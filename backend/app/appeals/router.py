@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.engine import Connection
 
-from .. import audit, authz
+from .. import audit, authz, clock
 from ..auth import DEMO_USERS, User, current_user
 from ..config import Q_MAX, get_settings
 from ..db import get_conn, one, rows
@@ -24,7 +24,7 @@ URGENCY = {"OVERDUE": 0, "NEAR_DUE": 1, "WAITING": 2, "ON_TRACK": 3, None: 4}
 
 
 def _today() -> date:
-    return date.today()
+    return clock.today()
 
 
 def _version(if_match: str | None) -> int:
@@ -32,15 +32,15 @@ def _version(if_match: str | None) -> int:
         raise HTTPException(428, detail={"code": "PRECONDITION_REQUIRED", "detail": "ต้องส่ง If-Match (row_version)"})
     try:
         return int(if_match.strip('"'))
-    except ValueError:
-        raise HTTPException(400, detail={"code": "VALIDATION_FAILED", "detail": "If-Match ไม่ถูกต้อง"})
+    except ValueError as e:
+        raise HTTPException(400, detail={"code": "VALIDATION_FAILED", "detail": "If-Match ไม่ถูกต้อง"}) from e
 
 
 def _run(fn):
     try:
         return fn()
     except svc.ServiceError as e:
-        raise HTTPException(e.status, detail={"code": e.code, "detail": e.detail})
+        raise HTTPException(e.status, detail={"code": e.code, "detail": e.detail}) from e
 
 
 @router.get("/workflow")

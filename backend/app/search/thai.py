@@ -36,7 +36,7 @@ _THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFC", text).translate(_THAI_DIGITS)
-    return text.replace("​", "")
+    return text.replace("\u200b", "")
 
 
 _NUM_WORD = re.compile(r"^(?:ศูนย์|หนึ่ง|เอ็ด|สอง|ยี่|สาม|สี่|ห้า|หก|เจ็ด|แปด|เก้า|สิบ|ร้อย|พัน|หมื่น|แสน|ล้าน)+$")
@@ -77,7 +77,7 @@ def _thai_number(tok: str) -> str | None:
     try:
         from pythainlp.util import thaiword_to_num
         return str(thaiword_to_num(tok))
-    except Exception:  # noqa: BLE001 — คำที่ดูเหมือนตัวเลขแต่แปลงไม่ได้ ก็ข้ามไป
+    except Exception:
         return None
 
 
@@ -95,7 +95,7 @@ def tokenize(text: str) -> list[str]:
             raw.append(tok)
     out: list[str] = []
     run: list[str] = []
-    for tok in raw + [""]:
+    for tok in [*raw, ""]:
         if tok and _NUM_WORD.match(tok):
             run.append(tok)
         elif run:                                     # "หนึ่งร้อย" "ยี่สิบ" → เพิ่ม "120" ให้ตรงกับคำถามที่พิมพ์เป็นเลข

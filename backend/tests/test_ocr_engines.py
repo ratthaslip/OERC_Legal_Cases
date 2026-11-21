@@ -136,7 +136,7 @@ def test_page_that_times_out_is_skipped_not_hung(tmp_path, monkeypatch):
     text = ocr.ocr_akson(str(pdf))
     pages = text.split("\n\f\n")
     assert len(pages) == 3 and pages[1] == ocr.SKIPPED_PAGE
-    inst, _, warn = docparse.build_instrument(
+    _inst, _, warn = docparse.build_instrument(
         ["ข้อ ๑ ทดสอบ", ocr.SKIPPED_PAGE, "ข้อ ๒ ทดสอบ"], doc_type="ประกาศ", reg_title="ประกาศ ทดสอบ", key="t1",
         effective_date="2020-01-01", gaz=None, pub=None, ocr=True, ext=".pdf", short="ทดสอบ", source_default="x")
     assert any("ข้าม 1 หน้า" in w for w in warn)

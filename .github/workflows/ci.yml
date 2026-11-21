@@ -1,5 +1,5 @@
 # ตรวจทุก PR และทุกครั้งที่ merge เข้า main:
-#   1) เทสต์ backend ทั้งหมด (pytest กับ PostgreSQL จริง)
+#   1) ตรวจรูปแบบโค้ด (ruff) และเทสต์ backend ทั้งหมด (pytest กับ PostgreSQL จริง)
 #   2) ชุดคำถามทดสอบ (golden set) — ล้มเหลวถ้าข้อที่เคยผ่านใน eval/baseline.json กลับไม่ผ่าน
 #   3) build หน้าเว็บ
 # ไม่ใช้ทะเบียนจริงของสำนักงาน (ข้อมูลภายใน) — eval รันโหมด public ข้ามข้อที่ต้องใช้ทะเบียน
@@ -42,6 +42,8 @@ jobs:
             backend/requirements.txt
             backend/requirements-dev.txt
       - run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: lint (ruff)
+        run: ruff check . --output-format github
       - name: dependency vulnerabilities (pip-audit)
         run: pip-audit -r requirements.txt --progress-spinner off
       - name: poppler (PDF rendering for OCR tests)

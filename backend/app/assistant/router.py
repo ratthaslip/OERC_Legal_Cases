@@ -42,7 +42,7 @@ def create_answer(q: Question, user: User = Depends(current_user)):
             with get_engine().begin() as conn:
                 for name, data in answer(conn, user, q.question, q.as_of):
                     yield f"event: {name}\ndata: {json.dumps(jsonable_encoder(data), ensure_ascii=False)}\n\n"
-        except Exception as e:  # noqa: BLE001 — ส่ง error เป็น event แทนการตัด stream กลางทาง
+        except Exception as e:
             log.exception("assistant stream failed")
             err = {"code": "ASSISTANT_FAILED", "detail": f"{type(e).__name__}: {str(e)[:200]}"}
             yield f"event: error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"

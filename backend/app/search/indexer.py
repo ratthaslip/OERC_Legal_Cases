@@ -88,8 +88,10 @@ def split_long(body: str, size: int = CHUNK_CHARS) -> list[str]:
     for p in paras:
         while len(p) > size * 1.5:          # ย่อหน้าเดียวยาวมาก (ตาราง) → ตัดตามความยาว
             if cur:
-                out.append("\n".join(cur)); cur = []
-            out.append(p[:size]); p = p[size:]
+                out.append("\n".join(cur))
+                cur = []
+            out.append(p[:size])
+            p = p[size:]
         if cur and sum(len(x) for x in cur) + len(p) > size:
             out.append("\n".join(cur))
             cur = [cur[-1]] if len(cur[-1]) < size // 2 else []

@@ -1,5 +1,9 @@
 """แตก zip จาก Google Drive: ถอดชื่อไทยให้ถูก, เก็บไฟล์ด้วยชื่อสั้น (sha256) + manifest.json ชื่อเดิม"""
-import hashlib, json, sys, zipfile
+import contextlib
+import hashlib
+import json
+import sys
+import zipfile
 from pathlib import Path
 src, out = Path(sys.argv[1]), Path(sys.argv[2])
 out.mkdir(parents=True, exist_ok=True)
@@ -11,10 +15,8 @@ with zipfile.ZipFile(src) as z:
             continue
         name = i.filename
         if not i.flag_bits & 0x800:
-            try:
+            with contextlib.suppress(UnicodeError):
                 name = i.filename.encode("cp437").decode("utf-8")
-            except UnicodeError:
-                pass
         data = z.read(i)
         sha = hashlib.sha256(data).hexdigest()
         ext = Path(name).suffix.lower()

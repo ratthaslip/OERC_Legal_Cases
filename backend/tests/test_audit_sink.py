@@ -25,9 +25,8 @@ def test_audit_rows_cannot_be_changed(seeded_client):
     with get_engine().begin() as c:   # trigger ระดับแถวทำงานเมื่อมีแถว
         audit.record(c, DEMO_USERS["adm1"], "test.row", "x/0")
     for stmt in ("UPDATE audit_event SET outcome = 'X'", "DELETE FROM audit_event", "TRUNCATE audit_event"):
-        with pytest.raises(DBAPIError, match="append-only"):
-            with get_engine().begin() as c:
-                c.execute(text(stmt))
+        with pytest.raises(DBAPIError, match="append-only"), get_engine().begin() as c:
+            c.execute(text(stmt))
 
 
 def test_only_committed_events_are_shipped(sink_file):
@@ -36,10 +35,9 @@ def test_only_committed_events_are_shipped(sink_file):
     adm = DEMO_USERS["adm1"]
     with get_engine().begin() as c:
         audit.record(c, adm, "test.committed", "x/1")
-    with pytest.raises(RuntimeError):
-        with get_engine().begin() as c:
-            audit.record(c, adm, "test.rolled_back", "x/2")
-            raise RuntimeError("rollback")
+    with pytest.raises(RuntimeError), get_engine().begin() as c:
+        audit.record(c, adm, "test.rolled_back", "x/2")
+        raise RuntimeError("rollback")
     actions = [e["action"] for e in _lines(sink_file)]
     assert "test.committed" in actions and "test.rolled_back" not in actions
     ev = _lines(sink_file)[-1]

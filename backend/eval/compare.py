@@ -3,6 +3,7 @@
   python -m eval.compare eval/results_none.json eval/results_tei.json
 """
 import json
+from pathlib import Path
 import sys
 
 
@@ -10,7 +11,7 @@ from eval.run_eval import passed as ok
 
 
 def main(a_path, b_path):
-    a, b = (json.load(open(p, encoding="utf-8")) for p in (a_path, b_path))
+    a, b = (json.loads(Path(p).read_text(encoding="utf-8")) for p in (a_path, b_path))
     ra, rb = ({r["id"]: r for r in x["rows"]} for x in (a, b))
     better = [k for k in rb if k in ra and not ok(ra[k]) and ok(rb[k])]
     worse = [k for k in rb if k in ra and ok(ra[k]) and not ok(rb[k])]

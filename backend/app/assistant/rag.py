@@ -8,11 +8,11 @@ import re
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from typing import Iterator
+from collections.abc import Iterator
 
 from sqlalchemy.engine import Connection
 
-from .. import audit
+from .. import audit, clock
 from ..admin import llm_config
 from ..auth import User
 from ..config import get_settings
@@ -130,7 +130,7 @@ def extractive_answer(sources: list[Source]) -> Iterator[str]:
 
 def answer(conn: Connection, user: User, question: str, as_of: date | None = None) -> Iterator[tuple[str, dict]]:
     s = get_settings()
-    as_of = as_of or date.today()
+    as_of = as_of or clock.today()
     answer_id = str(uuid.uuid4())
 
     if not s.assistant_enabled:

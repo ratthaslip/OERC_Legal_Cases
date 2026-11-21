@@ -13,7 +13,7 @@ import re
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("request_id", default="-")
 access_log = logging.getLogger("erc.access")
@@ -23,7 +23,7 @@ _STD = set(vars(logging.LogRecord("", 0, "", 0, "", None, None))) | {"message", 
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        d = {"ts": datetime.fromtimestamp(record.created, timezone.utc).isoformat(timespec="milliseconds"),
+        d = {"ts": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds"),
              "level": record.levelname, "logger": record.name, "msg": record.getMessage(),
              "request_id": getattr(record, "request_id", None) or request_id_var.get()}
         d.update({k: v for k, v in vars(record).items() if k not in _STD and k not in d})

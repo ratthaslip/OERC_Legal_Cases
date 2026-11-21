@@ -9,6 +9,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy.engine import Connection
 
+from .. import clock
 from ..db import one, rows
 from . import relations
 
@@ -62,7 +63,8 @@ def summary(conn: Connection) -> dict:
     for s in reg["by_status"]:
         s["label"] = STATUS_TH.get(s["key"], s["key"])
     reg["by_group"] = rows(conn, """
-        SELECT r.group_no AS key, coalesce(g.title_th, (array_agg(r.title_th ORDER BY r.sheet_row))[1]) AS label, count(*) AS total, count(*) FILTER (WHERE r.instrument_eli IS NOT NULL) AS with_text
+        SELECT r.group_no AS key, coalesce(g.title_th, (array_agg(r.title_th ORDER BY r.sheet_row))[1]) AS label,
+               count(*) AS total, count(*) FILTER (WHERE r.instrument_eli IS NOT NULL) AS with_text
         FROM law_register r LEFT JOIN law_register g ON g.group_no = r.group_no AND g.status = 'GROUP'
         WHERE r.status <> 'GROUP' GROUP BY r.group_no, g.title_th
         ORDER BY r.group_no ~ '^[0-9]+$' DESC, NULLIF(regexp_replace(r.group_no, '[^0-9]', '', 'g'), '')::int""")
@@ -146,7 +148,7 @@ def missing_workbook(conn: Connection, where_sql: str, params: dict) -> bytes:
         "ตั้งชื่อไฟล์ตามเลขทะเบียน เช่น 1.52.3.docx — ไฟล์ Word ดีที่สุด (ดึงข้อความได้แม่นกว่า PDF)",
         "ส่งเฉพาะตัวบทกฎหมาย ไม่รวมเอกสารภายใน (มติ กกพ., บันทึกตอบข้อหารือ)",
         "สถานะที่มี * = ทะเบียนไม่ระบุ ระบบถือว่าใช้บังคับไว้ก่อน",
-        f"ส่งออกเมื่อ {date.today().isoformat()} · {len(items)} รายการ",
+        f"ส่งออกเมื่อ {clock.today().isoformat()} · {len(items)} รายการ",
     ], 1):
         note.cell(r, 1, t).font = font
     note.column_dimensions["A"].width = 110

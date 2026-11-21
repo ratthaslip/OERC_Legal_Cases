@@ -14,6 +14,7 @@
 import re
 from dataclasses import dataclass, field
 from datetime import date
+from itertools import pairwise
 
 from sqlalchemy.engine import Connection
 
@@ -94,7 +95,7 @@ def _phrase_score(q: str, title: str) -> tuple[float, int, float]:
     title = re.split(r"\s*(?:ตามมาตรา|แห่งพระราชบัญญัติ)", title)[0]  # ส่วนอ้าง พ.ร.บ. แม่บทไม่ใช่ชื่อเรื่อง
     title = re.sub(r"พ\s*\.\s*ศ\s*\.\s*[๐-๙\d]{4}", " ", title)
     qt, tt = tokenize(q), tokenize(title)
-    qb, tb = set(zip(qt, qt[1:])), set(zip(tt, tt[1:]))
+    qb, tb = set(pairwise(qt)), set(pairwise(tt))
     t_terms = content_terms(title)
     precision = len(t_terms & set(qt)) / len(t_terms) if t_terms else 0.0  # ชื่อที่ไม่มีคำเกินจากคำถามได้เปรียบ
     return term_overlap(content_terms(q), title), len(qb & tb), round(precision, 2)
@@ -202,7 +203,7 @@ def _pick_instrument(cands: list[dict], q: str) -> dict | None:
 
 def route_amendments(conn: Connection, user: User, q: str, as_of: date) -> StructuredAnswer | None:
     m = PROV_REF.search(q)
-    if not m or not AMEND_Q.search(q) or SUB_Q.search(q) and LIST_Q.search(q):
+    if not m or not AMEND_Q.search(q) or (SUB_Q.search(q) and LIST_Q.search(q)):
         return None
     pno = f"{m.group(1)} {m.group(2)}"
     cands = rows(conn, f"""SELECT p.provision_id, p.eli_id, p.provision_no, i.title_th, i.eli_id AS instrument_eli

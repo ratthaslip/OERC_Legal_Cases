@@ -67,7 +67,7 @@ class RawStore:
                 fo.write(chunk)
         if sha256_file(tmp) != sha:  # คัดลอกไม่สมบูรณ์
             tmp.unlink()
-            raise IOError(f"hash ไม่ตรงหลังคัดลอก {src}")
+            raise OSError(f"hash ไม่ตรงหลังคัดลอก {src}")
         os.replace(tmp, dst)
         os.chmod(dst, 0o444)
         return Stored(sha, dst.stat().st_size, rel, True)

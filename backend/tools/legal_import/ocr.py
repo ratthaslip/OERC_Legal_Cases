@@ -21,8 +21,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/ → import app.law.ocr
-from app.config import llm_is_external  # noqa: E402
-from app.law.ocr import ENGINES, THAI, clean, is_noise, ocr_endpoint, ocr_tesseract  # noqa: E402
+from app.config import llm_is_external
+from app.law.ocr import ENGINES, THAI, clean, is_noise, ocr_endpoint, ocr_tesseract
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
 INV = WORK / "inventory.json"
@@ -33,7 +33,7 @@ OUT = WORK / "ocr"
 def targets(only: set[str] | None) -> list[dict]:
     """PDF ของแถวที่ใช้บังคับ ยังไม่มีตัวบท และไม่มีไฟล์ข้อความที่ใช้ได้ (สแกน หรือ thai_chars ต่ำ/เพี้ยน)"""
     sys.path.insert(0, str(Path(__file__).parent))
-    from convert_bulk import best_file, paragraphs  # noqa: E402
+    from convert_bulk import best_file, paragraphs
 
     from app.law.docparse import MIN_TONE_RATIO, is_internal_title, tone_ratio
 
@@ -102,7 +102,7 @@ def main() -> None:
             txt = clean(engine(t["disk"], t["pages"]))
             (OUT / f"{t['sha256']}.txt").write_text(txt, encoding="utf-8")
             return f"✓ {t['reg']} {t['pages']} หน้า {len(THAI.findall(txt))} อักษรไทย"
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             return f"✗ {t['reg']} {type(e).__name__}: {e}"[:300]
 
     # ไฟล์ใหญ่ก่อน ให้ worker จบพร้อม ๆ กัน

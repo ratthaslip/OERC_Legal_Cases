@@ -5,18 +5,21 @@
 """
 import base64
 import hashlib
+import logging
 import os
 import re
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Callable
+from collections.abc import Callable
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from ..config import get_settings
 from ..db import get_engine, rows
+
+log = logging.getLogger(__name__)
 
 _TTL_S = 10.0
 _cache: dict[str, dict] = {}
@@ -63,7 +66,7 @@ def load(prefix: str, conn: Connection | None = None) -> dict[str, dict]:
     try:
         with get_engine().connect() as cn:
             data = {r["key"][len(prefix):]: r for r in rows(cn, _SQL, p=prefix + "%")}
-    except Exception:  # noqa: BLE001 — ตารางยังไม่มี/ฐานข้อมูลไม่พร้อม → ใช้ค่าจาก .env
+    except Exception:
         data = {}
     with _lock:
         _cache[prefix] = {"at": time.monotonic(), "rows": data}
@@ -93,7 +96,8 @@ def values(group: Group, settings, conn: Connection | None = None) -> tuple[dict
                 continue  # เปลี่ยน/ลบ CONFIG_SECRET → ถอดรหัสไม่ได้ → ใช้ค่าจาก .env (ไม่ล่ม)
             try:
                 v = f.decrypt(v.encode()).decode()
-            except Exception:  # noqa: BLE001
+            except Exception:  # ค่าที่ถอดรหัสไม่ได้ (เปลี่ยนกุญแจ) → ใช้ค่าจาก env แทน
+                log.warning("cannot decrypt setting %s — falling back to environment", k)
                 continue
         vals[k], src[k] = v, "db"
     last = max(stored.values(), key=lambda r: r["updated_at"], default=None)

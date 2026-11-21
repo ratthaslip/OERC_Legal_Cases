@@ -14,13 +14,13 @@ from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path as PathParam, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from .. import audit, authz
+from .. import audit, authz, clock
 from ..auth import DEMO_USERS, User, current_user
 from ..config import public_data_only
 from ..db import get_conn, get_engine, one, rows
@@ -47,7 +47,7 @@ LABEL = {"incident_date": "วันเกิดเหตุ", "filed_date": "�
 
 
 def today() -> date:
-    return date.today()
+    return clock.today()
 
 
 def can_create(user: User) -> bool:
@@ -387,7 +387,7 @@ def process_document(document_id: int) -> None:
             c.execute(text("""UPDATE case_document SET excerpt = :x, status = 'ready', method = :m, error = NULL
                               WHERE document_id = :i"""), {"x": body, "m": method.split(":")[0], "i": document_id})
             reindex_cases(c, only=("court_case", d["owner_id"]))
-    except Exception as e:  # noqa: BLE001 — แสดงสาเหตุให้ผู้แนบเห็น
+    except Exception as e:
         log.warning("case document %s failed: %s", document_id, e)
         with eng.begin() as c:
             c.execute(text("UPDATE case_document SET status = 'failed', error = :e WHERE document_id = :i"),

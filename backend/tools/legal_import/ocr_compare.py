@@ -32,8 +32,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from app.law import docparse  # noqa: E402
-from app.law.ocr import REPAIRS, THAI, OcrUnavailable, clean, ocr_pdf, pdf_page_count  # noqa: E402
+from app.law import docparse
+from app.law.ocr import REPAIRS, THAI, OcrUnavailable, clean, ocr_pdf, pdf_page_count
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))
 OUT = WORK / "ocr-compare"
@@ -135,17 +135,17 @@ def run(engines: list[str], limit: int | None, force: bool, src_dir: str | None 
         d.mkdir(parents=True, exist_ok=True)
         for k, t in enumerate(todo, 1):
             raw_p, meta_p = d / f"{t['sha256']}.raw.txt", d / f"{t['sha256']}.json"
-            if raw_p.exists() and meta_p.exists() and not force:
-                # --redo-gaps: OCR ใหม่เฉพาะไฟล์ที่ผลเดิมมีหัวข้อหาย (หลังปรับการจัดบรรทัด)
-                if not (redo_gaps and metrics(raw_p.read_text(encoding="utf-8"))["missing_headings"] > 0):
-                    continue
+            # --redo-gaps: OCR ใหม่เฉพาะไฟล์ที่ผลเดิมมีหัวข้อหาย (หลังปรับการจัดบรรทัด)
+            if (raw_p.exists() and meta_p.exists() and not force
+                    and not (redo_gaps and metrics(raw_p.read_text(encoding="utf-8"))["missing_headings"] > 0)):
+                continue
             t0 = time.perf_counter()
             try:
                 raw = ocr_pdf(t["disk"], eng)
             except OcrUnavailable as e:
                 print(f"ข้าม {eng}: {e}")
                 break
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 print(f"✗ {eng} {t['reg']}: {type(e).__name__}: {e}"[:300])
                 continue
             sec = time.perf_counter() - t0

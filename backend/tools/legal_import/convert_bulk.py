@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # backend/ → import app.law.docparse
-from app.law.docparse import (build_instrument, doc_paragraphs, docx_paragraphs, fix_lost_am,  # noqa: E402
+from app.law.docparse import (build_instrument, doc_paragraphs, docx_paragraphs, fix_lost_am,
                               gazette_from_text, layout_paragraphs, pdf_paragraphs, tone_ratio, THAI_RE, MIN_TONE_RATIO)
 
 WORK = Path(os.environ.get("LEGAL_IMPORT_WORK", "work"))

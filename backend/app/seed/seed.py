@@ -25,6 +25,7 @@ from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
+from .. import clock
 from ..appeals.workflow import STEPS
 from ..config import is_production, laws_internal_dir, public_data_only
 from ..db import get_engine, init_schema, reset_schema
@@ -568,7 +569,7 @@ def run_laws(conn: Connection) -> dict:
 def run(conn: Connection, today: date | None = None) -> dict:
     """ล้างฐานแล้วสร้างใหม่ + ข้อมูลสาธิต (ไม่ทำงานบนเครื่องจริง — ดู check_demo_reset_allowed)"""
     check_demo_reset_allowed(conn)
-    today = today or date.today()
+    today = today or clock.today()
     rng = random.Random(42)
     reset_schema(conn)
     load_workflow_steps(conn)

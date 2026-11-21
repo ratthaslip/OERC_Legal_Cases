@@ -10,6 +10,7 @@ manifest.csv (UTF-8): file,classification,source,received_from,received_at,note
 ผู้เพิ่มไฟล์ใช้ค่า IMPORT_ACTOR (ไม่ตั้ง = "cli")
 """
 import argparse
+import contextlib
 import csv
 import os
 import sys
@@ -30,7 +31,7 @@ def pdf_pages(path: Path) -> int | None:
         import pymupdf
         with pymupdf.open(path) as d:
             return d.page_count
-    except Exception:  # noqa: BLE001 — ไม่มี pymupdf หรือไฟล์เสีย: ไม่บังคับ
+    except Exception:
         return None
 
 
@@ -67,10 +68,8 @@ def add_zip(conn: Connection, zip_path: Path, classification: str, source: str |
                 continue
             name = info.filename
             if not info.flag_bits & 0x800:
-                try:
+                with contextlib.suppress(UnicodeError):
                     name = name.encode("cp437").decode("utf-8")
-                except UnicodeError:
-                    pass
             ext = Path(name).suffix.lower()
             if ext not in (".pdf", ".doc", ".docx", ".xlsx", ".xls"):
                 continue

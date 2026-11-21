@@ -40,7 +40,7 @@ def active_index(conn: Connection) -> dict | None:
     try:
         with conn.begin_nested():  # savepoint: ตารางยังไม่มี (ยังไม่ได้ seed schema ใหม่) ต้องไม่ทำให้ transaction ค้นหาล้ม
             r = rows(conn, "SELECT * FROM embedding_index WHERE active")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     return r[0] if r else None
 
@@ -126,7 +126,7 @@ def build(index_id: int, cfg=None) -> dict:
             if idx["activate_when_ready"] and not idx["active"]:
                 activate(conn, index_id)
             return {"status": "ready", **coverage(conn, idx)}
-    except Exception as e:  # noqa: BLE001 — บันทึกสาเหตุให้ผู้ดูแลเห็น แล้วกดอัปเดตเพื่อทำต่อได้
+    except Exception as e:
         log.warning("embedding index %s failed: %s", index_id, e)
         with eng.begin() as conn:
             conn.execute(text("UPDATE embedding_index SET status = 'failed', error = :e, finished_at = now() WHERE index_id = :i"),

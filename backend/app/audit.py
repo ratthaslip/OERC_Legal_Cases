@@ -5,7 +5,7 @@ hash = SHA-256(prev_hash || เนื้อหา canonical JSON) ทำให�
 """
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -25,7 +25,7 @@ def record(conn: Connection, user: User, action: str, resource: str, outcome: st
     # advisory lock กันสองคำขอเขียนพร้อมกันแล้วได้ prev_hash ตัวเดียวกัน
     conn.execute(text("SELECT pg_advisory_xact_lock(424242)"))
     prev = conn.execute(text("SELECT hash FROM audit_event ORDER BY seq DESC LIMIT 1")).scalar() or GENESIS
-    occurred_at = datetime.now(timezone.utc).isoformat()
+    occurred_at = datetime.now(UTC).isoformat()
     payload = {
         "occurred_at": occurred_at, "actor_id": user.user_id, "actor_role": user.role,
         "action": action, "resource": resource, "outcome": outcome, "detail": detail or {},
@@ -47,7 +47,7 @@ def verify_chain(conn: Connection) -> tuple[bool, int | None]:
     prev = GENESIS
     for r in conn.execute(text("SELECT * FROM audit_event ORDER BY seq")).mappings():
         payload = {
-            "occurred_at": r["occurred_at"].astimezone(timezone.utc).isoformat(), "actor_id": r["actor_id"], "actor_role": r["actor_role"],
+            "occurred_at": r["occurred_at"].astimezone(UTC).isoformat(), "actor_id": r["actor_id"], "actor_role": r["actor_role"],
             "action": r["action"], "resource": r["resource"], "outcome": r["outcome"], "detail": r["detail"],
         }
         if r["prev_hash"] != prev or r["hash"] != _digest(prev, payload):

@@ -5,7 +5,7 @@
 - extractive: ไม่เรียกโมเดล ประกอบคำตอบจากข้อความในแหล่งโดยตรง (สาธิต/เทสต์แบบออฟไลน์)
 """
 import json
-from typing import Iterator
+from collections.abc import Iterator
 
 import httpx
 

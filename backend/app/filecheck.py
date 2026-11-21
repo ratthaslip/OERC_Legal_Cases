@@ -53,7 +53,7 @@ def _check_pdf(data: bytes) -> int:
     with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
         f.write(data)
         f.flush()
-        info = subprocess.run(["pdfinfo", f.name], capture_output=True, text=True, timeout=60)
+        info = subprocess.run(["pdfinfo", f.name], check=False, capture_output=True, text=True, timeout=60)
     if info.returncode != 0:
         raise FileRejected("อ่านไฟล์ PDF ไม่ได้ (ไฟล์เสียหรือรูปแบบไม่ถูกต้อง)")
     if re.search(r"^Encrypted:\s+yes", info.stdout, flags=re.M):
